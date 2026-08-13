@@ -4,6 +4,7 @@ import { LogoutButton } from "@/components/LogoutButton";
 import { RunWorkspace } from "@/components/RunWorkspace";
 import { isAuthEnabled } from "@/lib/auth";
 import { hasLlmFallback } from "@/lib/config";
+import { demoSignalFeedForRun } from "@/lib/deal-signals";
 import {
   demoScorecardForRun,
   listMethodologyPacks,
@@ -24,11 +25,13 @@ export default async function RunPage({ params, searchParams }: Props) {
   if (!run) notFound();
   const showLogout = isAuthEnabled();
   const { tab } = await searchParams;
-  const initialTab = tab === "scorecard" ? "scorecard" : "notes";
+  const initialTab =
+    tab === "scorecard" ? "scorecard" : tab === "signals" ? "signals" : "notes";
 
   const samples = await listSamples();
   const titleToSlug = Object.fromEntries(samples.map((s) => [s.title, s.slug]));
   const initialCard = demoScorecardForRun(run, titleToSlug);
+  const signalFeed = demoSignalFeedForRun(run, titleToSlug);
   const packs = listMethodologyPacks().map((p) => ({ id: p.id, name: p.name }));
 
   return (
@@ -55,6 +58,7 @@ export default async function RunPage({ params, searchParams }: Props) {
         run={run}
         initialTab={initialTab}
         initialCard={initialCard}
+        signalFeed={signalFeed}
         llmAvailable={hasLlmFallback()}
         packs={packs}
       />

@@ -958,3 +958,20 @@ export function demoDealSignalFeed(transcript: TranscriptLine[]): DealSignalFeed
     mode: "demo",
   });
 }
+
+/** Demo feed for a run, mirroring demoScorecardForRun's slug resolution. */
+export function demoSignalFeedForRun(
+  run: {
+    source: string;
+    sourceLabel: string;
+    sampleSlug?: string;
+    transcript: TranscriptLine[];
+  },
+  titleToSlug?: Record<string, string>,
+): DealSignalFeed | null {
+  const slug =
+    run.sampleSlug ||
+    (run.source === "sample" ? titleToSlug?.[run.sourceLabel] : undefined);
+  if (slug !== "brightsmile-01-discovery") return null;
+  return demoDealSignalFeed(run.transcript);
+}

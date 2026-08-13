@@ -193,6 +193,9 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
           <a href="#try" className="btn-primary">
             See deal intelligence →
           </a>
+          <a href="/signals" className="btn-ghost">
+            Deal signals
+          </a>
           <a href="/live" className="btn-ghost">
             Live call
           </a>

@@ -60,9 +60,13 @@ export function MethodologyScorecardView({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canPlayAudio = Boolean(run.audioContentType);
 
-  useEffect(() => {
+  // Sync from the server-provided card without an effect (adjust-during-render
+  // pattern from react.dev/learn/you-might-not-need-an-effect).
+  const [prevInitialCard, setPrevInitialCard] = useState(initialCard);
+  if (initialCard !== prevInitialCard) {
+    setPrevInitialCard(initialCard);
     setCard(initialCard);
-  }, [initialCard]);
+  }
 
   useEffect(() => {
     if (!activeLineId) return;
@@ -230,14 +234,24 @@ export function MethodologyScorecardView({
                 disabled={busy}
               />
             </label>
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={busy || !llmAvailable}
-              onClick={() => void scoreWithLlm()}
-            >
-              {busy ? "Scoring…" : "Score with LLM"}
-            </button>
+            {llmAvailable ? (
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={busy}
+                onClick={() => void scoreWithLlm()}
+              >
+                {busy ? "Scoring…" : "Score with LLM"}
+              </button>
+            ) : (
+              <span
+                aria-disabled="true"
+                className="inline-flex cursor-not-allowed items-center rounded-full border border-mist/40 px-5 py-2.5 text-sm text-mist"
+                title="Set LLM_BASE_URL and LLM_API_KEY, then restart"
+              >
+                LLM scoring off
+              </span>
+            )}
             {card && (
               <button type="button" className="btn-ghost" onClick={() => void copyReport()}>
                 {copied ? "Copied" : "Copy report"}

@@ -292,3 +292,21 @@ describe("rules v2 (research-derived)", () => {
     assert.match(threading.resolvesWhen ?? "", /3\+ engaged contacts/);
   });
 });
+
+describe("run surface", () => {
+  it("demoSignalFeedForRun resolves the Brightsmile sample and abstains elsewhere", async () => {
+    const { demoSignalFeedForRun } = await import("../src/lib/deal-signals");
+    const t = brightsmile.transcript;
+    const hit = demoSignalFeedForRun(
+      { source: "sample", sourceLabel: "Brightsmile 1 · Discovery", transcript: t },
+      { "Brightsmile 1 · Discovery": "brightsmile-01-discovery" },
+    );
+    assert.ok(hit && hit.alerts.length > 0);
+    assert.equal(hit!.mode, "demo");
+    const miss = demoSignalFeedForRun(
+      { source: "upload", sourceLabel: "some-call.wav", transcript: t },
+      {},
+    );
+    assert.equal(miss, null);
+  });
+});
