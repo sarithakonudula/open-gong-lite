@@ -127,5 +127,53 @@ describe("speaker mapping", () => {
       "spk:1",
       "mono channel must not wipe the diarize label",
     );
+    assert.equal(speakerKey({ speaker: 0 }), "spk:0", "numeric 0 is a speaker");
+    assert.equal(speakerKey({ speaker: 1 }), "spk:1");
+  });
+
+  it("splits numeric speaker 0 / 1 instead of collapsing onto one label", () => {
+    const transcript = hearResultToTranscript({
+      segments: [
+        { speaker: 0, text: "hello from the rep", start: 0, end: 1 },
+        { speaker: 1, text: "hello from the buyer", start: 1.1, end: 2 },
+        { speaker: 0, text: "let's book a demo", start: 2.2, end: 3 },
+      ],
+    });
+    assert.deepEqual(
+      transcript.map((line) => line.speaker),
+      ["Rep", "Prospect", "Rep"],
+    );
+  });
+
+  it("uses numeric word-level speakers when the segment is one blob", () => {
+    const transcript = hearResultToTranscript({
+      speakers: 2,
+      segments: [
+        {
+          speaker: 0,
+          text: "hello hi how are you doing hey yes everything is fine",
+          start: 0,
+          end: 4,
+        },
+      ],
+      words: [
+        { word: "hello", speaker: 0, start: 0, end: 0.3 },
+        { word: "hi", speaker: 0, start: 0.3, end: 0.5 },
+        { word: "how", speaker: 0, start: 0.5, end: 0.7 },
+        { word: "are", speaker: 0, start: 0.7, end: 0.9 },
+        { word: "you", speaker: 0, start: 0.9, end: 1.1 },
+        { word: "doing", speaker: 0, start: 1.1, end: 1.4 },
+        { word: "hey", speaker: 1, start: 1.6, end: 1.8 },
+        { word: "yes", speaker: 1, start: 1.8, end: 2.0 },
+        { word: "everything", speaker: 1, start: 2.0, end: 2.4 },
+        { word: "is", speaker: 1, start: 2.4, end: 2.5 },
+        { word: "fine", speaker: 1, start: 2.5, end: 2.8 },
+      ],
+    });
+    assert.equal(transcript.length, 2);
+    assert.equal(transcript[0]?.speaker, "Rep");
+    assert.equal(transcript[1]?.speaker, "Prospect");
+    assert.match(transcript[0]?.text || "", /hello/);
+    assert.match(transcript[1]?.text || "", /fine/);
   });
 });

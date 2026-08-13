@@ -299,11 +299,9 @@ export async function createTranscriptionJobFromUrl(opts: {
     audio_url: opts.audioUrl,
     model: mode.model,
     numerals: true,
-    output_formats: ["json"],
-    call_id: opts.callId,
-    language: "en",
   };
-  // Recap is triggered later from mapped speakers — don't send pack_id here.
+  // Recap is triggered later from mapped speakers — don't send pack_id or
+  // call_id here (call_id alone auto-starts Recap from raw Hear segments).
   // Never send channel+diarize together (PyAI treats that as a merged-speaker job).
   if (mode.channel) body.channel = true;
   else if (mode.diarize) body.diarize = true;
@@ -349,9 +347,6 @@ export async function createTranscriptionJobFromUpload(opts: {
   if (mode.channel) form.append("channel", "true");
   else if (mode.diarize) form.append("diarize", "true");
   form.append("numerals", "true");
-  form.append("output_formats", "json");
-  form.append("call_id", opts.callId);
-  form.append("language", "en");
   if (opts.customerName) form.append("customer_name", opts.customerName);
 
   const response = await pyaiFetch("/transcription/jobs", {
@@ -561,13 +556,8 @@ export async function runHearAndMaybeRecap(opts: {
     let result = await pollTranscriptionJob(created.jobId);
     let transcript = hearResultToTranscript(result);
     const speakers = new Set(transcript.map((line) => line.speaker));
-    const worthRetry =
-      mode.channel ||
-      wavChannels === 2 ||
-      looksStereoSource(opts.filename) ||
-      looksStereoSource(opts.audioUrl);
 
-    if (speakers.size < 2 && worthRetry) {
+    if (speakers.size < 2) {
       const alt = oppositeHearJobMode(mode);
       try {
         const retry =

@@ -1,22 +1,25 @@
 import { TranscriptLine } from "./types";
 
-export type HearSegment = {
-  id?: number;
-  start?: number;
-  end?: number;
-  text?: string;
-  speaker?: string;
-  channel?: number;
-};
-
 export type HearWord = {
   word?: string;
   text?: string;
   punctuated_word?: string;
   start?: number;
   end?: number;
-  speaker?: string;
+  speaker?: string | number;
   channel?: number;
+  speaker_id?: string | number;
+};
+
+export type HearSegment = {
+  id?: number;
+  start?: number;
+  end?: number;
+  text?: string;
+  speaker?: string | number;
+  channel?: number;
+  words?: HearWord[];
+  speaker_id?: string | number;
 };
 
 export type HearJobResult = {
@@ -38,10 +41,36 @@ const ROLE_LABELS = ["Rep", "Prospect"] as const;
 
 type IdentityMode = "speaker" | "channel";
 
-function speakerLabelKey(
-  part: Pick<HearSegment, "speaker" | "channel">,
+/** Hear uses `speaker_0` strings *or* numeric 0/1. `0` is falsy in JS. */
+function coerceSpeakerLabel(value: unknown): string {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return `speaker_${value}`;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+    if (/^\d+$/.test(trimmed)) return `speaker_${trimmed}`;
+    return trimmed;
+  }
+  return "";
+}
+
+function readSpeaker(
+  part: Pick<HearSegment, "speaker" | "speaker_id" | "channel">,
 ): string {
-  const raw = (part.speaker || "").trim();
+  const rec = part as Record<string, unknown>;
+  return (
+    coerceSpeakerLabel(part.speaker) ||
+    coerceSpeakerLabel(part.speaker_id) ||
+    coerceSpeakerLabel(rec.speakerId) ||
+    coerceSpeakerLabel(rec.spk)
+  );
+}
+
+function speakerLabelKey(
+  part: Pick<HearSegment, "speaker" | "speaker_id" | "channel">,
+): string {
+  const raw = readSpeaker(part);
   if (!raw) return "";
   const numbered = raw.match(/(?:speaker|ch(?:annel)?)[_\s-]*(\d+)/i);
   if (numbered) return `spk:${Number(numbered[1])}`;
@@ -89,6 +118,78 @@ function wordText(word: HearWord): string {
   return (word.punctuated_word || word.word || word.text || "").trim();
 }
 
+function asNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  return undefined;
+}
+
+function normalizeWord(raw: unknown): HearWord | null {
+  if (!raw || typeof raw !== "object") return null;
+  const rec = raw as Record<string, unknown>;
+  const text = wordText(rec as HearWord);
+  if (!text) return null;
+  return {
+    word: text,
+    text,
+    start: asNumber(rec.start),
+    end: asNumber(rec.end),
+    speaker: readSpeaker(rec as HearWord),
+    channel: asNumber(rec.channel),
+  };
+}
+
+function normalizeSegment(raw: unknown): HearSegment | null {
+  if (!raw || typeof raw !== "object") return null;
+  const rec = raw as Record<string, unknown>;
+  const text = typeof rec.text === "string" ? rec.text.trim() : "";
+  const nestedWords = Array.isArray(rec.words)
+    ? rec.words.map(normalizeWord).filter((w): w is HearWord => Boolean(w))
+    : [];
+  if (!text && !nestedWords.length) return null;
+  return {
+    text: text || nestedWords.map((w) => w.word).join(" "),
+    start: asNumber(rec.start),
+    end: asNumber(rec.end),
+    speaker: readSpeaker(rec as HearSegment),
+    channel: asNumber(rec.channel),
+    words: nestedWords.length ? nestedWords : undefined,
+  };
+}
+
+/** Unwrap job payloads and coerce speaker ids so 0/1 are not dropped. */
+export function normalizeHearResult(raw: unknown): HearJobResult {
+  if (!raw || typeof raw !== "object") return {};
+  const obj = raw as Record<string, unknown>;
+  const inner =
+    obj.result && typeof obj.result === "object" && !Array.isArray(obj.result)
+      ? (obj.result as Record<string, unknown>)
+      : obj;
+  const segments = Array.isArray(inner.segments)
+    ? inner.segments.map(normalizeSegment).filter((s): s is HearSegment => Boolean(s))
+    : [];
+  const topWords = Array.isArray(inner.words)
+    ? inner.words.map(normalizeWord).filter((w): w is HearWord => Boolean(w))
+    : [];
+  const nestedWords = segments.flatMap((s) => s.words || []);
+  return {
+    text: typeof inner.text === "string" ? inner.text : undefined,
+    speakers: asNumber(inner.speakers),
+    audio_seconds: asNumber(inner.audio_seconds),
+    segments: segments.map((segment) => ({
+      text: segment.text,
+      start: segment.start,
+      end: segment.end,
+      speaker: segment.speaker,
+      channel: segment.channel,
+    })),
+    words: topWords.length ? topWords : nestedWords,
+  };
+}
+
 function uniqueSpeakerCount(
   parts: Array<Pick<HearSegment, "speaker" | "channel">>,
 ) {
@@ -118,7 +219,7 @@ export function wordsToSegments(words: HearWord[]): HearSegment[] {
         text,
         start: word.start,
         end: word.end,
-        speaker: word.speaker,
+        speaker: readSpeaker(word),
         channel: word.channel,
       });
     }
@@ -131,18 +232,23 @@ export function wordsToSegments(words: HearWord[]): HearSegment[] {
  * PyAI diarize (Sortformer) aligns speakers on words, not always on segments.
  */
 export function speakerTurnsFromResult(result: HearJobResult): HearSegment[] {
-  const segments = (result.segments || []).filter(
+  const normalized = normalizeHearResult(result);
+  const segments = (normalized.segments || []).filter(
     (segment) => (segment.text || "").trim().length > 0,
   );
-  const words = result.words || [];
+  const words = normalized.words || [];
   const wordTurns = words.length ? wordsToSegments(words) : [];
   const segmentSpeakers = uniqueSpeakerCount(segments);
   const wordSpeakers = uniqueSpeakerCount(wordTurns);
+  const reported = normalized.speakers ?? 0;
 
-  if (wordTurns.length && wordSpeakers > Math.max(1, segmentSpeakers)) {
+  if (wordTurns.length && wordSpeakers > segmentSpeakers) {
     return wordTurns;
   }
   if (segmentSpeakers <= 1 && wordSpeakers > 1) {
+    return wordTurns;
+  }
+  if (reported >= 2 && wordSpeakers >= 2) {
     return wordTurns;
   }
   return segments;
@@ -171,7 +277,7 @@ function displaySpeaker(
 ): string {
   const key = speakerKey(turn, mode);
   if (key && labels.has(key)) return labels.get(key)!;
-  const raw = turn.speaker?.trim();
+  const raw = readSpeaker(turn);
   if (raw) return raw;
   if (typeof turn.channel === "number") return `Speaker ${turn.channel}`;
   return index % 2 === 0 ? "Rep" : "Prospect";
@@ -205,10 +311,11 @@ export function segmentsToTranscript(
 }
 
 export function hearResultToTranscript(result: HearJobResult): TranscriptLine[] {
-  const turns = speakerTurnsFromResult(result);
+  const normalized = normalizeHearResult(result);
+  const turns = speakerTurnsFromResult(normalized);
   if (turns.length) return segmentsToTranscript(turns);
 
-  const text = (result.text || "").trim();
+  const text = (normalized.text || "").trim();
   if (!text) return [];
 
   return text
