@@ -10,6 +10,7 @@ import {
   getMethodologyPack,
   applyMethodologyVerdict,
   demoMethodologyScorecard,
+  demoScorecardForRun,
   renderMethodologyReport,
   DEMO_METHODOLOGY_VERDICTS,
 } from "../src/lib/methodology";
@@ -126,6 +127,35 @@ describe("scorecard + report", () => {
     assert.match(report, /## Coaching/);
     assert.match(report, /single_threaded/);
     assert.doesNotMatch(report, /we can sign by end of month/, "demoted evidence never renders as proof");
+  });
+
+  it("resolves a stored verdict from sampleSlug or sample title", () => {
+    const fromSlug = demoScorecardForRun({
+      source: "sample",
+      sourceLabel: "Brightsmile 1 · Discovery",
+      sampleSlug: "brightsmile-01-discovery",
+      transcript: brightsmile.transcript,
+    });
+    assert.ok(fromSlug);
+    assert.equal(fromSlug.pack.id, "meddic");
+
+    const fromTitle = demoScorecardForRun(
+      {
+        source: "sample",
+        sourceLabel: "Brightsmile 1 · Discovery",
+        transcript: brightsmile.transcript,
+      },
+      { "Brightsmile 1 · Discovery": "brightsmile-01-discovery" },
+    );
+    assert.ok(fromTitle);
+    assert.equal(fromTitle.score, fromSlug.score);
+
+    const live = demoScorecardForRun({
+      source: "live",
+      sourceLabel: "Live · Brightsmile 1 · Discovery",
+      transcript: brightsmile.transcript,
+    });
+    assert.equal(live, null);
   });
 
   it("not_applicable traits leave the denominator", () => {

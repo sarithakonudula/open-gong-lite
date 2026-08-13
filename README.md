@@ -72,6 +72,7 @@ Scopes for the full live path:
 - Brightsmile × CallForge deal arc (six calls) plus one-shot samples in `sample-calls/` — click-to-play audio on the arc
 - **Live call** at `/live` — scripted offline stream **or** mic → Hear → gates
 - Search across past runs on the home page
+- Methodology scorecard tab on `/runs/[id]` — MEDDIC (and 13 other packs), same L7 receipts; Brightsmile 1 ships offline
 - Judge one-pager at `/how` — why the harness is the product
 - Network-call audit trail in `DATA-FLOW.md`
 
@@ -86,6 +87,7 @@ Scopes for the full live path:
 | Retry | Schema / zero-receipt runs retry with reason (capped) |
 | Status | `shipped` / `partial` / `failed` from coverage %; sandbox 401 remints; daily cap is a named exit |
 | Budget | Attempts + deadline governor |
+| Methodology | Depth 0–3 per trait; deal-band rigor; evidence re-gated; demo verdict on Brightsmile 1 |
 
 ## Demo script (90 seconds)
 
@@ -95,7 +97,8 @@ Scopes for the full live path:
 4. Run **Brightsmile 6 · Messy**. Red injection, struck through. Follow-up email does not contain it.
 5. Search **`tcpa`** (after running call 2 + 4) — promised Friday, dropped on the ledger call.
 6. Optional encore: `/live` mic or upload. Recap notes that cannot re-find a quote stay grey.
-7. `/how` if judges ask. Close: *It's a git clone.*
+7. Optional: run **Brightsmile 1 · Discovery**, open the Scorecard tab — MEDDIC depth with the same receipts; champion is out of band on a $30k deal.
+8. `/how` if judges ask. Close: *It's a git clone.*
 
 ## Known limitations (on purpose)
 

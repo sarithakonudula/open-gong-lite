@@ -109,6 +109,11 @@ export const RunRecordSchema = z.object({
   status: RunStatusSchema,
   source: z.enum(["upload", "url", "sample", "live"]),
   sourceLabel: z.string(),
+  /** Sample slug when source is sample — used to attach a stored methodology verdict. */
+  sampleSlug: z
+    .string()
+    .regex(/^[a-z0-9-]{1,80}$/)
+    .optional(),
   shareToken: z.string(),
   transcript: z.array(TranscriptLineSchema).default([]),
   notes: DealNotesSchema.nullable().default(null),

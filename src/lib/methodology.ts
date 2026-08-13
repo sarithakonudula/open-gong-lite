@@ -579,6 +579,23 @@ export function demoMethodologyScorecard(
   });
 }
 
+/** Resolve a stored demo verdict for a run without calling the LLM. */
+export function demoScorecardForRun(
+  run: {
+    source: string;
+    sourceLabel: string;
+    sampleSlug?: string;
+    transcript: TranscriptLine[];
+  },
+  titleToSlug?: Record<string, string>,
+): MethodologyScorecard | null {
+  const slug =
+    run.sampleSlug ||
+    (run.source === "sample" ? titleToSlug?.[run.sourceLabel] : undefined);
+  if (!slug) return null;
+  return demoMethodologyScorecard(slug, run.transcript);
+}
+
 // ── Embedded packs (14) ─────────────────────────────────────────────────────
 // Generated from the methodology-coach pack library; component lists follow
 // the methodology owners' materials. rigor drives deal-band scoring above.

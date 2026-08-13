@@ -15,6 +15,7 @@ export async function POST(_request: NextRequest, context: Ctx) {
     const run = await runDealNotesLoop({
       source: "sample",
       sourceLabel: sample.meta.title,
+      sampleSlug: sample.meta.slug,
       transcript: sample.transcript,
       titleHint: sample.meta.title,
       // Prefer curated sample deal-intel; fall back to local extract.

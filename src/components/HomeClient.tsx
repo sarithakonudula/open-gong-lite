@@ -224,7 +224,7 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
               Brightsmile × CallForge — one deal, six calls
             </h2>
             <p className="mt-2 max-w-2xl text-mist">
-              Friday path: run call 3 (planted fake demoted), call 4 (search{" "}
+              Friday path: call 1 has a MEDDIC scorecard tab. Then run call 3 (planted fake demoted), call 4 (search{" "}
               <button
                 type="button"
                 className="text-signal underline-offset-2 hover:underline"
@@ -259,6 +259,11 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
               <h3 className="mt-3 font-[family-name:var(--font-display)] text-2xl tracking-tight">
                 {sample.title}
               </h3>
+              {sample.slug === "brightsmile-01-discovery" && (
+                <p className="mt-2 text-xs uppercase tracking-[0.14em] text-signal">
+                  MEDDIC scorecard on the run
+                </p>
+              )}
               <p className="mt-2 text-sm leading-relaxed text-fog/80">
                 {sample.description}
               </p>

@@ -1,19 +1,35 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DealNotesView } from "@/components/DealNotesView";
 import { LogoutButton } from "@/components/LogoutButton";
+import { RunWorkspace } from "@/components/RunWorkspace";
 import { isAuthEnabled } from "@/lib/auth";
+import { hasLlmFallback } from "@/lib/config";
+import {
+  demoScorecardForRun,
+  listMethodologyPacks,
+} from "@/lib/methodology";
+import { listSamples } from "@/lib/samples";
 import { getRun } from "@/lib/store";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
+};
 
-export default async function RunPage({ params }: Props) {
+export default async function RunPage({ params, searchParams }: Props) {
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
 
   const run = await getRun(id);
   if (!run) notFound();
   const showLogout = isAuthEnabled();
+  const { tab } = await searchParams;
+  const initialTab = tab === "scorecard" ? "scorecard" : "notes";
+
+  const samples = await listSamples();
+  const titleToSlug = Object.fromEntries(samples.map((s) => [s.title, s.slug]));
+  const initialCard = demoScorecardForRun(run, titleToSlug);
+  const packs = listMethodologyPacks().map((p) => ({ id: p.id, name: p.name }));
 
   return (
     <main className="min-h-screen">
@@ -35,7 +51,13 @@ export default async function RunPage({ params }: Props) {
           </div>
         </div>
       </div>
-      <DealNotesView run={run} />
+      <RunWorkspace
+        run={run}
+        initialTab={initialTab}
+        initialCard={initialCard}
+        llmAvailable={hasLlmFallback()}
+        packs={packs}
+      />
     </main>
   );
 }

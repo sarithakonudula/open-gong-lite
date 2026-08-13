@@ -92,6 +92,19 @@ export default function HowPage() {
               verified — honesty is the product.
             </p>
           </li>
+          <li>
+            <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
+              6 · Methodology scorecard
+            </h2>
+            <p className="mt-2 text-mist">
+              A second tab on the run page scores the call against MEDDIC (or
+              another pack) on a 0–3 depth rubric. Evidence still runs the L7
+              gate. Deal-band rigor keeps champion-building off the denominator
+              on a mid-market deal instead of punishing a short discovery.
+              Brightsmile 1 ships a stored verdict with no LLM keys; live scoring
+              is opt-in.
+            </p>
+          </li>
         </ol>
 
         <section className="mt-14 space-y-4">
@@ -129,7 +142,8 @@ export default function HowPage() {
   → Recap (or LLM / demo extract)
   → injection screen + L7 receipts
   → email choke
-  → UI / share / export`}</pre>
+  → UI / share / export
+  → optional methodology tab (stored verdict or LLM)`}</pre>
         </section>
 
         <div className="mt-10 flex flex-wrap gap-3">

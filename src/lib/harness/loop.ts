@@ -19,6 +19,8 @@ import {
 export type AnalyzeInput = {
   source: "upload" | "url" | "sample" | "live";
   sourceLabel: string;
+  /** Sample slug when source is sample — attaches a stored methodology verdict. */
+  sampleSlug?: string;
   transcript: TranscriptLine[];
   titleHint?: string;
   forceDemoExtract?: boolean;
@@ -98,6 +100,7 @@ export async function runDealNotesLoop(
     status: "running",
     source: input.source,
     sourceLabel: input.sourceLabel,
+    ...(input.sampleSlug ? { sampleSlug: input.sampleSlug } : {}),
     shareToken: newShareToken(),
     transcript: input.transcript,
     notes: null,
