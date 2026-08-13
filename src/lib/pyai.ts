@@ -6,7 +6,59 @@ import {
   type HearJobResult,
   type RecapUtterance,
 } from "@/lib/hear-speakers";
+import {
+  canRemintSandbox,
+  isSandboxKey,
+  remintSandboxKey,
+} from "@/lib/pyai-key";
 import { TranscriptLine } from "@/lib/types";
+
+export class PyAiError extends Error {
+  readonly code: string;
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = code;
+    this.code = code;
+  }
+}
+
+/** Short Retry-After = throttle; missing/long = sandbox daily cap. */
+export function classify429(retryAfter: string | null): {
+  action: "retry" | "daily_cap";
+  waitMs?: number;
+} {
+  let seconds = Number(retryAfter);
+  if (!Number.isFinite(seconds) && retryAfter) {
+    const when = Date.parse(retryAfter);
+    if (!Number.isNaN(when)) seconds = Math.ceil((when - Date.now()) / 1000);
+  }
+  if (!Number.isFinite(seconds) || seconds <= 0 || seconds > 60) {
+    return { action: "daily_cap" };
+  }
+  return {
+    action: "retry",
+    waitMs: seconds * 1000 + Math.floor(Math.random() * 250),
+  };
+}
+
+export function pyaiUserMessage(error: unknown): {
+  message: string;
+  status: number;
+  code?: string;
+} {
+  if (error instanceof PyAiError) {
+    if (error.code === "PYAI_DAILY_CAP") {
+      return { message: error.message, status: 429, code: error.code };
+    }
+    if (error.code === "PYAI_AUTH_FAILED") {
+      return { message: error.message, status: 401, code: error.code };
+    }
+    return { message: error.message, status: 502, code: error.code };
+  }
+  const message =
+    error instanceof Error ? error.message : "PyAI request failed";
+  return { message, status: 500 };
+}
 
 export type {
   HearJobResult,
@@ -43,21 +95,59 @@ async function pyaiFetch(
   pathname: string,
   init: RequestInit = {},
 ): Promise<Response> {
-  if (!config.pyaiApiKey) {
-    throw new Error("PYAI_API_KEY is not configured");
+  let remintsLeft = canRemintSandbox() ? 1 : 0;
+  let retries429 = 2;
+
+  while (true) {
+    if (!config.pyaiApiKey) {
+      throw new PyAiError(
+        "PYAI_AUTH_FAILED",
+        "No PyAI key. Set PYAI_API_KEY or enable sandbox auto-mint.",
+      );
+    }
+
+    const headers = new Headers(init.headers);
+    if (!headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${config.pyaiApiKey}`);
+    }
+
+    const response = await fetch(`${config.pyaiBaseUrl}${pathname}`, {
+      ...init,
+      headers,
+    });
+
+    if (
+      response.status === 401 &&
+      remintsLeft > 0 &&
+      isSandboxKey(config.pyaiApiKey)
+    ) {
+      remintsLeft -= 1;
+      await remintSandboxKey();
+      continue;
+    }
+
+    if (response.status === 401) {
+      throw new PyAiError(
+        "PYAI_AUTH_FAILED",
+        "PyAI key rejected. Set a live PYAI_API_KEY or wait for sandbox remint.",
+      );
+    }
+
+    if (response.status === 429) {
+      const verdict = classify429(response.headers.get("retry-after"));
+      if (verdict.action === "retry" && retries429 > 0 && verdict.waitMs) {
+        retries429 -= 1;
+        await sleep(verdict.waitMs);
+        continue;
+      }
+      throw new PyAiError(
+        "PYAI_DAILY_CAP",
+        "PyAI sandbox daily cap reached — resets daily. Samples still work offline.",
+      );
+    }
+
+    return response;
   }
-
-  const headers = new Headers(init.headers);
-  if (!headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${config.pyaiApiKey}`);
-  }
-
-  const response = await fetch(`${config.pyaiBaseUrl}${pathname}`, {
-    ...init,
-    headers,
-  });
-
-  return response;
 }
 
 async function pyaiJson<T>(
@@ -66,9 +156,9 @@ async function pyaiJson<T>(
 ): Promise<T> {
   const response = await pyaiFetch(pathname, init);
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(
-      `PyAI ${pathname} failed (${response.status}): ${body.slice(0, 320)}`,
+    throw new PyAiError(
+      "PYAI_REQUEST_FAILED",
+      `PyAI ${pathname} failed (${response.status})`,
     );
   }
   return (await response.json()) as T;

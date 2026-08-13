@@ -25,9 +25,9 @@ export default function HowPage() {
           The harness is the product
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-fog/90">
-          Models draft. Gates decide what ships. Every claim in OpenGong Lite
-          must point at a real transcript line — or the run fails the gate and
-          retries with the exact failure reason.
+          Models draft. Gates decide what is allowed to look like a fact.
+          Unproven claims stay on the page in grey — they never silently ship.
+          Injected lines are struck through and barred from the follow-up email.
         </p>
 
         <ol className="mt-12 space-y-8">
@@ -37,8 +37,8 @@ export default function HowPage() {
             </h2>
             <p className="mt-2 text-mist">
               Bad JSON never becomes deal notes. Zod validates title, summary,
-              objections, intent, next steps, and follow-up email before any UI
-              render.
+              objections, intent, next steps, pain, pricing, competitors, and
+              follow-up email before any UI render.
             </p>
           </li>
           <li>
@@ -50,30 +50,44 @@ export default function HowPage() {
               quote. Quotes are checked in order: exact substring → normalized
               match (no digit folding — &quot;forty&quot; ≠ &quot;40&quot;) →
               long unique rescue across the call → else{" "}
-              <code className="text-signal">unproven_claim</code>. Fuzzy
-              paraphrase never ships.
+              <code className="text-signal">uncorroborated</code>. Demote, don&apos;t
+              hide. Fuzzy paraphrase never ships as verified.
             </p>
           </li>
           <li>
             <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
-              3 · Bounded retry
+              3 · Injection screen
             </h2>
             <p className="mt-2 text-mist">
-              Failed attempts feed gate reasons back into the next try (capped by{" "}
-              <code className="text-signal">OPENGONG_MAX_ATTEMPTS</code>). The
-              loop never hangs — a deadline governor ends the run.
+              A planted line <em>is</em> in the transcript, so receipts alone
+              cannot catch it. A separate taint screen quarantines instruction-shaped
+              utterances. Best-effort on purpose — the email choke is the
+              load-bearing layer.
             </p>
           </li>
           <li>
             <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
-              4 · Visible status
+              4 · Email choke
             </h2>
             <p className="mt-2 text-mist">
-              Every run ends <code className="text-signal">shipped</code>,{" "}
-              <code className="text-signal">partial</code>, or{" "}
-              <code className="text-signal">failed</code>, with attempt history
-              on the deal-intelligence page. Judges can see exactly why a claim
-              was blocked.
+              Follow-up drafts are built only from{" "}
+              <code className="text-signal">verified</code> /{" "}
+              <code className="text-signal">segment_corrected</code> claims.
+              Citing an unproven id rejects the whole draft. Unverified claims
+              never leave this page.
+            </p>
+          </li>
+          <li>
+            <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
+              5 · Bounded retry + visible status
+            </h2>
+            <p className="mt-2 text-mist">
+              Schema failures and zero-receipt runs retry with the reason
+              (capped). Coverage decides{" "}
+              <code className="text-signal">shipped</code> /{" "}
+              <code className="text-signal">partial</code> /{" "}
+              <code className="text-signal">failed</code>. The header shows %
+              verified — honesty is the product.
             </p>
           </li>
         </ol>
@@ -85,7 +99,8 @@ export default function HowPage() {
           <pre className="mt-4 overflow-x-auto whitespace-pre-wrap font-[family-name:var(--font-mono)] text-sm leading-relaxed text-fog/90">{`audio / sample / live
   → Hear (jobs or sync)
   → Recap (or LLM / demo extract)
-  → gates (schema + receipts)
+  → injection screen + L7 receipts
+  → email choke
   → UI / share / export`}</pre>
         </section>
 

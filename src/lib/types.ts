@@ -19,11 +19,58 @@ export const EvidenceSchema = z.object({
 });
 export type Evidence = z.infer<typeof EvidenceSchema>;
 
+export const ClaimStatusSchema = z.enum([
+  "verified",
+  "segment_corrected",
+  "uncorroborated",
+  "blocked_injection",
+]);
+export type ClaimStatus = z.infer<typeof ClaimStatusSchema>;
+
+export const EMAILABLE_STATUSES: ReadonlySet<ClaimStatus> = new Set([
+  "verified",
+  "segment_corrected",
+]);
+
 export const ClaimSchema = z.object({
+  id: z.string().min(1).optional(),
   text: z.string().min(1),
   evidence: EvidenceSchema,
+  status: ClaimStatusSchema.optional(),
+  blockedReasons: z.array(z.string()).optional(),
 });
 export type Claim = z.infer<typeof ClaimSchema>;
+
+export const CoverageBandSchema = z.enum([
+  "SHIPPED",
+  "SHIPPED_WITH_CORRECTIONS",
+  "PARTIAL_CLAIMS_DROPPED",
+  "PARTIAL_LOW_COVERAGE",
+  "FAILED_UNPROVEN",
+]);
+export type CoverageBand = z.infer<typeof CoverageBandSchema>;
+
+export const CoverageSchema = z.object({
+  band: CoverageBandSchema,
+  ratio: z.number().min(0).max(1),
+  stats: z.object({
+    verified: z.number().int().nonnegative(),
+    segment_corrected: z.number().int().nonnegative(),
+    uncorroborated: z.number().int().nonnegative(),
+    blocked_injection: z.number().int().nonnegative(),
+    attempted: z.number().int().nonnegative(),
+    corroborated: z.number().int().nonnegative(),
+  }),
+});
+export type Coverage = z.infer<typeof CoverageSchema>;
+
+export const FollowUpEmailSchema = z.object({
+  subject: z.string().min(1),
+  body: z.string().min(1),
+  evidence: EvidenceSchema,
+  status: ClaimStatusSchema.optional(),
+});
+export type FollowUpEmail = z.infer<typeof FollowUpEmailSchema>;
 
 export const DealNotesSchema = z.object({
   title: z.string().min(1),
@@ -31,11 +78,11 @@ export const DealNotesSchema = z.object({
   objections: z.array(ClaimSchema).default([]),
   intent: z.array(ClaimSchema).min(1),
   nextSteps: z.array(ClaimSchema).min(1),
-  followUpEmail: z.object({
-    subject: z.string().min(1),
-    body: z.string().min(1),
-    evidence: EvidenceSchema,
-  }),
+  pain: z.array(ClaimSchema).default([]),
+  pricing: z.array(ClaimSchema).default([]),
+  competitors: z.array(ClaimSchema).default([]),
+  followUpEmail: FollowUpEmailSchema,
+  coverage: CoverageSchema.optional(),
 });
 export type DealNotes = z.infer<typeof DealNotesSchema>;
 
@@ -67,6 +114,7 @@ export const RunRecordSchema = z.object({
   notes: DealNotesSchema.nullable().default(null),
   attempts: z.array(AttemptRecordSchema).default([]),
   error: z.string().nullable().default(null),
+  audioContentType: z.string().nullable().optional(),
   budget: z.object({
     maxAttempts: z.number(),
     maxTokensEstimate: z.number(),
@@ -82,3 +130,9 @@ export type SampleCall = {
   durationLabel: string;
   description: string;
 };
+
+export function isEmailableStatus(
+  status: ClaimStatus | undefined,
+): boolean {
+  return status != null && EMAILABLE_STATUSES.has(status);
+}

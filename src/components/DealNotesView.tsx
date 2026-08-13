@@ -1,7 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { Claim, RunRecord } from "@/lib/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Claim, ClaimStatus, RunRecord } from "@/lib/types";
+import { isEmailableStatus } from "@/lib/types";
+
+const BADGE: Record<ClaimStatus, { label: string; className: string }> = {
+  verified: { label: "verified", className: "badge-verified" },
+  segment_corrected: { label: "corrected", className: "badge-corrected" },
+  uncorroborated: { label: "unproven", className: "badge-unproven" },
+  blocked_injection: { label: "injection blocked", className: "badge-blocked" },
+};
+
+function claimStatus(claim: Claim): ClaimStatus {
+  return claim.status ?? "verified";
+}
 
 function ClaimList({
   title,
@@ -29,20 +41,41 @@ function ClaimList({
         {title}
       </h3>
       <ul className="space-y-4">
-        {claims.map((claim, index) => (
-          <li key={`${title}-${index}`} className="space-y-2">
-            <p className="text-[1.05rem] leading-relaxed text-paper/95">
-              {claim.text}
-            </p>
-            <button
-              type="button"
-              className="receipt-link text-sm"
-              onClick={() => onReceipt(claim.evidence.lineId)}
+        {claims.map((claim, index) => {
+          const status = claimStatus(claim);
+          const badge = BADGE[status];
+          return (
+            <li
+              key={claim.id || `${title}-${index}`}
+              className={`space-y-2 ${status === "blocked_injection" ? "opacity-80" : ""}`}
             >
-              Receipt · {claim.evidence.lineId}: “{claim.evidence.quote}”
-            </button>
-          </li>
-        ))}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={badge.className}>{badge.label}</span>
+                {status === "blocked_injection" && claim.blockedReasons?.[0] && (
+                  <span className="text-xs text-heat">
+                    {claim.blockedReasons[0]}
+                  </span>
+                )}
+              </div>
+              <p
+                className={`text-[1.05rem] leading-relaxed ${
+                  status === "uncorroborated" || status === "blocked_injection"
+                    ? "text-mist line-through decoration-heat/60"
+                    : "text-paper/95"
+                }`}
+              >
+                {claim.text}
+              </p>
+              <button
+                type="button"
+                className="receipt-link text-sm"
+                onClick={() => onReceipt(claim.evidence.lineId)}
+              >
+                Receipt · {claim.evidence.lineId}: “{claim.evidence.quote}”
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
@@ -57,6 +90,8 @@ export function DealNotesView({
 }) {
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const canPlayAudio = Boolean(run.audioContentType) && !shareMode;
 
   useEffect(() => {
     if (!activeLineId) return;
@@ -85,6 +120,36 @@ export function DealNotesView({
   }, [run.attempts]);
 
   const notes = run.notes;
+  const coverage = notes?.coverage;
+  const allClaims = notes
+    ? [
+        ...notes.summary,
+        ...notes.objections,
+        ...notes.intent,
+        ...notes.nextSteps,
+        ...(notes.pain || []),
+        ...(notes.pricing || []),
+        ...(notes.competitors || []),
+      ]
+    : [];
+  const quarantined = allClaims.filter(
+    (c) => claimStatus(c) === "blocked_injection",
+  );
+
+  function jumpToLine(lineId: string) {
+    setActiveLineId(lineId);
+    if (!canPlayAudio || !audioRef.current) return;
+    const line = run.transcript.find((l) => l.id === lineId);
+    if (line?.startMs == null) return;
+    const audio = audioRef.current;
+    const seek = () => {
+      audio.currentTime = line.startMs! / 1000;
+      void audio.play().catch(() => undefined);
+    };
+    if (audio.readyState >= 1) seek();
+    else audio.addEventListener("loadedmetadata", seek, { once: true });
+  }
+
   const intelCounts = notes
     ? [
         { label: "Summary", value: notes.summary.length },
@@ -105,6 +170,10 @@ export function DealNotesView({
     }
   }
 
+  const verifiedPct = coverage
+    ? Math.round(coverage.ratio * 100)
+    : null;
+
   return (
     <div className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
       <div className="space-y-8">
@@ -116,12 +185,35 @@ export function DealNotesView({
             {notes?.title || run.sourceLabel}
           </h1>
           <p className="max-w-2xl text-base text-fog/85">
-            This page <span className="text-paper">is</span> the deal
-            intelligence: summary, objections, intent, next steps, and a
-            follow-up email. Click any green{" "}
-            <span className="text-signal">Receipt</span> to jump to proof in the
-            transcript on the right.
+            Models draft. Gates decide. Unproven claims stay visible — they
+            never pretend to be facts. Click a{" "}
+            <span className="text-signal">Receipt</span>
+            {canPlayAudio ? " to jump and play that second." : " to jump to the line."}
           </p>
+          {coverage && (
+            <p className="text-sm text-fog/90">
+              <span className="text-signal">
+                ✓ {coverage.stats.verified} verified
+              </span>
+              {" · "}
+              {coverage.stats.segment_corrected} corrected
+              {" · "}
+              <span className="text-heat">
+                ⚠ {coverage.stats.uncorroborated} unproven
+              </span>
+              {" · "}
+              <span className="text-heat">
+                ⛔ {coverage.stats.blocked_injection} blocked
+              </span>
+              {verifiedPct != null && (
+                <>
+                  {" — "}
+                  <span className="text-paper">{verifiedPct}% verified</span>
+                </>
+              )}
+              . Dropped claims stay visible.
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-3 text-sm text-mist">
             <span className={statusTone}>Status: {run.status}</span>
             <span>·</span>
@@ -155,14 +247,28 @@ export function DealNotesView({
             )}
           </div>
 
+          {quarantined.length > 0 && (
+            <div className="rounded-2xl border border-heat/40 bg-heat/10 px-4 py-3 text-sm">
+              <p className="font-medium text-heat">
+                {quarantined.length} prompt-injection line
+                {quarantined.length === 1 ? "" : "s"} quarantined
+              </p>
+              <p className="mt-1 text-fog/85">
+                Spoken into the call, caught, struck through, and barred from
+                the follow-up email.
+              </p>
+            </div>
+          )}
+
           {run.status !== "shipped" && (
             <div className="rounded-2xl border border-heat/40 bg-heat/10 px-4 py-3 text-sm text-paper">
               <p className="font-medium text-heat">
-                Harness did not clean-ship this run ({run.status})
+                Harness did not clean-ship this run ({run.status}
+                {coverage ? ` · ${coverage.band}` : ""})
               </p>
               <p className="mt-1 text-fog/85">
                 {run.error ||
-                  "See gate failures below — unproven claims never silently appear as facts."}
+                  "Demoted claims stay on this page — unproven lines never silently appear as facts."}
               </p>
               {gateFailures.length > 0 && (
                 <ul className="mt-3 space-y-1 text-fog/80">
@@ -201,27 +307,54 @@ export function DealNotesView({
             <ClaimList
               title="1 · Summary"
               claims={notes.summary}
-              onReceipt={setActiveLineId}
+              onReceipt={jumpToLine}
             />
             <ClaimList
               title="2 · Objections"
               claims={notes.objections}
-              onReceipt={setActiveLineId}
+              onReceipt={jumpToLine}
             />
             <ClaimList
               title="3 · Intent"
               claims={notes.intent}
-              onReceipt={setActiveLineId}
+              onReceipt={jumpToLine}
             />
             <ClaimList
               title="4 · Next steps"
               claims={notes.nextSteps}
-              onReceipt={setActiveLineId}
+              onReceipt={jumpToLine}
             />
+            {((notes.pain || []).length > 0 ||
+              (notes.pricing || []).length > 0 ||
+              (notes.competitors || []).length > 0) && (
+              <>
+                <ClaimList
+                  title="Pain"
+                  claims={notes.pain || []}
+                  onReceipt={jumpToLine}
+                />
+                <ClaimList
+                  title="Pricing"
+                  claims={notes.pricing || []}
+                  onReceipt={jumpToLine}
+                />
+                <ClaimList
+                  title="Competitors"
+                  claims={notes.competitors || []}
+                  onReceipt={jumpToLine}
+                />
+              </>
+            )}
             <section className="space-y-3">
               <h3 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
                 5 · Follow-up email
               </h3>
+              {!isEmailableStatus(notes.followUpEmail.status) && (
+                <p className="text-sm text-heat">
+                  Draft withheld or rebuilt — only verified claims may leave
+                  this page.
+                </p>
+              )}
               <p className="text-sm text-mist">
                 Subject: {notes.followUpEmail.subject}
               </p>
@@ -231,9 +364,7 @@ export function DealNotesView({
               <button
                 type="button"
                 className="receipt-link text-sm"
-                onClick={() =>
-                  setActiveLineId(notes.followUpEmail.evidence.lineId)
-                }
+                onClick={() => jumpToLine(notes.followUpEmail.evidence.lineId)}
               >
                 Receipt · {notes.followUpEmail.evidence.lineId}: “
                 {notes.followUpEmail.evidence.quote}”
@@ -273,18 +404,34 @@ export function DealNotesView({
               Transcript
             </p>
             <p className="mt-1 text-sm text-fog/80">
-              Click a receipt to jump to the exact line.
+              {canPlayAudio
+                ? "Click a receipt to jump to the line and play that second."
+                : "Click a receipt to jump to the exact line."}
             </p>
+            {canPlayAudio && (
+              <audio
+                ref={audioRef}
+                className="mt-3 w-full"
+                controls
+                preload="metadata"
+                src={`/api/runs/${run.id}/audio`}
+              />
+            )}
           </div>
           <div className="max-h-[70vh] space-y-1 overflow-y-auto p-3">
             {run.transcript.map((line) => {
               const active = activeLineId === line.id;
+              const tainted = allClaims.some(
+                (c) =>
+                  c.evidence.lineId === line.id &&
+                  claimStatus(c) === "blocked_injection",
+              );
               return (
                 <button
                   key={line.id}
                   id={`line-${line.id}`}
                   type="button"
-                  onClick={() => setActiveLineId(line.id)}
+                  onClick={() => jumpToLine(line.id)}
                   className={`w-full rounded-xl px-3 py-3 text-left transition ${
                     active ? "line-active" : "hover:bg-white/5"
                   }`}
@@ -293,8 +440,20 @@ export function DealNotesView({
                     <span>{line.id}</span>
                     <span>·</span>
                     <span>{line.speaker}</span>
+                    {tainted && (
+                      <span className="badge-blocked">injection</span>
+                    )}
+                    {line.startMs != null && canPlayAudio && (
+                      <span>{(line.startMs / 1000).toFixed(1)}s</span>
+                    )}
                   </div>
-                  <p className="text-sm leading-relaxed text-paper/90">
+                  <p
+                    className={`text-sm leading-relaxed ${
+                      tainted
+                        ? "text-mist line-through decoration-heat/60"
+                        : "text-paper/90"
+                    }`}
+                  >
                     {line.text}
                   </p>
                 </button>

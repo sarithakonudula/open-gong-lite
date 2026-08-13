@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { config } from "@/lib/config";
 import { runDealNotesLoop } from "@/lib/harness/loop";
 import { ensurePyaiKey } from "@/lib/pyai-key";
-import { runHearAndMaybeRecap } from "@/lib/pyai";
+import { pyaiUserMessage, runHearAndMaybeRecap } from "@/lib/pyai";
+import { saveRunAudio } from "@/lib/store";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -67,9 +68,14 @@ export async function POST(request: NextRequest) {
       file.name ||
       "live-mic.webm";
 
+    const audioBytes = Buffer.from(await file.arrayBuffer());
+    const replay = new File([audioBytes], filename, {
+      type: type,
+    });
+
     const { transcript, recap, callId, hearPath } = await runHearAndMaybeRecap({
       mode: "upload",
-      file,
+      file: replay,
       filename,
       customerName: title,
     });
@@ -90,6 +96,8 @@ export async function POST(request: NextRequest) {
       pyaiCallId: callId,
     });
 
+    await saveRunAudio(run.id, audioBytes, type);
+
     return NextResponse.json({
       id: run.id,
       status: run.status,
@@ -101,8 +109,10 @@ export async function POST(request: NextRequest) {
       lines: transcript.length,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Live mic finalize failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const mapped = pyaiUserMessage(error);
+    return NextResponse.json(
+      { error: mapped.message, code: mapped.code },
+      { status: mapped.status },
+    );
   }
 }

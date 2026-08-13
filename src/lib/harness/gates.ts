@@ -1,5 +1,9 @@
+import { chokeFollowUp } from "@/lib/harness/email";
+import { screenClaim, screenTranscript } from "@/lib/harness/injection";
 import {
   Claim,
+  ClaimStatus,
+  Coverage,
   DealNotes,
   DealNotesSchema,
   GateFailure,
@@ -23,6 +27,8 @@ export type EvidenceGateResult = {
 
 /** Long unique quotes may be rescued across the whole transcript (L7 stage 3). */
 const RESCUE_MIN_WORDS = 6;
+
+const REQUIRED_SECTIONS = ["summary", "intent", "nextSteps"] as const;
 
 /**
  * Normalize for containment checks: lowercase, strip punctuation, collapse
@@ -64,14 +70,12 @@ export function gateEvidenceQuote(
 
   const window = neighbors(transcript, lineId);
 
-  // Stage 1: exact substring in named segment ±1
   for (const line of window) {
     if (line.text.includes(quote)) {
       return { verdict: "match_exact", matchedLineId: line.id, stage: 1 };
     }
   }
 
-  // Stage 2: normalized containment, same ±1 window
   const normQuote = normalizeQuote(quote);
   if (normQuote) {
     for (const line of window) {
@@ -85,7 +89,6 @@ export function gateEvidenceQuote(
     }
   }
 
-  // Stage 3: whole-transcript rescue — long + unique only
   const wordCount = normQuote.split(" ").filter(Boolean).length;
   if (normQuote && wordCount >= RESCUE_MIN_WORDS) {
     const hits = transcript.filter((line) =>
@@ -103,43 +106,148 @@ export function gateEvidenceQuote(
   return { verdict: "uncorroborated", matchedLineId: null, stage: 4 };
 }
 
-type ClaimPath = { path: string; claim: Claim };
+function verdictToStatus(verdict: EvidenceVerdict): ClaimStatus {
+  if (verdict === "segment_corrected") return "segment_corrected";
+  if (verdict === "match_exact" || verdict === "match_normalized") {
+    return "verified";
+  }
+  return "uncorroborated";
+}
+
+type ClaimPath = {
+  path: string;
+  section: keyof Pick<
+    DealNotes,
+    | "summary"
+    | "objections"
+    | "intent"
+    | "nextSteps"
+    | "pain"
+    | "pricing"
+    | "competitors"
+  >;
+  index: number;
+  claim: Claim;
+};
 
 function collectClaims(notes: DealNotes): ClaimPath[] {
-  return [
-    ...notes.summary.map((c, i) => ({ path: `summary[${i}]`, claim: c })),
-    ...notes.objections.map((c, i) => ({
-      path: `objections[${i}]`,
-      claim: c,
-    })),
-    ...notes.intent.map((c, i) => ({ path: `intent[${i}]`, claim: c })),
-    ...notes.nextSteps.map((c, i) => ({
-      path: `nextSteps[${i}]`,
-      claim: c,
-    })),
-    {
-      path: "followUpEmail",
-      claim: {
-        text: notes.followUpEmail.subject,
-        evidence: notes.followUpEmail.evidence,
-      },
-    },
-  ];
-}
-
-function applyLineCorrection(notes: DealNotes, path: string, lineId: string) {
-  if (path === "followUpEmail") {
-    notes.followUpEmail.evidence.lineId = lineId;
-    return;
+  const sections = [
+    "summary",
+    "objections",
+    "intent",
+    "nextSteps",
+    "pain",
+    "pricing",
+    "competitors",
+  ] as const;
+  const out: ClaimPath[] = [];
+  for (const section of sections) {
+    notes[section].forEach((claim, index) => {
+      out.push({
+        path: `${section}[${index}]`,
+        section,
+        index,
+        claim,
+      });
+    });
   }
-  const match = path.match(/^(summary|objections|intent|nextSteps)\[(\d+)\]$/);
-  if (!match) return;
-  const key = match[1] as "summary" | "objections" | "intent" | "nextSteps";
-  const index = Number(match[2]);
-  const claim = notes[key][index];
-  if (claim) claim.evidence.lineId = lineId;
+  return out;
 }
 
+function gradeClaim(
+  claim: Claim,
+  path: string,
+  transcript: TranscriptLine[],
+  tainted: Map<string, string[]>,
+): Claim {
+  const injection = screenClaim({
+    text: claim.text,
+    lineId: claim.evidence.lineId,
+    tainted,
+  });
+  const gate = gateEvidenceQuote(
+    claim.evidence.quote,
+    claim.evidence.lineId,
+    transcript,
+  );
+
+  let status: ClaimStatus;
+  let lineId = claim.evidence.lineId;
+  if (injection.blocked) {
+    status = "blocked_injection";
+  } else {
+    status = verdictToStatus(gate.verdict);
+    if (
+      gate.verdict === "segment_corrected" &&
+      gate.matchedLineId &&
+      gate.matchedLineId !== claim.evidence.lineId
+    ) {
+      lineId = gate.matchedLineId;
+    }
+  }
+
+  return {
+    ...claim,
+    id: claim.id || path,
+    status,
+    blockedReasons: injection.blocked ? injection.reasons : undefined,
+    evidence: { ...claim.evidence, lineId },
+  };
+}
+
+export function gradeCoverage(claims: Claim[]): Coverage {
+  const attempted = claims.filter((c) => c.status !== "blocked_injection");
+  const stats = {
+    verified: claims.filter((c) => c.status === "verified").length,
+    segment_corrected: claims.filter((c) => c.status === "segment_corrected")
+      .length,
+    uncorroborated: claims.filter((c) => c.status === "uncorroborated").length,
+    blocked_injection: claims.filter((c) => c.status === "blocked_injection")
+      .length,
+    attempted: attempted.length,
+    corroborated: attempted.filter(
+      (c) => c.status === "verified" || c.status === "segment_corrected",
+    ).length,
+  };
+  const ratio =
+    stats.attempted === 0 ? (stats.blocked_injection > 0 ? 0 : 1) : stats.corroborated / stats.attempted;
+
+  const requiredUnproven = REQUIRED_SECTIONS.some((section) => {
+    const inSection = claims.filter((c) => (c.id || "").startsWith(`${section}[`));
+    const survived = inSection.filter((c) => c.status !== "blocked_injection");
+    if (!survived.length) return inSection.length > 0;
+    return !survived.some(
+      (c) => c.status === "verified" || c.status === "segment_corrected",
+    );
+  });
+
+  let band: Coverage["band"];
+  if (stats.corroborated === 0 || requiredUnproven) band = "FAILED_UNPROVEN";
+  else if (ratio < 0.5) band = "PARTIAL_LOW_COVERAGE";
+  else if (ratio < 0.8) band = "PARTIAL_CLAIMS_DROPPED";
+  else if (stats.segment_corrected > 0) band = "SHIPPED_WITH_CORRECTIONS";
+  else band = "SHIPPED";
+
+  return { band, ratio, stats };
+}
+
+export function coverageToRunStatus(
+  coverage: Coverage,
+): "shipped" | "partial" | "failed" {
+  if (coverage.band === "FAILED_UNPROVEN") return "failed";
+  if (
+    coverage.band === "SHIPPED" ||
+    coverage.band === "SHIPPED_WITH_CORRECTIONS"
+  ) {
+    return "shipped";
+  }
+  return "partial";
+}
+
+/**
+ * Schema still fail-closed. Evidence no longer kills the whole run:
+ * unproven / injected claims are demoted in place and stay visible.
+ */
 export function validateDealNotes(
   raw: unknown,
   transcript: TranscriptLine[],
@@ -158,43 +266,56 @@ export function validateDealNotes(
     return { ok: false, failures };
   }
 
-  // Clone so segment_corrected can rewrite lineIds without mutating caller input.
   const notes = structuredClone(parsed.data) as DealNotes;
+  const tainted = screenTranscript(transcript);
 
-  for (const { path, claim } of collectClaims(notes)) {
-    const gate = gateEvidenceQuote(
-      claim.evidence.quote,
-      claim.evidence.lineId,
+  for (const item of collectClaims(notes)) {
+    notes[item.section][item.index] = gradeClaim(
+      item.claim,
+      item.path,
       transcript,
+      tainted,
     );
-
-    if (gate.verdict === "missing_line") {
-      failures.push({
-        code: "missing_evidence_line",
-        message: `Evidence lineId ${claim.evidence.lineId} not in transcript`,
-        path,
-      });
-      continue;
-    }
-
-    if (gate.verdict === "uncorroborated") {
-      failures.push({
-        code: "unproven_claim",
-        message: `Quote not corroborated in transcript (no exact/normalized match; digit folding not allowed)`,
-        path,
-      });
-      continue;
-    }
-
-    if (
-      gate.verdict === "segment_corrected" &&
-      gate.matchedLineId &&
-      gate.matchedLineId !== claim.evidence.lineId
-    ) {
-      applyLineCorrection(notes, path, gate.matchedLineId);
-    }
   }
 
-  if (failures.length > 0) return { ok: false, failures };
+  const emailGate = gateEvidenceQuote(
+    notes.followUpEmail.evidence.quote,
+    notes.followUpEmail.evidence.lineId,
+    transcript,
+  );
+  const emailInjection = screenClaim({
+    text: `${notes.followUpEmail.subject}\n${notes.followUpEmail.body}`,
+    lineId: notes.followUpEmail.evidence.lineId,
+    tainted,
+  });
+  let emailStatus: ClaimStatus = emailInjection.blocked
+    ? "blocked_injection"
+    : verdictToStatus(emailGate.verdict);
+  if (
+    emailGate.verdict === "segment_corrected" &&
+    emailGate.matchedLineId &&
+    !emailInjection.blocked
+  ) {
+    notes.followUpEmail.evidence.lineId = emailGate.matchedLineId;
+  }
+
+  const allClaims = collectClaims(notes).map((c) => notes[c.section][c.index]!);
+  notes.followUpEmail = chokeFollowUp({
+    title: notes.title,
+    existing: notes.followUpEmail,
+    emailStatus,
+    claims: allClaims,
+    transcript,
+  });
+  notes.coverage = gradeCoverage([
+    ...allClaims,
+    {
+      id: "followUpEmail",
+      text: notes.followUpEmail.subject,
+      evidence: notes.followUpEmail.evidence,
+      status: notes.followUpEmail.status,
+    },
+  ]);
+
   return { ok: true, notes };
 }

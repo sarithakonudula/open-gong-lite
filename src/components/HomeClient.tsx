@@ -216,7 +216,8 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
             </h2>
             <p className="mt-2 max-w-2xl text-mist">
               Click any call. You&apos;ll land on a page with summary, objections,
-              intent, next steps, and clickable receipts.
+              intent, next steps, and clickable receipts. Run the messy sample
+              to watch unproven claims demoted and an injection quarantined.
             </p>
           </div>
         </div>

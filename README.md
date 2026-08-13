@@ -2,7 +2,7 @@
 
 **Gong’s job, free.** Upload a sales call → get deal notes with receipts.
 
-Every claim points to the exact line in the transcript. Unproven claims never ship.
+Every claim points to the exact line in the transcript. Unproven claims stay visible — they never pretend to be facts. Prompt-injection lines are quarantined and barred from the follow-up email.
 
 ![OpenGong Lite — deal notes with receipts](./public/screenshot.png)
 
@@ -64,22 +64,27 @@ Scopes for the full live path:
 ## What you get
 
 - Diarized transcript with speaker labels
-- Summary, objections, intent, next steps, follow-up email
-- **Receipts**: click a claim → jump to the transcript line
+- Summary, objections, intent, next steps, pain / pricing / competitors
+- **Receipts**: click a claim → jump to the transcript line (and play that second when audio was uploaded)
+- Four claim states: verified, corrected, unproven, injection-blocked — header shows % verified
+- Follow-up email drafted **only from verified claims**
 - Export Markdown / JSON + shareable link
-- Six sample calls in `sample-calls/` (incl. Fireflies competitive displacement)
+- Seven sample calls in `sample-calls/` (Fireflies displacement + a messy injection call)
 - **Live call** at `/live` — scripted offline stream **or** mic → Hear → gates
 - Search across past runs on the home page
 - Judge one-pager at `/how` — why the harness is the product
+- Network-call audit trail in `DATA-FLOW.md`
 
 ## Harness
 
 | Gate | Behavior |
 |------|----------|
 | Schema | Bad JSON never ships |
-| Evidence | L7 chain: exact → normalized (no digit folding) → unique rescue → unproven |
-| Retry | Failed parts retry with reason (capped) |
-| Status | Every run ends `shipped` / `partial` / `failed` |
+| Evidence | L7 chain: exact → normalized (no digit folding) → unique rescue → **demote, don't hide** |
+| Injection | Separate taint screen; planted lines stay visible and never enter email |
+| Email choke | Drafts only `verified` / `segment_corrected` claims; unknown ids reject the whole draft |
+| Retry | Schema / zero-receipt runs retry with reason (capped) |
+| Status | `shipped` / `partial` / `failed` from coverage %; sandbox 401 remints; daily cap is a named exit |
 | Budget | Attempts + deadline governor |
 
 ## Demo script (90 seconds)
@@ -87,10 +92,18 @@ Scopes for the full live path:
 1. Homepage — brand hits first; note PyAI key status line.
 2. Run **Basecamp Retail — Fireflies** (or Acme pricing pushback).
 3. Click an objection receipt; transcript jumps.
-4. Optional: `/live` → scripted demo **or** Record mic → End call.
-5. Open `/how` for one sentence on gates if judges ask.
-6. Share link / Copy share URL + export Markdown.
-7. Line: *People pay Gong $1,400 a seat for this. Ours is a git clone.*
+4. Run **Messy call — planted lie + injection**. Point at the grey unproven claim and the struck-through injection. Note % verified. Open the follow-up — neither trap is in the email.
+5. Optional: `/live` → scripted demo **or** Record mic → End call (click receipt plays that second).
+6. Open `/how` for one sentence on gates if judges ask.
+7. Share link / Copy share URL + export Markdown.
+8. Line: *People pay Gong $1,400 a seat for this. Ours is a git clone.*
+
+## Known limitations (on purpose)
+
+- Hyphen/slash quotes can demote an honestly-cited claim (`follow-up` vs `follow up`). We prefer a false demotion to loosening the matcher — digit folding stays refused.
+- The injection screen is best-effort. Novel phrasings can slip it; the email choke and visible quarantine contain what it misses.
+- The gate proves the line was said, not that the claim's *reading* is fair. "Right quote, wrong claim" is unsolved.
+- English-only transcription today (provider constraint).
 
 ## Scripts
 

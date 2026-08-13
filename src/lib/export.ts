@@ -1,12 +1,17 @@
 import { DealNotes, RunRecord, TranscriptLine } from "@/lib/types";
 
 function claimMd(
-  claim: { text: string; evidence: { lineId: string; quote: string } },
+  claim: {
+    text: string;
+    status?: string;
+    evidence: { lineId: string; quote: string };
+  },
   transcript: TranscriptLine[],
 ): string {
   const line = transcript.find((l) => l.id === claim.evidence.lineId);
   const loc = line ? `line ${line.index + 1} · ${line.speaker}` : claim.evidence.lineId;
-  return `- ${claim.text}\n  - Receipt (${loc}): “${claim.evidence.quote}”`;
+  const badge = claim.status ? ` [${claim.status}]` : "";
+  return `- ${claim.text}${badge}\n  - Receipt (${loc}): “${claim.evidence.quote}”`;
 }
 
 export function notesToMarkdown(run: RunRecord): string {
@@ -17,6 +22,9 @@ export function notesToMarkdown(run: RunRecord): string {
     `# ${notes.title}`,
     "",
     `Status: **${run.status}** · Source: ${run.sourceLabel}`,
+    notes.coverage
+      ? `Coverage: **${Math.round(notes.coverage.ratio * 100)}% verified** (${notes.coverage.band})`
+      : "",
     "",
     "## Summary",
     ...notes.summary.map((c) => claimMd(c, run.transcript)),
@@ -32,6 +40,23 @@ export function notesToMarkdown(run: RunRecord): string {
     "## Next steps",
     ...notes.nextSteps.map((c) => claimMd(c, run.transcript)),
     "",
+    ...((notes.pain || []).length
+      ? ["## Pain", ...notes.pain.map((c) => claimMd(c, run.transcript)), ""]
+      : []),
+    ...((notes.pricing || []).length
+      ? [
+          "## Pricing",
+          ...notes.pricing.map((c) => claimMd(c, run.transcript)),
+          "",
+        ]
+      : []),
+    ...((notes.competitors || []).length
+      ? [
+          "## Competitors",
+          ...notes.competitors.map((c) => claimMd(c, run.transcript)),
+          "",
+        ]
+      : []),
     "## Follow-up email",
     `**Subject:** ${notes.followUpEmail.subject}`,
     "",

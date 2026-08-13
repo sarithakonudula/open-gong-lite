@@ -143,6 +143,19 @@ export function mapRecapToDealNotes(
     "actions",
     "follow_ups",
   ]);
+  const pain = pickStrings(record, ["pain", "pains", "pain_points", "impact"]);
+  const pricing = pickStrings(record, [
+    "pricing",
+    "budget",
+    "commercials",
+    "discount",
+  ]);
+  const competitors = pickStrings(record, [
+    "competitors",
+    "competition",
+    "incumbent",
+    "alternatives",
+  ]);
 
   const fallbackLine = transcript[transcript.length - 1] || transcript[0];
   const next =
@@ -174,6 +187,9 @@ export function mapRecapToDealNotes(
     objections: objections.slice(0, 4).map((t) => claim(t, transcript)),
     intent: intentClaims,
     nextSteps: next.slice(0, 4).map((t) => claim(t, transcript)),
+    pain: pain.slice(0, 4).map((t) => claim(t, transcript)),
+    pricing: pricing.slice(0, 4).map((t) => claim(t, transcript)),
+    competitors: competitors.slice(0, 4).map((t) => claim(t, transcript)),
     followUpEmail: {
       subject: `Follow-up: ${String(title).slice(0, 80)}`,
       body: [

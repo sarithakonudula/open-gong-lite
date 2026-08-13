@@ -1,7 +1,10 @@
 import { randomUUID } from "crypto";
 import { config, hasLlmFallback } from "@/lib/config";
 import { demoExtractDealNotes } from "@/lib/demo-extract";
-import { validateDealNotes } from "@/lib/harness/gates";
+import {
+  coverageToRunStatus,
+  validateDealNotes,
+} from "@/lib/harness/gates";
 import { extractDealNotesWithLlm } from "@/lib/llm-extract";
 import type { RecapCall } from "@/lib/pyai";
 import { mapRecapToDealNotes } from "@/lib/recap-map";
@@ -161,20 +164,75 @@ export async function runDealNotesLoop(
         continue;
       }
 
+      const coverage = gate.notes.coverage;
+      const runStatus = coverage
+        ? coverageToRunStatus(coverage)
+        : "shipped";
+      const demotions = [
+        ...gate.notes.summary,
+        ...gate.notes.objections,
+        ...gate.notes.intent,
+        ...gate.notes.nextSteps,
+        ...(gate.notes.pain || []),
+        ...(gate.notes.pricing || []),
+        ...(gate.notes.competitors || []),
+      ].filter(
+        (c) =>
+          c.status === "uncorroborated" || c.status === "blocked_injection",
+      );
+
+      if (runStatus === "failed" && attempt < config.maxAttempts) {
+        lastFailures = demotions
+          .map(
+            (c) =>
+              `${c.status} @ ${c.id || c.evidence.lineId}: ${c.evidence.quote}`,
+          )
+          .join("\n");
+        const record: AttemptRecord = {
+          attempt,
+          at: new Date().toISOString(),
+          ok: false,
+          reason: "gate_unproven",
+          failures: demotions.map((c) => ({
+            code: c.status || "uncorroborated",
+            message: c.evidence.quote,
+            path: c.id,
+          })),
+        };
+        run = await saveRun({
+          ...run,
+          notes: gate.notes,
+          attempts: [...run.attempts, record],
+        });
+        continue;
+      }
+
       shippedNotes = gate.notes;
       const record: AttemptRecord = {
         attempt,
         at: new Date().toISOString(),
-        ok: true,
-        reason,
-        failures: [],
+        ok: runStatus !== "failed",
+        reason:
+          runStatus === "failed"
+            ? "gate_unproven"
+            : coverage?.band === "SHIPPED_WITH_CORRECTIONS"
+              ? `${reason}+corrections`
+              : reason,
+        failures: demotions.map((c) => ({
+          code: c.status || "uncorroborated",
+          message: c.evidence.quote,
+          path: c.id,
+        })),
       };
       run = await saveRun({
         ...run,
-        status: "shipped",
+        status: runStatus,
         notes: shippedNotes,
         attempts: [...run.attempts, record],
-        error: null,
+        error:
+          runStatus === "failed"
+            ? "No claim passed the receipts gate. Demoted claims stay visible."
+            : null,
       });
       return run;
     } catch (error) {

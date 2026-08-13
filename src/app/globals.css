@@ -181,6 +181,36 @@ body {
   text-decoration-color: var(--signal);
 }
 
+.badge-verified,
+.badge-corrected,
+.badge-unproven,
+.badge-blocked {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.12rem 0.55rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.badge-verified {
+  background: rgba(200, 241, 53, 0.16);
+  color: var(--signal);
+}
+
+.badge-corrected {
+  background: rgba(200, 241, 53, 0.08);
+  color: var(--mist);
+  border: 1px solid rgba(200, 241, 53, 0.25);
+}
+
+.badge-unproven,
+.badge-blocked {
+  background: rgba(255, 107, 61, 0.12);
+  color: var(--heat);
+}
+
 .line-active {
   background: linear-gradient(
     90deg,

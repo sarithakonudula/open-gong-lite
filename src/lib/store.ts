@@ -8,12 +8,50 @@ function runsDir(): string {
   return path.join(config.dataDir, "runs");
 }
 
+function audioDir(): string {
+  return path.join(config.dataDir, "audio");
+}
+
 function runPath(id: string) {
   return path.join(runsDir(), `${id}.json`);
 }
 
+function audioPath(id: string) {
+  return path.join(audioDir(), id);
+}
+
 export async function ensureStore(): Promise<void> {
   await fs.mkdir(runsDir(), { recursive: true });
+  await fs.mkdir(audioDir(), { recursive: true });
+}
+
+const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
+
+export async function saveRunAudio(
+  id: string,
+  bytes: Buffer,
+  contentType: string,
+): Promise<void> {
+  if (bytes.length <= 0 || bytes.length > MAX_AUDIO_BYTES) return;
+  await ensureStore();
+  await fs.writeFile(audioPath(id), bytes);
+  const run = await getRun(id);
+  if (run) {
+    await saveRun({ ...run, audioContentType: contentType.slice(0, 80) });
+  }
+}
+
+export async function readRunAudio(
+  id: string,
+): Promise<{ bytes: Buffer; contentType: string } | null> {
+  const run = await getRun(id);
+  if (!run?.audioContentType) return null;
+  try {
+    const bytes = await fs.readFile(audioPath(id));
+    return { bytes, contentType: run.audioContentType };
+  } catch {
+    return null;
+  }
 }
 
 export function newShareToken(): string {
@@ -120,6 +158,9 @@ export async function searchRuns(
         ...(run.notes?.summary.map((c) => c.text) || []),
         ...(run.notes?.objections.map((c) => c.text) || []),
         ...(run.notes?.nextSteps.map((c) => c.text) || []),
+        ...(run.notes?.pain?.map((c) => c.text) || []),
+        ...(run.notes?.pricing?.map((c) => c.text) || []),
+        ...(run.notes?.competitors?.map((c) => c.text) || []),
       ]
         .join("\n")
         .toLowerCase();

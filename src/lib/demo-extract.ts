@@ -104,6 +104,39 @@ export function demoExtractDealNotes(
         transcript[Math.min(8, transcript.length - 1)],
       ),
     ],
+    pain: accuracy
+      ? [
+          claimFrom(
+            accuracy,
+            "Trust, proof, or security constraints are the live pain.",
+            accuracy,
+          ),
+        ]
+      : [],
+    pricing: expensive
+      ? [
+          claimFrom(
+            expensive,
+            "Pricing, seats, or renewal cost is on the table.",
+            expensive,
+          ),
+        ]
+      : [],
+    competitors: (() => {
+      const named = findLine(
+        transcript,
+        /Fireflies|Gong|Chorus|Otter|Fathom|Clari/i,
+      );
+      return named
+        ? [
+            claimFrom(
+              named,
+              "An incumbent or competing tool was named on the call.",
+              named,
+            ),
+          ]
+        : [];
+    })(),
     followUpEmail: {
       subject: `Next steps: ${titleHint}`,
       body: [

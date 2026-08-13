@@ -24,9 +24,18 @@ export type KeyStatus = {
   expiresAt: number | null;
 };
 
+export function isSandboxKey(key: string): boolean {
+  return key.startsWith("pyai_test_");
+}
+
 function previewKey(key: string): string {
   if (key.length <= 12) return "pyai_***";
   return `${key.slice(0, 9)}…${key.slice(-4)}`;
+}
+
+/** True when the active key came from auto-mint, not a user-supplied env var. */
+export function canRemintSandbox(): boolean {
+  return !hasLivePyai() && config.autoMintSandbox;
 }
 
 async function readStoredKey(): Promise<StoredKey | null> {
@@ -55,10 +64,7 @@ async function mintSandboxKey(): Promise<StoredKey> {
   });
 
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(
-      `Sandbox key mint failed (${response.status}): ${body.slice(0, 240)}`,
-    );
+    throw new Error(`Sandbox key mint failed (${response.status})`);
   }
 
   const data = (await response.json()) as {
@@ -125,6 +131,27 @@ export async function ensurePyaiKey(): Promise<KeyStatus> {
     };
   }
 
+  const minted = await mintSandboxKey();
+  setRuntimePyaiKey(minted.apiKey);
+  return {
+    configured: true,
+    source: "minted",
+    preview: previewKey(minted.apiKey),
+    scopes: minted.scopes || [],
+    expiresAt: minted.expiresAt ?? null,
+  };
+}
+
+/** Drop an expired/rejected sandbox key and mint a fresh one (L14). */
+export async function remintSandboxKey(): Promise<KeyStatus> {
+  if (!canRemintSandbox()) {
+    throw new Error("Cannot remint: PYAI_API_KEY is set or auto-mint is off");
+  }
+  try {
+    await fs.unlink(keyFilePath());
+  } catch {
+    // missing file is fine
+  }
   const minted = await mintSandboxKey();
   setRuntimePyaiKey(minted.apiKey);
   return {

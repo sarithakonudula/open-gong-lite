@@ -21,6 +21,9 @@ Return ONLY valid JSON matching this shape:
   "objections": [{"text": string, "evidence": {"lineId": "L1", "quote": string}}],
   "intent": [{"text": string, "evidence": {"lineId": "L1", "quote": string}}],
   "nextSteps": [{"text": string, "evidence": {"lineId": "L1", "quote": string}}],
+  "pain": [{"text": string, "evidence": {"lineId": "L1", "quote": string}}],
+  "pricing": [{"text": string, "evidence": {"lineId": "L1", "quote": string}}],
+  "competitors": [{"text": string, "evidence": {"lineId": "L1", "quote": string}}],
   "followUpEmail": {
     "subject": string,
     "body": string,
@@ -32,7 +35,8 @@ Rules:
 - evidence.quote MUST be a short contiguous snippet copied VERBATIM from that line.
 - Do NOT paraphrase, "fix" grammar, or rewrite numbers (keep "forty" as forty — never fold to "40").
 - No invented facts. If unsure, omit the claim.
-- Keep summary 2-4 items, objections/intent/nextSteps 1-4 items.`;
+- Keep summary 2-4 items, objections/intent/nextSteps 1-4 items.
+- pain / pricing / competitors may be empty arrays when the call never went there.`;
 
   const user = priorFailures
     ? `Previous attempt failed gates:\n${priorFailures}\n\nFix and re-extract from transcript:\n${transcriptBlock}`
