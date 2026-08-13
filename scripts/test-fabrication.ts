@@ -7,7 +7,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { gateEvidenceQuote, normalizeQuote } from "../src/lib/harness/gates";
+import { gateEvidenceQuote, normalizeQuote, validateDealNotes } from "../src/lib/harness/gates";
 import { mapRecapToDealNotes } from "../src/lib/recap-map";
 import { chokeFollowUp } from "../src/lib/harness/email";
 import { demoExtractDealNotes } from "../src/lib/demo-extract";
@@ -105,5 +105,25 @@ test("demo extractor: unmatched patterns demote instead of riding a fallback lin
     const gate = gateEvidenceQuote(c.evidence.quote, c.evidence.lineId, quiet);
     assert.ok(gate.verdict !== "match_exact" && gate.verdict !== "match_normalized",
       `a claim whose pattern matched nothing must not verify: ${JSON.stringify(c.text)}`);
+  }
+});
+
+test("schema altitude: unmatched claims DEMOTE through validateDealNotes, never null the page", () => {
+  const quiet = [
+    { id: "q1", index: 0, speaker: "prospect", text: "thanks for the walkthrough it was clear" },
+    { id: "q2", index: 1, speaker: "rep", text: "glad it was useful" },
+  ] as unknown as TranscriptLine[];
+  const raw = demoExtractDealNotes(quiet, "quiet call");
+  const result = validateDealNotes(raw, quiet);
+  assert.ok(result.ok,
+    `notes must ship with demotions, not fail schema: ${JSON.stringify(!result.ok && result.failures.slice(0,2))}`);
+  if (result.ok) {
+    const all = [
+      ...result.notes.summary, ...result.notes.objections, ...result.notes.intent,
+      ...result.notes.nextSteps, ...result.notes.pain, ...result.notes.pricing,
+    ];
+    assert.ok(all.length > 0, "demoted claims must still render");
+    assert.ok(all.every((c) => c.status !== "verified" || c.evidence.lineId.startsWith("q")),
+      "sentinel-backed claims must never read verified");
   }
 });

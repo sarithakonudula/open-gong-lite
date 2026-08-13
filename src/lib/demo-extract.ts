@@ -13,7 +13,7 @@ function findLine(
  * it ride on an arbitrary fallback line's quote (right quote, wrong claim —
  * the same self-certification the recap mapper was cured of).
  */
-const NO_EVIDENCE = { lineId: "__unsupported__", quote: "" };
+const NO_EVIDENCE = { lineId: "__unsupported__", quote: "(no supporting line found in this call)" };
 
 function claimFrom(
   line: TranscriptLine | undefined,

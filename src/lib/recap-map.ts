@@ -17,7 +17,7 @@ function normalize(text: string): string {
  * as the quote, which the gate then trivially exact-matched: self-certified
  * evidence, the exact laundering the receipts story forbids.)
  */
-const NO_EVIDENCE: Evidence = { lineId: "__unsupported__", quote: "" };
+const NO_EVIDENCE: Evidence = { lineId: "__unsupported__", quote: "(no supporting line found in this call)" };
 
 function bestEvidence(
   text: string,
