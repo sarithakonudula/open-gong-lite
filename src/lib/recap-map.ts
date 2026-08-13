@@ -9,17 +9,24 @@ function normalize(text: string): string {
     .trim();
 }
 
+/**
+ * Evidence sentinel for Recap text no transcript line actually supports.
+ * The lineId never exists, so the downstream gate demotes the claim to
+ * uncorroborated — a Recap sentence must EARN its receipt, never be handed
+ * one. (Previously this function returned the best-scoring line's own text
+ * as the quote, which the gate then trivially exact-matched: self-certified
+ * evidence, the exact laundering the receipts story forbids.)
+ */
+const NO_EVIDENCE: Evidence = { lineId: "__unsupported__", quote: "" };
+
 function bestEvidence(
   text: string,
   transcript: TranscriptLine[],
 ): Evidence {
-  if (!transcript.length) {
-    return { lineId: "L1", quote: text.slice(0, 80) };
-  }
+  if (!transcript.length) return NO_EVIDENCE;
 
   const needle = normalize(text);
-  let best = transcript[0];
-  let bestScore = -1;
+  if (!needle) return NO_EVIDENCE;
 
   for (const line of transcript) {
     const hay = normalize(line.text);
@@ -30,20 +37,9 @@ function bestEvidence(
         quote: line.text.length > 100 ? `${line.text.slice(0, 97)}...` : line.text,
       };
     }
-
-    const words = needle.split(" ").filter((w) => w.length > 3);
-    const hits = words.filter((w) => hay.includes(w)).length;
-    const score = words.length ? hits / words.length : 0;
-    if (score > bestScore) {
-      bestScore = score;
-      best = line;
-    }
   }
 
-  return {
-    lineId: best.id,
-    quote: best.text.length > 100 ? `${best.text.slice(0, 97)}...` : best.text,
-  };
+  return NO_EVIDENCE;
 }
 
 function asStringList(value: unknown): string[] {
@@ -157,15 +153,10 @@ export function mapRecapToDealNotes(
     "alternatives",
   ]);
 
-  const fallbackLine = transcript[transcript.length - 1] || transcript[0];
-  const next =
-    nextSteps.length > 0
-      ? nextSteps
-      : [
-          fallbackLine
-            ? `Follow up on: ${fallbackLine.text.slice(0, 120)}`
-            : "Send follow-up summarizing agreed next steps.",
-        ];
+  // Absence honesty: when Recap yields no next steps, the section stays
+  // empty — a next step the buyer never agreed to must not be invented from
+  // a transcript line (right quote, fabricated commitment).
+  const next = nextSteps;
 
   const intentClaims =
     intent.length > 0
@@ -179,7 +170,7 @@ export function mapRecapToDealNotes(
         ];
 
   const actionLine = next[0];
-  const emailEvidence = bestEvidence(actionLine, transcript);
+  const emailEvidence = actionLine ? bestEvidence(actionLine, transcript) : NO_EVIDENCE;
 
   return {
     title: String(title).slice(0, 160),

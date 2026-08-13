@@ -32,15 +32,29 @@ const REQUIRED_SECTIONS = ["summary", "intent", "nextSteps"] as const;
 
 /**
  * Normalize for containment checks: lowercase, strip punctuation, collapse
- * whitespace. Digits are kept — no "forty" ↔ "40" folding.
+ * whitespace. Digits are kept — no "forty" ↔ "40" folding. Punctuation
+ * flanked by digits on both sides becomes a SPACE, never deleted, so
+ * "40.15" normalizes to "40 15" and can never fuse into a fabricated "4015"
+ * (digit-fusion laundering guard, ported from the audited gate).
  */
 export function normalizeQuote(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[^\w\s]/g, "")
+    .replace(/[^\w\s]/g, (match, offset: number, s: string) => {
+      const prev = s[offset - 1] ?? "";
+      const next = s[offset + 1] ?? "";
+      return /\d/.test(prev) && /\d/.test(next) ? " " : "";
+    })
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/**
+ * A quote shorter than this (normalized) cannot anchor a claim: empty and
+ * whitespace quotes exact-match anything (`includes("")` is always true), and
+ * one-word quotes let arbitrary claim text ride on a single common word.
+ */
+const MIN_QUOTE_CHARS = 15;
 
 function neighbors(
   transcript: TranscriptLine[],
@@ -66,6 +80,11 @@ export function gateEvidenceQuote(
   const byId = new Map(transcript.map((l) => [l.id, l]));
   if (!byId.has(lineId)) {
     return { verdict: "missing_line", matchedLineId: null, stage: 4 };
+  }
+
+  // Fabrication guard: an empty/whitespace/too-short quote is never evidence.
+  if (normalizeQuote(quote).length < MIN_QUOTE_CHARS) {
+    return { verdict: "uncorroborated", matchedLineId: null, stage: 4 };
   }
 
   const window = neighbors(transcript, lineId);
