@@ -10,7 +10,7 @@
     "build": "next build && node scripts/prepare-standalone.mjs",
     "start": "node .next/standalone/server.js",
     "lint": "eslint",
-    "test:gates": "tsx --test scripts/test-gates.ts",
+    "test:gates": "tsx --test scripts/test-gates.ts scripts/test-speakers.ts",
     "smoke": "npm run build && node scripts/smoke.mjs"
   },
   "dependencies": {

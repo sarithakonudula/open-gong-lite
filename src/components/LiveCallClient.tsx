@@ -22,7 +22,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
   const [visibleCount, setVisibleCount] = useState(0);
   const [partial, setPartial] = useState<string | null>(null);
   const [status, setStatus] = useState(
-    "Scripted demo works offline. Mic mode records WAV PCM for PyAI Hear (WebM often fails).",
+    "Scripted demo works offline. Mic mode records WAV and diarizes speakers with PyAI Hear jobs.",
   );
   const [busy, setBusy] = useState(false);
   const [live, setLive] = useState(false);
@@ -211,7 +211,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
   async function endMicCall() {
     clearTimers();
     setBusy(true);
-    setStatus("Encoding WAV → Hear sync → gates…");
+    setStatus("Encoding WAV → Hear diarize → gates…");
     setError(null);
 
     const capture = wavCaptureRef.current;
@@ -293,8 +293,8 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
           Live call
         </h1>
         <p className="mt-4 max-w-2xl text-fog/90">
-          Stream a sample script offline, or record with your mic as WAV PCM for
-          PyAI Hear. End the call and the harness fires.
+          Stream a sample script offline, or record with your mic as WAV PCM.
+          End the call and Hear splits speakers, then the harness fires.
         </p>
 
         <div className="mt-8 flex flex-wrap gap-2">

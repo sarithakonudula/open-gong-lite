@@ -1,29 +1,27 @@
 import { randomUUID } from "crypto";
 import { config, hasLivePyai } from "@/lib/config";
+import {
+  hearResultToTranscript,
+  transcriptToUtterances,
+  type HearJobResult,
+  type RecapUtterance,
+} from "@/lib/hear-speakers";
 import { TranscriptLine } from "@/lib/types";
 
-export type HearSegment = {
-  id?: number;
-  start?: number;
-  end?: number;
-  text?: string;
-  speaker?: string;
-  channel?: number;
-};
-
-export type HearJobResult = {
-  text?: string;
-  speakers?: number;
-  audio_seconds?: number;
-  segments?: HearSegment[];
-};
-
-export type RecapUtterance = {
-  speaker_role: "agent" | "customer";
-  text: string;
-  offset_s: number;
-  duration_s: number;
-};
+export type {
+  HearJobResult,
+  HearSegment,
+  HearWord,
+  RecapUtterance,
+} from "@/lib/hear-speakers";
+export {
+  hearResultToTranscript,
+  segmentsToTranscript,
+  speakerKey,
+  speakerTurnsFromResult,
+  transcriptToUtterances,
+  wordsToSegments,
+} from "@/lib/hear-speakers";
 
 export type RecapCall = {
   object?: string;
@@ -76,62 +74,6 @@ async function pyaiJson<T>(
   return (await response.json()) as T;
 }
 
-export function segmentsToTranscript(
-  segments: HearSegment[],
-): TranscriptLine[] {
-  return segments
-    .map((segment, index) => {
-      const text = (segment.text || "").trim();
-      const speaker =
-        segment.speaker?.trim() ||
-        (typeof segment.channel === "number"
-          ? `Speaker ${segment.channel}`
-          : index % 2 === 0
-            ? "Rep"
-            : "Prospect");
-      return {
-        id: `L${index + 1}`,
-        index,
-        speaker,
-        text,
-        startMs:
-          typeof segment.start === "number"
-            ? Math.round(segment.start * 1000)
-            : undefined,
-        endMs:
-          typeof segment.end === "number"
-            ? Math.round(segment.end * 1000)
-            : undefined,
-      };
-    })
-    .filter((line) => line.text.length > 0);
-}
-
-export function transcriptToUtterances(
-  transcript: TranscriptLine[],
-): RecapUtterance[] {
-  return transcript.map((line, index) => {
-    const startS = (line.startMs ?? index * 4_000) / 1000;
-    const endS =
-      (line.endMs ?? (line.startMs ?? index * 4_000) + 3_000) / 1000;
-    const role: "agent" | "customer" =
-      /rep|agent|seller|ae|speaker 0|ch0/i.test(line.speaker)
-        ? "agent"
-        : /prospect|customer|buyer|speaker 1|ch1/i.test(line.speaker)
-          ? "customer"
-          : index % 2 === 0
-            ? "agent"
-            : "customer";
-
-    return {
-      speaker_role: role,
-      text: line.text,
-      offset_s: Math.max(0, startS),
-      duration_s: Math.max(0.4, endS - startS),
-    };
-  });
-}
-
 async function loadJobResult(job: {
   result?: HearJobResult;
   result_url?: string;
@@ -174,32 +116,114 @@ export async function pollTranscriptionJob(
   throw new Error(`Transcription job timed out: ${jobId}`);
 }
 
+export type HearJobMode = {
+  /** Stereo dual-channel split. Mutually exclusive with diarize. */
+  channel: boolean;
+  diarize: boolean;
+  model: string;
+};
+
+export function looksStereoSource(name: string | undefined): boolean {
+  return /stereo|dual[-_]?chan|2ch|two[-_]?channel/i.test(name || "");
+}
+
+export async function detectWavChannels(
+  file: File | Blob,
+): Promise<number | null> {
+  try {
+    const buf = Buffer.from(await file.slice(0, 44).arrayBuffer());
+    if (buf.length < 24) return null;
+    if (buf.toString("ascii", 0, 4) !== "RIFF") return null;
+    if (buf.toString("ascii", 8, 4) !== "WAVE") return null;
+    return buf.readUInt16LE(22);
+  } catch {
+    return null;
+  }
+}
+
+export function chooseHearJobMode(opts: {
+  channel?: boolean;
+  diarize?: boolean;
+  filename?: string;
+  audioUrl?: string;
+  wavChannels?: number | null;
+}): HearJobMode {
+  const forceChannel = opts.channel === true || config.channelDefault;
+  const stereo =
+    forceChannel ||
+    opts.wavChannels === 2 ||
+    looksStereoSource(opts.filename) ||
+    looksStereoSource(opts.audioUrl);
+
+  if (stereo) {
+    return {
+      channel: true,
+      diarize: false,
+      model: config.hearJobModel,
+    };
+  }
+
+  const diarize =
+    opts.diarize !== false && (opts.diarize === true || config.diarizeDefault);
+  return {
+    channel: false,
+    diarize,
+    // Sortformer diarization is on pyai-hear; telephony is for channel split.
+    model: diarize ? config.hearModel : config.hearJobModel,
+  };
+}
+
+function oppositeHearJobMode(mode: HearJobMode): HearJobMode {
+  if (mode.channel) {
+    return {
+      channel: false,
+      diarize: true,
+      model: config.hearModel,
+    };
+  }
+  return {
+    channel: true,
+    diarize: false,
+    model: config.hearJobModel,
+  };
+}
+
 export async function createTranscriptionJobFromUrl(opts: {
   audioUrl: string;
   callId: string;
   customerName?: string;
   diarize?: boolean;
   channel?: boolean;
+  mode?: HearJobMode;
+  idempotencyKey?: string;
 }): Promise<{ jobId: string; callId: string }> {
-  const body = {
+  const mode =
+    opts.mode ||
+    chooseHearJobMode({
+      channel: opts.channel,
+      diarize: opts.diarize,
+      audioUrl: opts.audioUrl,
+    });
+
+  const body: Record<string, unknown> = {
     audio_url: opts.audioUrl,
-    model: config.hearJobModel,
-    diarize: opts.channel ? false : opts.diarize ?? config.diarizeDefault,
-    channel: opts.channel ?? config.channelDefault,
+    model: mode.model,
     numerals: true,
     output_formats: ["json"],
     call_id: opts.callId,
-    pack_id: config.recapPackId,
-    call_direction: "outbound" as const,
-    customer_name: opts.customerName,
-    language: "en" as const,
+    language: "en",
   };
+  // Recap is triggered later from mapped speakers — don't send pack_id here.
+  // Never send channel+diarize together (PyAI treats that as a merged-speaker job).
+  if (mode.channel) body.channel = true;
+  else if (mode.diarize) body.diarize = true;
+  if (opts.customerName) body.customer_name = opts.customerName;
 
   const response = await pyaiFetch("/transcription/jobs", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Idempotency-Key": opts.callId,
+      "Idempotency-Key": opts.idempotencyKey || opts.callId,
     },
     body: JSON.stringify(body),
   });
@@ -220,26 +244,29 @@ export async function createTranscriptionJobFromUpload(opts: {
   filename: string;
   callId: string;
   customerName?: string;
+  mode?: HearJobMode;
+  idempotencyKey?: string;
 }): Promise<{ jobId: string; callId: string }> {
+  const mode =
+    opts.mode ||
+    chooseHearJobMode({
+      filename: opts.filename,
+    });
+
   const form = new FormData();
   form.append("audio", opts.file, opts.filename);
-  form.append("model", config.hearJobModel);
-  form.append(
-    "diarize",
-    config.channelDefault ? "false" : config.diarizeDefault ? "true" : "false",
-  );
-  form.append("channel", config.channelDefault ? "true" : "false");
+  form.append("model", mode.model);
+  if (mode.channel) form.append("channel", "true");
+  else if (mode.diarize) form.append("diarize", "true");
   form.append("numerals", "true");
   form.append("output_formats", "json");
   form.append("call_id", opts.callId);
-  form.append("pack_id", config.recapPackId);
-  form.append("call_direction", "outbound");
   form.append("language", "en");
   if (opts.customerName) form.append("customer_name", opts.customerName);
 
   const response = await pyaiFetch("/transcription/jobs", {
     method: "POST",
-    headers: { "Idempotency-Key": opts.callId },
+    headers: { "Idempotency-Key": opts.idempotencyKey || opts.callId },
     body: form,
   });
 
@@ -280,24 +307,12 @@ export async function transcribeAudioSync(
     );
   }
 
-  const data = (await response.json()) as {
-    text?: string;
-    segments?: HearSegment[];
-  };
+  const data = (await response.json()) as HearJobResult;
 
-  if (data.segments?.length) {
-    return segmentsToTranscript(data.segments);
-  }
+  const fromResult = hearResultToTranscript(data);
+  if (fromResult.length) return fromResult;
 
-  const text = (data.text || "").trim();
-  if (!text) throw new Error("Empty transcript from Hear");
-
-  return text.split(/(?<=[.!?])\s+/).map((line, index) => ({
-    id: `L${index + 1}`,
-    index,
-    speaker: index % 2 === 0 ? "Rep" : "Prospect",
-    text: line.trim(),
-  }));
+  throw new Error("Empty transcript from Hear");
 }
 
 export async function ensureRecapEnabled(): Promise<boolean> {
@@ -392,7 +407,7 @@ export async function runHearAndMaybeRecap(opts: {
   filename?: string;
   audioUrl?: string;
   customerName?: string;
-  /** Prefer sync Hear first (short mic clips / formats jobs mishandle). */
+  /** @deprecated Sync Hear has no diarization; jobs always run first. */
   preferSync?: boolean;
 }): Promise<{
   callId: string;
@@ -412,43 +427,27 @@ export async function runHearAndMaybeRecap(opts: {
     await ensureRecapEnabled();
     let recap: RecapCall | null = null;
     try {
-      if (hearPath === "jobs") {
-        try {
-          recap = await pollRecap(callId, 45_000);
-        } catch {
-          await triggerRecap({
-            callId,
-            transcript,
-            customerName: opts.customerName,
-          });
-          recap = await pollRecap(callId, 60_000);
-        }
-      } else {
-        await triggerRecap({
-          callId,
-          transcript,
-          customerName: opts.customerName,
-        });
-        recap = await pollRecap(callId, 60_000);
-      }
+      await triggerRecap({
+        callId,
+        transcript,
+        customerName: opts.customerName,
+      });
+      recap = await pollRecap(callId, 60_000);
     } catch {
       recap = null;
     }
     return { callId, transcript, recap, hearPath };
   }
 
-  if (opts.preferSync && opts.mode === "upload" && opts.file) {
-    try {
-      const transcript = await transcribeAudioSync(
-        opts.file,
-        opts.filename || "call.wav",
-      );
-      return withRecap(transcript, "sync");
-    } catch (syncError) {
-      // fall through to jobs
-      void syncError;
-    }
-  }
+  const wavChannels =
+    opts.mode === "upload" && opts.file
+      ? await detectWavChannels(opts.file)
+      : null;
+  const mode = chooseHearJobMode({
+    filename: opts.filename,
+    audioUrl: opts.audioUrl,
+    wavChannels,
+  });
 
   try {
     const created =
@@ -457,32 +456,66 @@ export async function runHearAndMaybeRecap(opts: {
             audioUrl: opts.audioUrl,
             callId,
             customerName: opts.customerName,
+            mode,
+            idempotencyKey: `${callId}_${mode.channel ? "ch" : "dz"}`,
           })
         : await createTranscriptionJobFromUpload({
             file: opts.file!,
             filename: opts.filename || "call.webm",
             callId,
             customerName: opts.customerName,
+            mode,
+            idempotencyKey: `${callId}_${mode.channel ? "ch" : "dz"}`,
           });
 
-    const result = await pollTranscriptionJob(created.jobId);
-    const transcript = result.segments?.length
-      ? segmentsToTranscript(result.segments)
-      : (result.text || "")
-          .split(/(?<=[.!?])\s+/)
-          .filter(Boolean)
-          .map((text, index) => ({
-            id: `L${index + 1}`,
-            index,
-            speaker: index % 2 === 0 ? "Rep" : "Prospect",
-            text,
-          }));
+    let result = await pollTranscriptionJob(created.jobId);
+    let transcript = hearResultToTranscript(result);
+    const speakers = new Set(transcript.map((line) => line.speaker));
+    const worthRetry =
+      mode.channel ||
+      wavChannels === 2 ||
+      looksStereoSource(opts.filename) ||
+      looksStereoSource(opts.audioUrl);
+
+    if (speakers.size < 2 && worthRetry) {
+      const alt = oppositeHearJobMode(mode);
+      try {
+        const retry =
+          opts.mode === "url" && opts.audioUrl
+            ? await createTranscriptionJobFromUrl({
+                audioUrl: opts.audioUrl,
+                callId,
+                customerName: opts.customerName,
+                mode: alt,
+                idempotencyKey: `${callId}_${alt.channel ? "ch" : "dz"}`,
+              })
+            : await createTranscriptionJobFromUpload({
+                file: opts.file!,
+                filename: opts.filename || "call.webm",
+                callId,
+                customerName: opts.customerName,
+                mode: alt,
+                idempotencyKey: `${callId}_${alt.channel ? "ch" : "dz"}`,
+              });
+        const altResult = await pollTranscriptionJob(retry.jobId);
+        const altTranscript = hearResultToTranscript(altResult);
+        const altSpeakers = new Set(altTranscript.map((line) => line.speaker));
+        if (altSpeakers.size > speakers.size) {
+          result = altResult;
+          transcript = altTranscript;
+        }
+      } catch {
+        // Keep the first transcript if the other diarization mode fails.
+        void result;
+      }
+    }
 
     return withRecap(transcript, "jobs");
   } catch (jobError) {
     if (opts.mode !== "upload" || !opts.file) throw jobError;
 
-    // Fallback: sync Hear when jobs scope is missing or format fails
+    // Fallback: sync Hear when jobs scope is missing or format fails.
+    // Sync has no speaker diarization — last resort only.
     try {
       const transcript = await transcribeAudioSync(
         opts.file,

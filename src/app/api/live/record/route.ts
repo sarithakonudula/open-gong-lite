@@ -72,7 +72,6 @@ export async function POST(request: NextRequest) {
       file,
       filename,
       customerName: title,
-      preferSync: true,
     });
 
     if (!transcript.length) {
