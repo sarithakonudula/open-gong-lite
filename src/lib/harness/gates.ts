@@ -319,8 +319,11 @@ export function validateDealNotes(
   }
 
   const allClaims = collectClaims(notes).map((c) => notes[c.section][c.index]!);
+  // The run title is model-authored (Recap headline or extractor label) and
+  // is NOT gate-verified, so it must never ride into the outbound email:
+  // a fabricated number in the headline would leak through the greeting.
   notes.followUpEmail = chokeFollowUp({
-    title: notes.title,
+    title: "our call",
     existing: notes.followUpEmail,
     emailStatus,
     claims: allClaims,
