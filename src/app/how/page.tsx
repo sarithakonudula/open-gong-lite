@@ -27,7 +27,7 @@ export default function HowPage() {
         <p className="mt-5 text-lg leading-relaxed text-fog/90">
           Models draft. Gates decide what is allowed to look like a fact.
           Unproven claims stay on the page in grey. They never silently ship.
-          Injected lines are struck through and barred from the follow-up email.
+          Injected lines are quarantined, any claim citing them is blocked and struck through, and nothing tainted reaches the follow-up email.
         </p>
 
         <ol className="mt-12 space-y-8">

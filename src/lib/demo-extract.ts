@@ -67,50 +67,50 @@ export function demoExtractDealNotes(
   );
 
   return {
-    title: titleHint,
+    title: `${titleHint} (keyword extractor: limited, deterministic)`,
     summary: [
       claimFrom(
         need,
-        "Buyer is evaluating call intelligence because current notes lack trust or depth.",
+        "A need or evaluation driver came up on the call.",
       ),
       claimFrom(
         expensive,
-        "Cost, seats, or renewal pressure is part of the buying conversation.",
+        "Pricing, seats, or renewal came up on the call.",
       ),
       claimFrom(
         pilot,
-        "They prefer a scoped pilot before a broader rollout.",
+        "A pilot, timeline, or process step was discussed.",
       ),
     ],
     objections: [
       claimFrom(
         accuracy || expensive,
         accuracy
-          ? "Trust / proof / security constraints must be satisfied before expansion."
-          : "Pricing or commercial structure is a live objection.",
+          ? "A trust, proof, or security requirement was raised."
+          : "Pricing or commercial terms were raised.",
       ),
     ],
     intent: [
       claimFrom(
         intent,
-        intent?.text || "Buyer signaled a near-term vendor decision.",
+        intent?.text || "A vendor decision was referenced on the call.",
       ),
     ],
     nextSteps: [
       claimFrom(
         next,
-        "Owner committed to a concrete follow-up artifact or meeting.",
+        "A follow-up artifact or meeting was mentioned.",
       ),
       claimFrom(
         today,
-        "There is a dated checkpoint the buyer can share internally.",
+        "A date or checkpoint was mentioned.",
       ),
     ],
     pain: accuracy
       ? [
           claimFrom(
             accuracy,
-            "Trust, proof, or security constraints are the live pain.",
+            "A trust, proof, or security concern came up.",
           ),
         ]
       : [],
@@ -118,7 +118,7 @@ export function demoExtractDealNotes(
       ? [
           claimFrom(
             expensive,
-            "Pricing, seats, or renewal cost is on the table.",
+            "Pricing, seats, or renewal cost was mentioned.",
           ),
         ]
       : [],
