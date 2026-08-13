@@ -4,7 +4,9 @@
 
 Every claim points to the exact line in the transcript. Unproven claims never ship.
 
-![OpenGong Lite — deal notes with receipts](./public/screenshot-placeholder.svg)
+![OpenGong Lite — deal notes with receipts](./public/screenshot.png)
+
+> **You'll hate this if:** you want fully local/private processing. Audio goes to PyAI (transcription) and optionally Anthropic or an OpenAI-compatible LLM (extraction). If that's a blocker, self-host those APIs or stop here.
 
 ## Pipeline (real PyAI)
 
@@ -24,27 +26,31 @@ still ship.
 ## Five-minute setup
 
 ```bash
+git clone https://github.com/sarithakonudula/open-gong-lite.git
+cd open-gong-lite
 npm install
-cp .env.example .env
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) — samples work immediately, no key needed.
 
-- **Samples** work with zero keys.
-- **Live ingest** uses `PYAI_API_KEY`, or auto-mints a `pyai_test_` sandbox key
-  via `POST /v1/sandbox/keys` (stored in gitignored `data/.pyai-sandbox-key.json`).
+- **Samples** work with zero config. Click any sample → cited notes in seconds.
+- **Live ingest** (upload a real call) auto-mints a free `pyai_test_` sandbox key on first use — no signup, no card. Key is stored in gitignored `data/.pyai-sandbox-key.json` and reused on subsequent runs.
+- **Optional:** copy `.env.example` to `.env` to set a real `PYAI_API_KEY` or enable the login gate.
 
-### Env
+### Env (all optional)
 
 ```bash
-PYAI_API_KEY=pyai_test_...          # or pyai_live_...
+# Live key — leave blank to auto-mint a free sandbox key on first upload
+PYAI_API_KEY=pyai_test_...
+
+# API endpoints (defaults built in, only set if self-hosting)
 PYAI_BASE_URL=https://api.pyai.com/v1
-PYAI_HEAR_MODEL=pyai-hear
-PYAI_HEAR_JOB_MODEL=pyai-hear-telephony
+
+# Recap add-on (deal intelligence). Falls back to local extractor if unavailable.
 PYAI_RECAP_PACK_ID=sales_outbound
 
-# Optional if Recap add-on is unavailable
+# Optional LLM fallback when Recap isn't on your org (OpenAI-compatible)
 LLM_BASE_URL=
 LLM_API_KEY=
 LLM_MODEL=gpt-4o-mini
