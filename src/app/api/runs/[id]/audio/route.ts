@@ -50,7 +50,7 @@ export async function GET(request: NextRequest, context: Ctx) {
       });
     }
     const slice = bytes.subarray(start, end + 1);
-    return new NextResponse(slice, {
+    return new NextResponse(Uint8Array.from(slice), {
       status: 206,
       headers: {
         "Content-Type": contentType,
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest, context: Ctx) {
     });
   }
 
-  return new NextResponse(bytes, {
+  return new NextResponse(Uint8Array.from(bytes), {
     status: 200,
     headers: {
       "Content-Type": contentType,
