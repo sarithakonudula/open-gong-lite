@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { z } from "zod";
+import { config } from "@/lib/config";
 import {
   DealNotes,
   DealNotesSchema,
@@ -19,15 +20,18 @@ const SampleFileSchema = z.object({
   notes: DealNotesSchema.optional(),
 });
 
-const SAMPLE_DIR = path.join(process.cwd(), "sample-calls");
+function sampleDir(): string {
+  return config.sampleCallsDir;
+}
 
 export async function listSamples(): Promise<SampleCall[]> {
-  const files = await fs.readdir(SAMPLE_DIR);
+  const dir = sampleDir();
+  const files = await fs.readdir(dir);
   const samples: SampleCall[] = [];
 
   for (const file of files) {
     if (!file.endsWith(".json")) continue;
-    const raw = await fs.readFile(path.join(SAMPLE_DIR, file), "utf8");
+    const raw = await fs.readFile(path.join(dir, file), "utf8");
     const parsed = SampleFileSchema.parse(JSON.parse(raw));
     samples.push({
       slug: parsed.slug,
@@ -51,7 +55,10 @@ export async function loadSample(slug: string): Promise<{
     throw new Error("Invalid sample slug");
   }
 
-  const raw = await fs.readFile(path.join(SAMPLE_DIR, `${safe}.json`), "utf8");
+  const raw = await fs.readFile(
+    path.join(sampleDir(), `${safe}.json`),
+    "utf8",
+  );
   const parsed = SampleFileSchema.parse(JSON.parse(raw));
   return {
     meta: {

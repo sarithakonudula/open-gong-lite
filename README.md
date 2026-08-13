@@ -91,9 +91,32 @@ Scopes for the full live path:
 ```bash
 npm run dev
 npm run build
+npm run start        # production (standalone)
 npm run test:gates   # receipt / schema gate unit tests
 npm run smoke        # offline sample → shipped notes
 ```
+
+## Deploy on Railway
+
+Repo is Dockerfile + `railway.toml` ready (standalone Next.js).
+
+1. [New project](https://railway.app/new) → **Deploy from GitHub** → `sarithakonudula/open-gong-lite`
+2. **Variables** (service → Variables):
+
+| Variable | Value |
+|----------|--------|
+| `PYAI_API_KEY` | your `pyai_test_` / `pyai_live_` key |
+| `PYAI_BASE_URL` | `https://api.pyai.com/v1` |
+| `OPENGONG_AUTO_MINT_SANDBOX` | `false` (recommended in prod) |
+| `OPENGONG_DEMO_WITHOUT_KEY` | `true` (samples still work) |
+
+Optional: `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` if Recap isn’t on the org.
+
+3. **Networking** → Generate domain.
+4. Optional volume: mount at `/app/data` so run history survives redeploys (`OPENGONG_DATA_DIR` is already `/app/data` in the image).
+5. Healthcheck: `GET /api/health` (configured in `railway.toml`).
+
+Samples and `/how` work without a key. Upload / mic Hear need `PYAI_API_KEY`.
 
 Official PyAI references:
 

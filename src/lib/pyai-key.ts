@@ -2,7 +2,9 @@ import { promises as fs } from "fs";
 import path from "path";
 import { config, hasLivePyai, setRuntimePyaiKey } from "@/lib/config";
 
-const KEY_FILE = path.join(process.cwd(), "data", ".pyai-sandbox-key.json");
+function keyFilePath(): string {
+  return path.join(config.dataDir, ".pyai-sandbox-key.json");
+}
 
 type StoredKey = {
   apiKey: string;
@@ -29,7 +31,7 @@ function previewKey(key: string): string {
 
 async function readStoredKey(): Promise<StoredKey | null> {
   try {
-    const raw = await fs.readFile(KEY_FILE, "utf8");
+    const raw = await fs.readFile(keyFilePath(), "utf8");
     const parsed = JSON.parse(raw) as StoredKey;
     if (!parsed.apiKey || typeof parsed.apiKey !== "string") return null;
     if (parsed.expiresAt && Date.now() > parsed.expiresAt) return null;
@@ -40,8 +42,9 @@ async function readStoredKey(): Promise<StoredKey | null> {
 }
 
 async function writeStoredKey(stored: StoredKey): Promise<void> {
-  await fs.mkdir(path.dirname(KEY_FILE), { recursive: true });
-  await fs.writeFile(KEY_FILE, JSON.stringify(stored, null, 2), "utf8");
+  const file = keyFilePath();
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, JSON.stringify(stored, null, 2), "utf8");
 }
 
 async function mintSandboxKey(): Promise<StoredKey> {

@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Required for Railway / Docker self-host (see docs.railway.com/guides/nextjs).
+  output: "standalone",
 };
 
 export default nextConfig;

@@ -3,6 +3,12 @@ function env(name: string): string | undefined {
   return value || undefined;
 }
 
+function dataRoot(): string {
+  const fromEnv = env("OPENGONG_DATA_DIR");
+  if (fromEnv) return fromEnv;
+  return `${process.cwd()}/data`;
+}
+
 export const config = {
   pyaiBaseUrl: (env("PYAI_BASE_URL") || "https://api.pyai.com/v1").replace(
     /\/$/,
@@ -24,6 +30,10 @@ export const config = {
   autoMintSandbox: process.env.OPENGONG_AUTO_MINT_SANDBOX !== "false",
   diarizeDefault: process.env.OPENGONG_DIARIZE !== "false",
   channelDefault: process.env.OPENGONG_CHANNEL === "true",
+  /** Run JSON + sandbox key file live under this directory. */
+  dataDir: dataRoot(),
+  sampleCallsDir:
+    env("OPENGONG_SAMPLE_DIR") || `${process.cwd()}/sample-calls`,
 };
 
 export function hasLivePyai(): boolean {

@@ -2,10 +2,13 @@
   "name": "opengong-lite",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "build": "next build && node scripts/prepare-standalone.mjs",
+    "start": "node .next/standalone/server.js",
     "lint": "eslint",
     "test:gates": "tsx --test scripts/test-gates.ts",
     "smoke": "npm run build && node scripts/smoke.mjs"

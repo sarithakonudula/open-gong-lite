@@ -1,0 +1,19 @@
+# Dependencies & build
+node_modules
+npm-debug.log*
+.git
+.gitignore
+.next
+.env
+.env.*
+!.env.example
+README.md
+AGENTS.md
+CLAUDE.md
+.cursor
+**/*.md
+!public/samples/README.md
+data/runs/*.json
+data/.pyai-sandbox-key.json
+coverage
+.DS_Store

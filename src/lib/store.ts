@@ -1,16 +1,19 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { randomBytes } from "crypto";
+import { config } from "@/lib/config";
 import { RunRecord, RunRecordSchema } from "@/lib/types";
 
-const DATA_DIR = path.join(process.cwd(), "data", "runs");
+function runsDir(): string {
+  return path.join(config.dataDir, "runs");
+}
 
 function runPath(id: string) {
-  return path.join(DATA_DIR, `${id}.json`);
+  return path.join(runsDir(), `${id}.json`);
 }
 
 export async function ensureStore(): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.mkdir(runsDir(), { recursive: true });
 }
 
 export function newShareToken(): string {
@@ -40,10 +43,11 @@ export async function getRunByShareToken(
   token: string,
 ): Promise<RunRecord | null> {
   await ensureStore();
-  const files = await fs.readdir(DATA_DIR);
+  const dir = runsDir();
+  const files = await fs.readdir(dir);
   for (const file of files) {
     if (!file.endsWith(".json")) continue;
-    const raw = await fs.readFile(path.join(DATA_DIR, file), "utf8");
+    const raw = await fs.readFile(path.join(dir, file), "utf8");
     const run = RunRecordSchema.parse(JSON.parse(raw));
     if (run.shareToken === token) return run;
   }
@@ -72,13 +76,14 @@ function toSummary(run: RunRecord): RunSummary {
 
 export async function listRuns(limit = 40): Promise<RunSummary[]> {
   await ensureStore();
-  const files = await fs.readdir(DATA_DIR);
+  const dir = runsDir();
+  const files = await fs.readdir(dir);
   const runs: RunRecord[] = [];
 
   for (const file of files) {
     if (!file.endsWith(".json")) continue;
     try {
-      const raw = await fs.readFile(path.join(DATA_DIR, file), "utf8");
+      const raw = await fs.readFile(path.join(dir, file), "utf8");
       runs.push(RunRecordSchema.parse(JSON.parse(raw)));
     } catch {
       // skip corrupt files
@@ -99,13 +104,14 @@ export async function searchRuns(
   if (!q) return listRuns(limit);
 
   await ensureStore();
-  const files = await fs.readdir(DATA_DIR);
+  const dir = runsDir();
+  const files = await fs.readdir(dir);
   const hits: RunRecord[] = [];
 
   for (const file of files) {
     if (!file.endsWith(".json")) continue;
     try {
-      const raw = await fs.readFile(path.join(DATA_DIR, file), "utf8");
+      const raw = await fs.readFile(path.join(dir, file), "utf8");
       const run = RunRecordSchema.parse(JSON.parse(raw));
       const haystack = [
         run.sourceLabel,

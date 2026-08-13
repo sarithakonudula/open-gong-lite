@@ -4,11 +4,13 @@ import { setTimeout as sleep } from "node:timers/promises";
 const port = 3017;
 const base = `http://127.0.0.1:${port}`;
 
-// Prefer production server so we don't collide with an already-running `next dev`.
-const child = spawn("npx", ["next", "start", "-p", String(port)], {
+// Prefer production standalone server so we don't collide with an already-running `next dev`.
+const child = spawn("node", [".next/standalone/server.js"], {
   stdio: ["ignore", "pipe", "pipe"],
   env: {
     ...process.env,
+    PORT: String(port),
+    HOSTNAME: "127.0.0.1",
     OPENGONG_DEMO_WITHOUT_KEY: "true",
     OPENGONG_AUTO_MINT_SANDBOX: "false",
   },
@@ -90,6 +92,10 @@ try {
 
   const howRes = await fetch(`${base}/how`);
   if (!howRes.ok) throw new Error("how page failed");
+
+  const healthRes = await fetch(`${base}/api/health`);
+  const health = await healthRes.json();
+  if (!healthRes.ok || !health.ok) throw new Error("health check failed");
 
   console.log("smoke ok", {
     id: run.id,
