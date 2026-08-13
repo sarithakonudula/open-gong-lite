@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" fill="none">
+  <rect width="1600" height="900" fill="#0C1210"/>
+  <defs>
+    <radialGradient id="g1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(220 80) rotate(55) scale(780 420)">
+      <stop stop-color="#C8F135" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#C8F135" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="g2" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1400 120) rotate(120) scale(620 360)">
+      <stop stop-color="#FF6B3D" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#FF6B3D" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#g1)"/>
+  <rect width="1600" height="900" fill="url(#g2)"/>
+
+  <text x="72" y="64" fill="#F3F7F4" font-family="Georgia, serif" font-size="28">OpenGong Lite</text>
+  <text x="1280" y="58" fill="#9BB5A8" font-family="Arial, sans-serif" font-size="14" letter-spacing="3">DEAL INTELLIGENCE</text>
+
+  <text x="72" y="140" fill="#C8F135" font-family="Arial, sans-serif" font-size="14" letter-spacing="4">DEAL INTELLIGENCE</text>
+  <text x="72" y="198" fill="#F3F7F4" font-family="Georgia, serif" font-size="44">Basecamp Retail — displace Fireflies</text>
+  <text x="72" y="240" fill="#9BB5A8" font-family="Arial, sans-serif" font-size="18">Status: shipped  ·  Live · competitive displacement  ·  Share · Export</text>
+
+  <rect x="72" y="280" width="150" height="72" rx="18" fill="rgba(200,241,53,0.12)" stroke="rgba(200,241,53,0.35)"/>
+  <text x="92" y="322" fill="#C8F135" font-family="Arial, sans-serif" font-size="28" font-weight="700">3</text>
+  <text x="92" y="342" fill="#9BB5A8" font-family="Arial, sans-serif" font-size="12" letter-spacing="2">SUMMARY</text>
+
+  <rect x="238" y="280" width="150" height="72" rx="18" fill="rgba(200,241,53,0.12)" stroke="rgba(200,241,53,0.35)"/>
+  <text x="258" y="322" fill="#C8F135" font-family="Arial, sans-serif" font-size="28" font-weight="700">3</text>
+  <text x="258" y="342" fill="#9BB5A8" font-family="Arial, sans-serif" font-size="12" letter-spacing="2">OBJECTIONS</text>
+
+  <rect x="404" y="280" width="150" height="72" rx="18" fill="rgba(200,241,53,0.12)" stroke="rgba(200,241,53,0.35)"/>
+  <text x="424" y="322" fill="#C8F135" font-family="Arial, sans-serif" font-size="28" font-weight="700">1</text>
+  <text x="424" y="342" fill="#9BB5A8" font-family="Arial, sans-serif" font-size="12" letter-spacing="2">INTENT</text>
+
+  <rect x="570" y="280" width="150" height="72" rx="18" fill="rgba(200,241,53,0.12)" stroke="rgba(200,241,53,0.35)"/>
+  <text x="590" y="322" fill="#C8F135" font-family="Arial, sans-serif" font-size="28" font-weight="700">2</text>
+  <text x="590" y="342" fill="#9BB5A8" font-family="Arial, sans-serif" font-size="12" letter-spacing="2">NEXT STEPS</text>
+
+  <text x="72" y="410" fill="#F3F7F4" font-family="Georgia, serif" font-size="28">2 · Objections</text>
+  <text x="72" y="455" fill="#F3F7F4" font-family="Arial, sans-serif" font-size="20">Trust bar: hallucinated notes cannot enter CRM / deal records.</text>
+  <text x="72" y="490" fill="#C8F135" font-family="Arial, sans-serif" font-size="16">Receipt · L6: “hallucinated notes going into deal records”</text>
+
+  <text x="72" y="545" fill="#F3F7F4" font-family="Arial, sans-serif" font-size="20">Company-wide rollout depends on trusting the output.</text>
+  <text x="72" y="580" fill="#C8F135" font-family="Arial, sans-serif" font-size="16">Receipt · L7: “If we can't trust the output we can't roll this out”</text>
+
+  <text x="72" y="640" fill="#F3F7F4" font-family="Georgia, serif" font-size="28">3 · Intent</text>
+  <text x="72" y="685" fill="#F3F7F4" font-family="Arial, sans-serif" font-size="20">Replace Fireflies if the receipts story holds; procurement next week.</text>
+  <text x="72" y="720" fill="#C8F135" font-family="Arial, sans-serif" font-size="16">Receipt · L11: “Intent is to replace Fireflies if the receipts story holds”</text>
+
+  <rect x="880" y="280" width="648" height="520" rx="28" fill="#16201C" stroke="rgba(215,227,220,0.18)"/>
+  <text x="920" y="330" fill="#9BB5A8" font-family="Arial, sans-serif" font-size="14" letter-spacing="3">TRANSCRIPT</text>
+  <text x="920" y="358" fill="#9BB5A8" font-family="Arial, sans-serif" font-size="14">Click a receipt to jump to the exact line.</text>
+
+  <rect x="910" y="390" width="588" height="88" rx="16" fill="rgba(255,255,255,0.03)"/>
+  <text x="930" y="425" fill="#9BB5A8" font-family="Arial, sans-serif" font-size="13">L5 · Rep</text>
+  <text x="930" y="455" fill="#F3F7F4" font-family="Arial, sans-serif" font-size="16">Every claim links back to the exact line…</text>
+
+  <rect x="910" y="494" width="588" height="100" rx="16" fill="rgba(200,241,53,0.14)" stroke="#C8F135"/>
+  <text x="930" y="532" fill="#9BB5A8" font-family="Arial, sans-serif" font-size="13">L6 · Prospect</text>
+  <text x="930" y="562" fill="#F3F7F4" font-family="Arial, sans-serif" font-size="16">legal team is worried about hallucinated notes</text>
+  <text x="930" y="584" fill="#F3F7F4" font-family="Arial, sans-serif" font-size="16">going into deal records.</text>
+
+  <rect x="910" y="610" width="588" height="88" rx="16" fill="rgba(255,255,255,0.03)"/>
+  <text x="930" y="645" fill="#9BB5A8" font-family="Arial, sans-serif" font-size="13">L7 · Prospect</text>
+  <text x="930" y="675" fill="#F3F7F4" font-family="Arial, sans-serif" font-size="16">If we can't trust the output we can't roll this out…</text>
+
+  <text x="72" y="860" fill="#9BB5A8" font-family="Arial, sans-serif" font-size="16">No proof in the transcript ? no claim in the notes. Runs on PyAI.</text>
+</svg>

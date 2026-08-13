@@ -1,0 +1,151 @@
+{
+  "slug": "acme-pricing-pushback",
+  "title": "Acme Corp — pricing pushback",
+  "company": "Acme Corp",
+  "durationLabel": "18 min",
+  "description": "Discovery call where the prospect likes the product but stalls on annual pricing and asks for a pilot.",
+  "transcript": [
+    {
+      "id": "L1",
+      "index": 0,
+      "speaker": "Rep",
+      "text": "Thanks for jumping on, Priya. I saw you evaluated three tools last quarter — what's still open?"
+    },
+    {
+      "id": "L2",
+      "index": 1,
+      "speaker": "Prospect",
+      "text": "We need deal notes that our AEs actually trust. Gong is too expensive for a twelve-person team."
+    },
+    {
+      "id": "L3",
+      "index": 2,
+      "speaker": "Rep",
+      "text": "Got it. OpenGong Lite gives you objections, next steps, and receipts back to the transcript — no seat tax."
+    },
+    {
+      "id": "L4",
+      "index": 3,
+      "speaker": "Prospect",
+      "text": "That sounds right. My worry is accuracy. If a claim isn't in the call, our CRM gets polluted."
+    },
+    {
+      "id": "L5",
+      "index": 4,
+      "speaker": "Rep",
+      "text": "Every claim has to point to an exact line. Unproven claims never ship — that's a hard gate."
+    },
+    {
+      "id": "L6",
+      "index": 5,
+      "speaker": "Prospect",
+      "text": "Okay, but annual pricing is still a stretch. Can we do a thirty-day pilot on two teams first?"
+    },
+    {
+      "id": "L7",
+      "index": 6,
+      "speaker": "Rep",
+      "text": "Yes. We can start a pilot next Monday with your enterprise and mid-market pods."
+    },
+    {
+      "id": "L8",
+      "index": 7,
+      "speaker": "Prospect",
+      "text": "If the pilot proves out, I'll bring procurement in the week after. Intent is to replace Fireflies by Q3."
+    },
+    {
+      "id": "L9",
+      "index": 8,
+      "speaker": "Rep",
+      "text": "Perfect. I'll send a follow-up with the pilot plan, success metrics, and a draft SOW outline."
+    },
+    {
+      "id": "L10",
+      "index": 9,
+      "speaker": "Prospect",
+      "text": "Send it today so I can share with our RevOps lead before Friday's forecast meeting."
+    }
+  ],
+  "notes": {
+    "title": "Acme Corp — pilot path to replace Fireflies",
+    "summary": [
+      {
+        "text": "Buyer needs AE-trusted deal notes; Gong is too expensive for a 12-person team.",
+        "evidence": {
+          "lineId": "L2",
+          "quote": "Gong is too expensive for a twelve-person team"
+        }
+      },
+      {
+        "text": "Accuracy is the trust bar: unproven claims must not pollute CRM.",
+        "evidence": {
+          "lineId": "L4",
+          "quote": "If a claim isn't in the call, our CRM gets polluted"
+        }
+      },
+      {
+        "text": "Commercial motion: 30-day pilot on two teams before annual commitment.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "thirty-day pilot on two teams first"
+        }
+      }
+    ],
+    "objections": [
+      {
+        "text": "Annual pricing is still a stretch; wants a scoped pilot first.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "annual pricing is still a stretch"
+        }
+      },
+      {
+        "text": "Fear of inaccurate AI claims polluting CRM records.",
+        "evidence": {
+          "lineId": "L4",
+          "quote": "My worry is accuracy"
+        }
+      }
+    ],
+    "intent": [
+      {
+        "text": "Replace Fireflies by Q3 if the pilot proves out.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "Intent is to replace Fireflies by Q3"
+        }
+      }
+    ],
+    "nextSteps": [
+      {
+        "text": "Start pilot next Monday with enterprise + mid-market pods.",
+        "evidence": {
+          "lineId": "L7",
+          "quote": "start a pilot next Monday with your enterprise and mid-market pods"
+        }
+      },
+      {
+        "text": "Send pilot plan, success metrics, and draft SOW today for RevOps before Friday forecast.",
+        "evidence": {
+          "lineId": "L10",
+          "quote": "Send it today so I can share with our RevOps lead"
+        }
+      },
+      {
+        "text": "If pilot works, buyer brings procurement the following week.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "I'll bring procurement in the week after"
+        }
+      }
+    ],
+    "followUpEmail": {
+      "subject": "Acme pilot plan — enterprise + mid-market pods",
+      "body": "Priya —\n\nGreat conversation. Attaching the pilot plan, success metrics, and a draft SOW outline.\n\nProposed start: next Monday with your enterprise and mid-market pods for 30 days.\n\nSuccess bar: AE-trusted notes with transcript receipts (no unproven CRM claims).\n\nPlease share with RevOps ahead of Friday's forecast meeting. If the pilot proves out, we can loop procurement the week after.\n\n— OpenGong Lite",
+      "evidence": {
+        "lineId": "L9",
+        "quote": "pilot plan, success metrics, and a draft SOW outline"
+      }
+    }
+  }
+}

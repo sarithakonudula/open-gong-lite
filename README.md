@@ -1,36 +1,103 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OpenGong Lite
 
-## Getting Started
+**Gong’s job, free.** Upload a sales call → get deal notes with receipts.
 
-First, run the development server:
+Every claim points to the exact line in the transcript. Unproven claims never ship.
+
+![OpenGong Lite — deal notes with receipts](./public/screenshot-placeholder.svg)
+
+## Pipeline (real PyAI)
+
+```
+audio (upload or https URL)
+  → Hear async job  POST /v1/transcription/jobs  (diarize / channel)
+  → poll            GET  /v1/transcription/jobs/{id}
+  → Recap           POST/GET /v1/recap/calls/{call_id}  (pack: sales_outbound)
+  → gates           schema + evidence receipts
+  → UI / share / export
+```
+
+If Recap isn’t enabled on the key/org, the harness falls back to an optional
+OpenAI-compatible LLM (`LLM_*`) or a deterministic local extractor so demos
+still ship.
+
+## Five-minute setup
+
+```bash
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+- **Samples** work with zero keys.
+- **Live ingest** uses `PYAI_API_KEY`, or auto-mints a `pyai_test_` sandbox key
+  via `POST /v1/sandbox/keys` (stored in gitignored `data/.pyai-sandbox-key.json`).
+
+### Env
+
+```bash
+PYAI_API_KEY=pyai_test_...          # or pyai_live_...
+PYAI_BASE_URL=https://api.pyai.com/v1
+PYAI_HEAR_MODEL=pyai-hear
+PYAI_HEAR_JOB_MODEL=pyai-hear-telephony
+PYAI_RECAP_PACK_ID=sales_outbound
+
+# Optional if Recap add-on is unavailable
+LLM_BASE_URL=
+LLM_API_KEY=
+LLM_MODEL=gpt-4o-mini
+```
+
+Scopes for the full live path:
+
+- `hear:transcribe` + `transcribe:jobs` (Hear batch)
+- `recap:read` (+ `recap:configure` once to enable)
+
+## What you get
+
+- Diarized transcript with speaker labels
+- Summary, objections, intent, next steps, follow-up email
+- **Receipts**: click a claim → jump to the transcript line
+- Export Markdown / JSON + shareable link
+- Six sample calls in `sample-calls/` (incl. Fireflies competitive displacement)
+- **Live call** at `/live` — scripted offline stream **or** mic → Hear → gates
+- Search across past runs on the home page
+- Judge one-pager at `/how` — why the harness is the product
+
+## Harness
+
+| Gate | Behavior |
+|------|----------|
+| Schema | Bad JSON never ships |
+| Evidence | No proof in transcript → no claim |
+| Retry | Failed parts retry with reason (capped) |
+| Status | Every run ends `shipped` / `partial` / `failed` |
+| Budget | Attempts + deadline governor |
+
+## Demo script (90 seconds)
+
+1. Homepage — brand hits first; note PyAI key status line.
+2. Run **Basecamp Retail — Fireflies** (or Acme pricing pushback).
+3. Click an objection receipt; transcript jumps.
+4. Optional: `/live` → scripted demo **or** Record mic → End call.
+5. Open `/how` for one sentence on gates if judges ask.
+6. Share link / Copy share URL + export Markdown.
+7. Line: *People pay Gong $1,400 a seat for this. Ours is a git clone.*
+
+## Scripts
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run build
+npm run test:gates   # receipt / schema gate unit tests
+npm run smoke        # offline sample → shipped notes
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Official PyAI references:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- [Build your own Gong](https://docs.pyai.com/use-cases/build-your-own-gong)
+- [Recap call intelligence](https://docs.pyai.com/guides/recap-call-intelligence)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Runs on PyAI.

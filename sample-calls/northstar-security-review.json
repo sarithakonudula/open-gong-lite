@@ -1,0 +1,151 @@
+{
+  "slug": "northstar-security-review",
+  "title": "Northstar — security review",
+  "company": "Northstar Health",
+  "durationLabel": "22 min",
+  "description": "Security-conscious buyer. Wants data residency answers and a DPA before any rollout.",
+  "transcript": [
+    {
+      "id": "L1",
+      "index": 0,
+      "speaker": "Rep",
+      "text": "Hi Marcus — you mentioned legal blocked the last notetaker. What do they need this time?"
+    },
+    {
+      "id": "L2",
+      "index": 1,
+      "speaker": "Prospect",
+      "text": "We cannot put PHI into a mystery cloud. Audio can leave the laptop only if we pick the API."
+    },
+    {
+      "id": "L3",
+      "index": 2,
+      "speaker": "Rep",
+      "text": "Understood. You bring your own PyAI key, and nothing else leaves your environment."
+    },
+    {
+      "id": "L4",
+      "index": 3,
+      "speaker": "Prospect",
+      "text": "We also need a signed DPA and confirmation that transcripts are not used for model training."
+    },
+    {
+      "id": "L5",
+      "index": 4,
+      "speaker": "Rep",
+      "text": "I can send the DPA today and a one-pager on zero-training for customer audio."
+    },
+    {
+      "id": "L6",
+      "index": 5,
+      "speaker": "Prospect",
+      "text": "If that clears, we'll pilot with the compliance team — not sales — for two weeks."
+    },
+    {
+      "id": "L7",
+      "index": 6,
+      "speaker": "Rep",
+      "text": "Happy to start with compliance. Success looks like redacted notes with receipts they approve."
+    },
+    {
+      "id": "L8",
+      "index": 7,
+      "speaker": "Prospect",
+      "text": "Next step: get the DPA to our counsel by Thursday. If they greenlight, we schedule onboarding."
+    },
+    {
+      "id": "L9",
+      "index": 8,
+      "speaker": "Rep",
+      "text": "I'll email counsel, copy you, and attach the architecture diagram with data flows."
+    },
+    {
+      "id": "L10",
+      "index": 9,
+      "speaker": "Prospect",
+      "text": "Intent is to standardize on one stack before our HIPAA audit in September."
+    }
+  ],
+  "notes": {
+    "title": "Northstar Health — security gate before compliance pilot",
+    "summary": [
+      {
+        "text": "Legal blocked the previous notetaker; this eval is a security re-entry, not a greenfield sales pitch.",
+        "evidence": {
+          "lineId": "L1",
+          "quote": "legal blocked the last notetaker"
+        }
+      },
+      {
+        "text": "Buyer requires control of the API path — PHI cannot go to an opaque cloud.",
+        "evidence": {
+          "lineId": "L2",
+          "quote": "We cannot put PHI into a mystery cloud"
+        }
+      },
+      {
+        "text": "If security clears, rollout starts with compliance for two weeks, not the sales org.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "pilot with the compliance team — not sales — for two weeks"
+        }
+      }
+    ],
+    "objections": [
+      {
+        "text": "Hard blocker: no mystery-cloud PHI path; audio may leave the laptop only via a buyer-chosen API.",
+        "evidence": {
+          "lineId": "L2",
+          "quote": "Audio can leave the laptop only if we pick the API"
+        }
+      },
+      {
+        "text": "Requires a signed DPA plus proof transcripts are not used for model training.",
+        "evidence": {
+          "lineId": "L4",
+          "quote": "signed DPA and confirmation that transcripts are not used for model training"
+        }
+      }
+    ],
+    "intent": [
+      {
+        "text": "Standardize on one stack before the September HIPAA audit.",
+        "evidence": {
+          "lineId": "L10",
+          "quote": "standardize on one stack before our HIPAA audit in September"
+        }
+      }
+    ],
+    "nextSteps": [
+      {
+        "text": "Send DPA + zero-training one-pager to counsel today / by Thursday.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "get the DPA to our counsel by Thursday"
+        }
+      },
+      {
+        "text": "Email counsel with architecture/data-flow diagram; copy Marcus.",
+        "evidence": {
+          "lineId": "L9",
+          "quote": "email counsel, copy you, and attach the architecture diagram"
+        }
+      },
+      {
+        "text": "On greenlight: schedule compliance-team onboarding and define success as approved redacted notes with receipts.",
+        "evidence": {
+          "lineId": "L7",
+          "quote": "redacted notes with receipts they approve"
+        }
+      }
+    ],
+    "followUpEmail": {
+      "subject": "Northstar: DPA, zero-training proof, and compliance pilot plan",
+      "body": "Marcus —\n\nThanks for walking through the security requirements.\n\nAs promised, attaching:\n1) DPA for counsel review\n2) Zero-training one-pager for customer audio/transcripts\n3) Architecture + data-flow diagram\n\nProposed success criteria for the two-week compliance pilot: redacted deal notes with transcript receipts your team can approve.\n\nIf counsel greenlights by Thursday, we can schedule onboarding immediately.\n\n— OpenGong Lite",
+      "evidence": {
+        "lineId": "L5",
+        "quote": "send the DPA today and a one-pager on zero-training"
+      }
+    }
+  }
+}

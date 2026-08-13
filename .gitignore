@@ -32,6 +32,12 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# local run artifacts
+/data/runs/*.json
+!/data/runs/.gitkeep
+/data/.pyai-sandbox-key.json
 
 # vercel
 .vercel

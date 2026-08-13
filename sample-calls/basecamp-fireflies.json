@@ -1,0 +1,187 @@
+{
+  "slug": "basecamp-fireflies",
+  "title": "Basecamp Retail — competitive displacement (Fireflies)",
+  "company": "Basecamp Retail",
+  "durationLabel": "12 min",
+  "description": "Prospect comparing against Fireflies: wants analysis with citations, not transcription alone. Legal fears hallucinated notes in deal records.",
+  "transcript": [
+    {
+      "id": "L1",
+      "index": 0,
+      "speaker": "Rep",
+      "text": "Morning Alex, I know you're comparing us against Fireflies so let's get right into it.",
+      "startMs": 0,
+      "endMs": 4730
+    },
+    {
+      "id": "L2",
+      "index": 1,
+      "speaker": "Prospect",
+      "text": "Yeah, Fireflies is fine but it's basically just transcription, we want actual analysis.",
+      "startMs": 5130,
+      "endMs": 9915
+    },
+    {
+      "id": "L3",
+      "index": 2,
+      "speaker": "Rep",
+      "text": "That's the gap, we go past transcription into objections, intent scoring and next steps with citations.",
+      "startMs": 10315,
+      "endMs": 15980
+    },
+    {
+      "id": "L4",
+      "index": 3,
+      "speaker": "Prospect",
+      "text": "Citations meaning what exactly?",
+      "startMs": 16380,
+      "endMs": 18085
+    },
+    {
+      "id": "L5",
+      "index": 4,
+      "speaker": "Rep",
+      "text": "Every claim in the summary links back to the exact line in the transcript it came from, so nothing is made up.",
+      "startMs": 18485,
+      "endMs": 24535
+    },
+    {
+      "id": "L6",
+      "index": 5,
+      "speaker": "Prospect",
+      "text": "That's actually a real concern for us, our legal team is worried about hallucinated notes going into deal records.",
+      "startMs": 24935,
+      "endMs": 31205
+    },
+    {
+      "id": "L7",
+      "index": 6,
+      "speaker": "Prospect",
+      "text": "If we can't trust the output we can't roll this out company wide.",
+      "startMs": 31605,
+      "endMs": 35180
+    },
+    {
+      "id": "L8",
+      "index": 7,
+      "speaker": "Rep",
+      "text": "Understood, that's a blocking concern for us too internally, which is why we gate on it before anything ships.",
+      "startMs": 35580,
+      "endMs": 41630
+    },
+    {
+      "id": "L9",
+      "index": 8,
+      "speaker": "Prospect",
+      "text": "Okay, what about pricing, we're currently paying per seat for three separate tools.",
+      "startMs": 42030,
+      "endMs": 46595
+    },
+    {
+      "id": "L10",
+      "index": 9,
+      "speaker": "Rep",
+      "text": "We'd consolidate that into one API-metered bill, usually cheaper once you add up what you're paying today.",
+      "startMs": 46995,
+      "endMs": 52825
+    },
+    {
+      "id": "L11",
+      "index": 10,
+      "speaker": "Prospect",
+      "text": "Send me a comparison and I'll take it to procurement next week. Intent is to replace Fireflies if the receipts story holds.",
+      "startMs": 53225,
+      "endMs": 56690
+    },
+    {
+      "id": "L12",
+      "index": 11,
+      "speaker": "Rep",
+      "text": "Sounds good, I'll follow up with a side by side and a proposed start date by end of day Friday.",
+      "startMs": 57090,
+      "endMs": 61160
+    }
+  ],
+  "notes": {
+    "title": "Basecamp Retail — displace Fireflies with cited deal notes",
+    "summary": [
+      {
+        "text": "Prospect finds Fireflies limited to transcription and wants real analysis.",
+        "evidence": {
+          "lineId": "L2",
+          "quote": "Fireflies is fine but it's basically just transcription, we want actual analysis"
+        }
+      },
+      {
+        "text": "Differentiation pitched: objections, intent, next steps with citations to transcript lines.",
+        "evidence": {
+          "lineId": "L3",
+          "quote": "objections, intent scoring and next steps with citations"
+        }
+      },
+      {
+        "text": "Legal team blocks rollout if notes can hallucinate into deal records.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "legal team is worried about hallucinated notes going into deal records"
+        }
+      }
+    ],
+    "objections": [
+      {
+        "text": "Trust bar: hallucinated notes cannot enter CRM / deal records.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "hallucinated notes going into deal records"
+        }
+      },
+      {
+        "text": "Company-wide rollout depends on trusting the output.",
+        "evidence": {
+          "lineId": "L7",
+          "quote": "If we can't trust the output we can't roll this out company wide"
+        }
+      },
+      {
+        "text": "Paying per seat across three tools; wants consolidation.",
+        "evidence": {
+          "lineId": "L9",
+          "quote": "paying per seat for three separate tools"
+        }
+      }
+    ],
+    "intent": [
+      {
+        "text": "Replace Fireflies if the receipts / citations story holds; procurement next week.",
+        "evidence": {
+          "lineId": "L11",
+          "quote": "Intent is to replace Fireflies if the receipts story holds"
+        }
+      }
+    ],
+    "nextSteps": [
+      {
+        "text": "Send side-by-side comparison vs Fireflies for procurement.",
+        "evidence": {
+          "lineId": "L11",
+          "quote": "Send me a comparison and I'll take it to procurement next week"
+        }
+      },
+      {
+        "text": "Rep to deliver comparison and proposed start date by end of day Friday.",
+        "evidence": {
+          "lineId": "L12",
+          "quote": "side by side and a proposed start date by end of day Friday"
+        }
+      }
+    ],
+    "followUpEmail": {
+      "subject": "Basecamp × OpenGong — Fireflies comparison + proposed start",
+      "body": "Alex —\n\nThanks for the candid comparison against Fireflies.\n\nAttached: a side-by-side on transcription-only vs deal notes with citations, plus how our gate blocks unproven claims before anything ships (addresses legal's hallucination concern).\n\nAlso included: API-metered pricing vs per-seat across three tools, and a proposed start date.\n\nHappy to join procurement next week.\n\n— OpenGong Lite",
+      "evidence": {
+        "lineId": "L12",
+        "quote": "I'll follow up with a side by side and a proposed start date"
+      }
+    }
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "slug": "brightlane-champion-change",
+  "title": "Brightlane — champion change",
+  "company": "Brightlane Logistics",
+  "durationLabel": "15 min",
+  "description": "Original champion left. New VP wants ROI proof and a narrower rollout.",
+  "transcript": [
+    {
+      "id": "L1",
+      "index": 0,
+      "speaker": "Rep",
+      "text": "Congrats on the new seat, Ana. I partnered with Jordan before — how do you want to restart?"
+    },
+    {
+      "id": "L2",
+      "index": 1,
+      "speaker": "Prospect",
+      "text": "Jordan left last month. I'm resetting vendors. Show me ROI in thirty days or we stay with Otter."
+    },
+    {
+      "id": "L3",
+      "index": 2,
+      "speaker": "Rep",
+      "text": "Fair. We can measure time-to-notes and AE follow-up send rate against your current baseline."
+    },
+    {
+      "id": "L4",
+      "index": 3,
+      "speaker": "Prospect",
+      "text": "Objection: I don't want another dashboard. My team lives in email and Salesforce."
+    },
+    {
+      "id": "L5",
+      "index": 4,
+      "speaker": "Rep",
+      "text": "Notes export to Markdown and JSON, and the share link drops straight into opportunity comments."
+    },
+    {
+      "id": "L6",
+      "index": 5,
+      "speaker": "Prospect",
+      "text": "If we proceed, start with the West region only — eight reps — not the whole org."
+    },
+    {
+      "id": "L7",
+      "index": 6,
+      "speaker": "Rep",
+      "text": "West-only pilot works. I'll prepare a thirty-day scorecard with three metrics."
+    },
+    {
+      "id": "L8",
+      "index": 7,
+      "speaker": "Prospect",
+      "text": "Send the scorecard and a sample deal-notes page from one of our anonymized calls."
+    },
+    {
+      "id": "L9",
+      "index": 8,
+      "speaker": "Rep",
+      "text": "You'll have both by end of day, plus a calendar hold for a mid-pilot check-in."
+    },
+    {
+      "id": "L10",
+      "index": 9,
+      "speaker": "Prospect",
+      "text": "If West hits the bar, I'll expand. Intent is a decision before our QBR on the twelfth."
+    }
+  ],
+  "notes": {
+    "title": "Brightlane — champion change, West-region ROI pilot",
+    "summary": [
+      {
+        "text": "Champion change: Jordan left; Ana is resetting vendors.",
+        "evidence": {
+          "lineId": "L2",
+          "quote": "Jordan left last month. I'm resetting vendors"
+        }
+      },
+      {
+        "text": "Decision criterion: prove ROI in 30 days or they stay on Otter.",
+        "evidence": {
+          "lineId": "L2",
+          "quote": "Show me ROI in thirty days or we stay with Otter"
+        }
+      },
+      {
+        "text": "Initial scope is West region only (eight reps), not full org.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "West region only — eight reps — not the whole org"
+        }
+      }
+    ],
+    "objections": [
+      {
+        "text": "No new dashboard — team workflow is email + Salesforce.",
+        "evidence": {
+          "lineId": "L4",
+          "quote": "I don't want another dashboard"
+        }
+      }
+    ],
+    "intent": [
+      {
+        "text": "Expand if West hits the bar; decide before QBR on the twelfth.",
+        "evidence": {
+          "lineId": "L10",
+          "quote": "decision before our QBR on the twelfth"
+        }
+      }
+    ],
+    "nextSteps": [
+      {
+        "text": "Send 30-day scorecard (3 metrics) + sample deal-notes page by EOD.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "Send the scorecard and a sample deal-notes page"
+        }
+      },
+      {
+        "text": "Hold mid-pilot check-in on calendar.",
+        "evidence": {
+          "lineId": "L9",
+          "quote": "calendar hold for a mid-pilot check-in"
+        }
+      },
+      {
+        "text": "Measure time-to-notes and AE follow-up send rate vs baseline.",
+        "evidence": {
+          "lineId": "L3",
+          "quote": "time-to-notes and AE follow-up send rate"
+        }
+      }
+    ],
+    "followUpEmail": {
+      "subject": "Brightlane West pilot — scorecard + sample deal notes",
+      "body": "Ana —\n\nCongrats again on the new seat. As discussed after Jordan's departure, attaching:\n1) 30-day West-region scorecard (time-to-notes, AE follow-up send rate, + one more)\n2) Sample deal-notes page from an anonymized call\n3) Calendar hold for a mid-pilot check-in\n\nNotes land in Markdown/JSON and share links for Salesforce comments — no extra dashboard.\n\nIf West hits the bar, we can expand before your QBR on the twelfth.\n\n— OpenGong Lite",
+      "evidence": {
+        "lineId": "L9",
+        "quote": "both by end of day, plus a calendar hold"
+      }
+    }
+  }
+}

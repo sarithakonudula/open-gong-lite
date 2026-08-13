@@ -1,0 +1,151 @@
+{
+  "slug": "orbit-multi-thread",
+  "title": "Orbit SaaS — multi-thread",
+  "company": "Orbit SaaS",
+  "durationLabel": "27 min",
+  "description": "Economic buyer joins late. Budget exists but IT wants SSO and audit logs first.",
+  "transcript": [
+    {
+      "id": "L1",
+      "index": 0,
+      "speaker": "Rep",
+      "text": "Thanks both — Leah from sales eng and Dev from IT. Let's align on must-haves."
+    },
+    {
+      "id": "L2",
+      "index": 1,
+      "speaker": "Prospect",
+      "text": "Leah here. We like the receipts feature. Managers finally see why a deal slipped."
+    },
+    {
+      "id": "L3",
+      "index": 2,
+      "speaker": "Prospect",
+      "text": "Dev speaking. No SSO, no deal. We also need per-call audit logs for ninety days."
+    },
+    {
+      "id": "L4",
+      "index": 3,
+      "speaker": "Rep",
+      "text": "SSO via SAML is on the enterprise path, and every run already stores a status record."
+    },
+    {
+      "id": "L5",
+      "index": 4,
+      "speaker": "Prospect",
+      "text": "Budget is approved for two quarters if IT signs off. Without that, we freeze."
+    },
+    {
+      "id": "L6",
+      "index": 5,
+      "speaker": "Rep",
+      "text": "I'll schedule a thirty-minute security deep-dive with Dev and share our audit schema."
+    },
+    {
+      "id": "L7",
+      "index": 6,
+      "speaker": "Prospect",
+      "text": "Next step from us: Dev reviews the schema this week; Leah maps five open opportunities."
+    },
+    {
+      "id": "L8",
+      "index": 7,
+      "speaker": "Prospect",
+      "text": "Objection remains on unlimited seats messaging — we need clear usage-based pricing."
+    },
+    {
+      "id": "L9",
+      "index": 8,
+      "speaker": "Rep",
+      "text": "Usage is minutes on Hear and Recap — no seat math. I'll send a pricing worksheet."
+    },
+    {
+      "id": "L10",
+      "index": 9,
+      "speaker": "Prospect",
+      "text": "Intent is to choose a vendor before our board pack locks on the twentieth."
+    }
+  ],
+  "notes": {
+    "title": "Orbit SaaS — IT gate + budget ready multi-thread",
+    "summary": [
+      {
+        "text": "Sales loves receipts; managers can see why deals slipped.",
+        "evidence": {
+          "lineId": "L2",
+          "quote": "We like the receipts feature"
+        }
+      },
+      {
+        "text": "Budget is approved for two quarters — but only if IT signs off.",
+        "evidence": {
+          "lineId": "L5",
+          "quote": "Budget is approved for two quarters if IT signs off"
+        }
+      },
+      {
+        "text": "IT hard requirements: SSO + 90-day per-call audit logs.",
+        "evidence": {
+          "lineId": "L3",
+          "quote": "No SSO, no deal. We also need per-call audit logs for ninety days"
+        }
+      }
+    ],
+    "objections": [
+      {
+        "text": "No SSO, no deal — SAML is a hard prerequisite.",
+        "evidence": {
+          "lineId": "L3",
+          "quote": "No SSO, no deal"
+        }
+      },
+      {
+        "text": "Rejects unlimited-seats messaging; wants clear usage-based pricing.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "need clear usage-based pricing"
+        }
+      }
+    ],
+    "intent": [
+      {
+        "text": "Choose a vendor before board pack locks on the twentieth.",
+        "evidence": {
+          "lineId": "L10",
+          "quote": "choose a vendor before our board pack locks on the twentieth"
+        }
+      }
+    ],
+    "nextSteps": [
+      {
+        "text": "Schedule 30-min security deep-dive with Dev + share audit schema.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "security deep-dive with Dev and share our audit schema"
+        }
+      },
+      {
+        "text": "Dev reviews schema this week; Leah maps five open opportunities.",
+        "evidence": {
+          "lineId": "L7",
+          "quote": "Dev reviews the schema this week; Leah maps five open opportunities"
+        }
+      },
+      {
+        "text": "Send usage-based pricing worksheet (Hear/Recap minutes, no seats).",
+        "evidence": {
+          "lineId": "L9",
+          "quote": "I'll send a pricing worksheet"
+        }
+      }
+    ],
+    "followUpEmail": {
+      "subject": "Orbit: SSO/audit deep-dive + usage pricing worksheet",
+      "body": "Leah & Dev —\n\nThanks for the joint session.\n\nNext from us:\n1) 30-minute security deep-dive invite for Dev\n2) Audit schema (90-day per-call status records)\n3) Usage-based pricing worksheet (Hear + Recap minutes — no seat math)\n\nFrom you (as stated): Dev reviews schema this week; Leah maps five open opportunities.\n\nGoal: vendor choice before board pack locks on the twentieth.\n\n— OpenGong Lite",
+      "evidence": {
+        "lineId": "L6",
+        "quote": "schedule a thirty-minute security deep-dive"
+      }
+    }
+  }
+}

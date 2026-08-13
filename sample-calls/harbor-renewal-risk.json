@@ -1,0 +1,151 @@
+{
+  "slug": "harbor-renewal-risk",
+  "title": "Harbor Bank — renewal risk",
+  "company": "Harbor Bank",
+  "durationLabel": "20 min",
+  "description": "Existing prospect evaluating switch. Competitive rip-and-replace conversation with timeline pressure.",
+  "transcript": [
+    {
+      "id": "L1",
+      "index": 0,
+      "speaker": "Rep",
+      "text": "Your Fireflies renewal is in six weeks — what's driving the look elsewhere?"
+    },
+    {
+      "id": "L2",
+      "index": 1,
+      "speaker": "Prospect",
+      "text": "Summaries are generic. Leadership wants objections and next steps with proof."
+    },
+    {
+      "id": "L3",
+      "index": 2,
+      "speaker": "Rep",
+      "text": "That's our wedge: every bullet cites the exact line so managers can audit in seconds."
+    },
+    {
+      "id": "L4",
+      "index": 3,
+      "speaker": "Prospect",
+      "text": "We're worried about migration pain. Can you ingest our last ninety days of calls?"
+    },
+    {
+      "id": "L5",
+      "index": 4,
+      "speaker": "Rep",
+      "text": "Yes — bulk upload plus URL ingest. We can backfill a pilot cohort in a weekend."
+    },
+    {
+      "id": "L6",
+      "index": 5,
+      "speaker": "Prospect",
+      "text": "If we switch, legal needs the export formats in Markdown and JSON for archive."
+    },
+    {
+      "id": "L7",
+      "index": 6,
+      "speaker": "Rep",
+      "text": "Both are built in. I'll include sample exports in today's follow-up."
+    },
+    {
+      "id": "L8",
+      "index": 7,
+      "speaker": "Prospect",
+      "text": "Next step: internal bake-off next Tuesday with two recorded calls side by side."
+    },
+    {
+      "id": "L9",
+      "index": 8,
+      "speaker": "Rep",
+      "text": "I'll join the bake-off and prep a Gong-style comparison sheet with price and features."
+    },
+    {
+      "id": "L10",
+      "index": 9,
+      "speaker": "Prospect",
+      "text": "Intent is to cancel the Fireflies renewal if the bake-off is a clear win."
+    }
+  ],
+  "notes": {
+    "title": "Harbor Bank — Fireflies renewal displacement",
+    "summary": [
+      {
+        "text": "Fireflies renewal is six weeks out; buyer is actively shopping.",
+        "evidence": {
+          "lineId": "L1",
+          "quote": "Fireflies renewal is in six weeks"
+        }
+      },
+      {
+        "text": "Pain: generic summaries — leadership wants objections/next steps with proof.",
+        "evidence": {
+          "lineId": "L2",
+          "quote": "objections and next steps with proof"
+        }
+      },
+      {
+        "text": "Displacement hinge: Tuesday bake-off with two recorded calls side by side.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "bake-off next Tuesday with two recorded calls"
+        }
+      }
+    ],
+    "objections": [
+      {
+        "text": "Migration pain — needs ability to ingest last 90 days of calls.",
+        "evidence": {
+          "lineId": "L4",
+          "quote": "worried about migration pain"
+        }
+      },
+      {
+        "text": "Legal requires Markdown + JSON export for archive if they switch.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "export formats in Markdown and JSON for archive"
+        }
+      }
+    ],
+    "intent": [
+      {
+        "text": "Cancel Fireflies renewal if bake-off is a clear win.",
+        "evidence": {
+          "lineId": "L10",
+          "quote": "cancel the Fireflies renewal if the bake-off is a clear win"
+        }
+      }
+    ],
+    "nextSteps": [
+      {
+        "text": "Internal bake-off next Tuesday; rep joins and brings Gong-style comparison sheet.",
+        "evidence": {
+          "lineId": "L9",
+          "quote": "join the bake-off and prep a Gong-style comparison sheet"
+        }
+      },
+      {
+        "text": "Include sample MD/JSON exports in today's follow-up.",
+        "evidence": {
+          "lineId": "L7",
+          "quote": "include sample exports in today's follow-up"
+        }
+      },
+      {
+        "text": "Offer weekend backfill of pilot cohort via bulk upload + URL ingest.",
+        "evidence": {
+          "lineId": "L5",
+          "quote": "backfill a pilot cohort in a weekend"
+        }
+      }
+    ],
+    "followUpEmail": {
+      "subject": "Harbor bake-off pack — exports + Gong comparison",
+      "body": "Team —\n\nThanks for the renewal conversation.\n\nAttaching today's follow-up pack:\n1) Sample Markdown + JSON exports for legal archive\n2) Gong-style comparison sheet (features + price)\n3) Plan to backfill ~90 days via bulk upload / URL ingest over a weekend\n\nI'll join Tuesday's bake-off with two recorded calls side by side.\n\nIf we win clearly, you said you'd cancel the Fireflies renewal.\n\n— OpenGong Lite",
+      "evidence": {
+        "lineId": "L7",
+        "quote": "sample exports in today's follow-up"
+      }
+    }
+  }
+}
