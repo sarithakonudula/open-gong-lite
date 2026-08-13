@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { LogoutButton } from "@/components/LogoutButton";
 import type { SampleCall } from "@/lib/types";
 
 type StatusPayload = {
@@ -34,6 +35,29 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [search, setSearch] = useState("");
   const [searchBusy, setSearchBusy] = useState(false);
+  const [authUser, setAuthUser] = useState<string | null>(null);
+  const [authRequired, setAuthRequired] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/status")
+      .then((res) => res.json())
+      .then(
+        (data: {
+          authRequired?: boolean;
+          authenticated?: boolean;
+          user?: string | null;
+        }) => {
+          if (cancelled) return;
+          setAuthRequired(Boolean(data.authRequired));
+          setAuthUser(data.user || null);
+        },
+      )
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -137,9 +161,17 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
       <div className="signal-bar absolute left-0 right-0 top-0 h-px" />
 
       <section className="relative mx-auto flex min-h-[78svh] w-full max-w-6xl flex-col justify-center px-5 py-14 md:px-8">
-        <p className="animate-rise text-xs uppercase tracking-[0.28em] text-mist">
-          PyAI Hackathon · Open source offensive
-        </p>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+          <p className="animate-rise text-xs uppercase tracking-[0.28em] text-mist">
+            PyAI Hackathon · Open source offensive
+          </p>
+          {authRequired && authUser && (
+            <div className="animate-rise flex items-center gap-3 text-sm text-mist">
+              <span>{authUser}</span>
+              <LogoutButton className="btn-ghost !px-3 !py-1.5 text-sm" />
+            </div>
+          )}
+        </div>
         <h1 className="animate-rise-delay mt-5 max-w-4xl font-[family-name:var(--font-display)] text-[clamp(3.2rem,9vw,6.4rem)] leading-[0.92] tracking-[-0.04em]">
           OpenGong Lite
         </h1>

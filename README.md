@@ -118,6 +118,19 @@ Optional: `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` if Recap isn’t on the org
 
 Samples and `/how` work without a key. Upload / mic Hear need `PYAI_API_KEY`.
 
+### Login (optional)
+
+Set these in Railway Variables (or `.env`) to require `/login`:
+
+```
+OPENGONG_AUTH_USER=demo
+OPENGONG_AUTH_PASSWORD=your-strong-password
+OPENGONG_SESSION_SECRET=long-random-string
+OPENGONG_AUTH_HINT=           # optional text on login form
+```
+
+Leave `OPENGONG_AUTH_PASSWORD` empty to keep the app open (no login). Share links (`/share/…`) stay public either way.
+
 Official PyAI references:
 
 - [Build your own Gong](https://docs.pyai.com/use-cases/build-your-own-gong)

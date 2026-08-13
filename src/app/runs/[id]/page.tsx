@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DealNotesView } from "@/components/DealNotesView";
+import { LogoutButton } from "@/components/LogoutButton";
+import { isAuthEnabled } from "@/lib/auth";
 import { getRun } from "@/lib/store";
 
 type Props = { params: Promise<{ id: string }> };
@@ -11,6 +13,7 @@ export default async function RunPage({ params }: Props) {
 
   const run = await getRun(id);
   if (!run) notFound();
+  const showLogout = isAuthEnabled();
 
   return (
     <main className="min-h-screen">
@@ -22,9 +25,14 @@ export default async function RunPage({ params }: Props) {
           >
             OpenGong Lite
           </Link>
-          <p className="text-xs uppercase tracking-[0.18em] text-mist">
-            Deal intelligence · {run.id.slice(0, 8)}
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-xs uppercase tracking-[0.18em] text-mist">
+              Deal intelligence · {run.id.slice(0, 8)}
+            </p>
+            {showLogout && (
+              <LogoutButton className="btn-ghost !px-3 !py-1.5 text-sm" />
+            )}
+          </div>
         </div>
       </div>
       <DealNotesView run={run} />

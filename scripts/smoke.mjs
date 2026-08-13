@@ -13,6 +13,8 @@ const child = spawn("node", [".next/standalone/server.js"], {
     HOSTNAME: "127.0.0.1",
     OPENGONG_DEMO_WITHOUT_KEY: "true",
     OPENGONG_AUTO_MINT_SANDBOX: "false",
+    OPENGONG_AUTH_PASSWORD: "",
+    OPENGONG_AUTH_USER: "",
   },
 });
 
