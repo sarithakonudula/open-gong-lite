@@ -71,7 +71,7 @@ Scopes for the full live path:
 | Gate | Behavior |
 |------|----------|
 | Schema | Bad JSON never ships |
-| Evidence | No proof in transcript → no claim |
+| Evidence | L7 chain: exact → normalized (no digit folding) → unique rescue → unproven |
 | Retry | Failed parts retry with reason (capped) |
 | Status | Every run ends `shipped` / `partial` / `failed` |
 | Budget | Attempts + deadline governor |

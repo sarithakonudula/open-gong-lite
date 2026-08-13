@@ -1,0 +1,34 @@
+[
+  {
+    "type": "objection",
+    "text": "Prospect says a competitor quoted about 40% less.",
+    "quote": "your competitor quoted as almost 40 less last week",
+    "lineId": "L2",
+    "expect": "uncorroborated",
+    "why": "Digit folding forty→40 must fail (L7 no digit folding)"
+  },
+  {
+    "type": "objection",
+    "text": "Prospect says pricing is the main concern.",
+    "quote": "Honestly, my main concern is pricing.",
+    "lineId": "L2",
+    "expect": "match_exact",
+    "why": "Punctuated contiguous quote still exact-matches the line"
+  },
+  {
+    "type": "next_step",
+    "text": "Rep offers a free trial next quarter.",
+    "quote": "we can set up a free trial for next quarter",
+    "lineId": "L3",
+    "expect": "uncorroborated",
+    "why": "Fully hallucinated quote"
+  },
+  {
+    "type": "objection",
+    "text": "Prospect mentions total cost picture as a long unique rescue case.",
+    "quote": "let me show you the total cost picture including answering machine detection",
+    "lineId": "L1",
+    "expect": "segment_corrected",
+    "why": "Right quote, wrong lineId → rescue to L3"
+  }
+]

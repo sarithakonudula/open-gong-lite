@@ -29,7 +29,8 @@ Return ONLY valid JSON matching this shape:
 }
 Rules:
 - Every claim MUST cite a real lineId from the transcript.
-- evidence.quote MUST be a short contiguous snippet copied from that line.
+- evidence.quote MUST be a short contiguous snippet copied VERBATIM from that line.
+- Do NOT paraphrase, "fix" grammar, or rewrite numbers (keep "forty" as forty — never fold to "40").
 - No invented facts. If unsure, omit the claim.
 - Keep summary 2-4 items, objections/intent/nextSteps 1-4 items.`;
 

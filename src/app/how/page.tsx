@@ -43,13 +43,15 @@ export default function HowPage() {
           </li>
           <li>
             <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
-              2 · Evidence gate
+              2 · Evidence gate (L7 chain)
             </h2>
             <p className="mt-2 text-mist">
               Each claim carries <code className="text-signal">lineId</code> +
-              quote. Missing ids or quotes that don&apos;t match the line →{" "}
-              <code className="text-signal">unproven_claim</code>. No proof in
-              the transcript, no claim in the notes.
+              quote. Quotes are checked in order: exact substring → normalized
+              match (no digit folding — &quot;forty&quot; ≠ &quot;40&quot;) →
+              long unique rescue across the call → else{" "}
+              <code className="text-signal">unproven_claim</code>. Fuzzy
+              paraphrase never ships.
             </p>
           </li>
           <li>

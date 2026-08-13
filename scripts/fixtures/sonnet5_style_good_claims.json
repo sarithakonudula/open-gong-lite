@@ -1,0 +1,24 @@
+[
+  {
+    "type": "topic",
+    "text": "Rep opens the call and frames the agenda around how the dialer handles compliance.",
+    "quote": "walk you through how our dialer handles compliance",
+    "lineId": "L1",
+    "expect": "match_exact"
+  },
+  {
+    "type": "objection",
+    "text": "Prospect's main concern is pricing; a competitor quoted roughly forty percent less last week.",
+    "quote": "almost forty less last week",
+    "lineId": "L2",
+    "expect": "match_exact",
+    "why": "Preserves spoken forty — does not fold to 40"
+  },
+  {
+    "type": "next_step",
+    "text": "Rep commits to walking through the total cost picture, including answering machine detection.",
+    "quote": "total cost picture including answering machine detection",
+    "lineId": "L3",
+    "expect": "match_exact"
+  }
+]
