@@ -61,6 +61,39 @@ Scopes for the full live path:
 - `hear:transcribe` + `transcribe:jobs` (Hear batch)
 - `recap:read` (+ `recap:configure` once to enable)
 
+## Score calls with a free LLM
+
+Everything in the demo works with zero keys: Brightsmile 1 ships its scorecard
+and deal-signal feed offline. Live scoring of your own calls needs any
+OpenAI-compatible endpoint. Two free routes:
+
+**Ollama (fully local, no signup):**
+
+```bash
+ollama pull llama3.1        # once
+# .env
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_API_KEY=ollama
+LLM_MODEL=llama3.1
+```
+
+**Groq (hosted free tier):**
+
+```bash
+# .env — key from console.groq.com
+LLM_BASE_URL=https://api.groq.com/openai/v1
+LLM_API_KEY=gsk_...
+LLM_MODEL=llama-3.3-70b-versatile
+```
+
+Restart the dev server after setting these — config is read at boot. The
+Scorecard tab's "Score with LLM" button goes live once both vars are present.
+
+Running a shared deployment on your own key is fine: the key stays server-side
+and never reaches the browser. Do two things first — set
+`OPENGONG_AUTH_PASSWORD` so only people you let in can spend your tokens, and
+put a hard spend cap on the key in your provider's console.
+
 ## What you get
 
 - Diarized transcript with speaker labels
