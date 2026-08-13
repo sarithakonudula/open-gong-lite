@@ -183,9 +183,10 @@ async function loadJobResult(job: {
 
 export async function pollTranscriptionJob(
   jobId: string,
-  timeoutMs = 120_000,
+  timeoutMs = 90_000,
 ): Promise<HearJobResult> {
   const deadline = Date.now() + timeoutMs;
+  let delay = 800;
   while (Date.now() < deadline) {
     const job = await pyaiJson<{
       job_id: string;
@@ -201,7 +202,8 @@ export async function pollTranscriptionJob(
     if (job.status === "failed" || job.status === "cancelled") {
       throw new Error(job.error || `Transcription job ${job.status}`);
     }
-    await sleep(2_500);
+    await sleep(delay);
+    delay = Math.min(Math.round(delay * 1.4), 2_000);
   }
   throw new Error(`Transcription job timed out: ${jobId}`);
 }
@@ -214,7 +216,9 @@ export type HearJobMode = {
 };
 
 export function looksStereoSource(name: string | undefined): boolean {
-  return /stereo|dual[-_]?chan|2ch|two[-_]?channel/i.test(name || "");
+  return /\b(stereo|dual[-_]?chan(?:nel)?|2ch|two[-_]?channel)\b/i.test(
+    name || "",
+  );
 }
 
 export async function detectWavChannels(
@@ -239,11 +243,15 @@ export function chooseHearJobMode(opts: {
   wavChannels?: number | null;
 }): HearJobMode {
   const forceChannel = opts.channel === true || config.channelDefault;
+  // WAV header wins: a mono mic capture must not switch to channel mode
+  // just because a URL or filename contains the word "stereo".
   const stereo =
-    forceChannel ||
-    opts.wavChannels === 2 ||
-    looksStereoSource(opts.filename) ||
-    looksStereoSource(opts.audioUrl);
+    opts.wavChannels === 1
+      ? false
+      : forceChannel ||
+        opts.wavChannels === 2 ||
+        looksStereoSource(opts.filename) ||
+        looksStereoSource(opts.audioUrl);
 
   if (stereo) {
     return {
@@ -342,12 +350,12 @@ export async function createTranscriptionJobFromUpload(opts: {
     });
 
   const form = new FormData();
-  form.append("audio", opts.file, opts.filename);
-  form.append("model", mode.model);
-  if (mode.channel) form.append("channel", "true");
-  else if (mode.diarize) form.append("diarize", "true");
-  form.append("numerals", "true");
-  if (opts.customerName) form.append("customer_name", opts.customerName);
+  form.set("audio", opts.file, opts.filename);
+  form.set("model", mode.model);
+  if (mode.channel) form.set("channel", "true");
+  else if (mode.diarize) form.set("diarize", "true");
+  form.set("numerals", "true");
+  if (opts.customerName) form.set("customer_name", opts.customerName);
 
   const response = await pyaiFetch("/transcription/jobs", {
     method: "POST",
@@ -478,7 +486,7 @@ export async function pollRecap(
       // 404 while pending is normal right after job submit
       if (!message.includes("(404)")) throw error;
     }
-    await sleep(2_000);
+    await sleep(700);
   }
 
   throw new Error(
@@ -517,7 +525,7 @@ export async function runHearAndMaybeRecap(opts: {
         transcript,
         customerName: opts.customerName,
       });
-      recap = await pollRecap(callId, 60_000);
+      recap = await pollRecap(callId, 12_000);
     } catch {
       recap = null;
     }
@@ -554,10 +562,22 @@ export async function runHearAndMaybeRecap(opts: {
           });
 
     let result = await pollTranscriptionJob(created.jobId);
-    let transcript = hearResultToTranscript(result);
+    let transcript: TranscriptLine[] = [];
+    try {
+      transcript = hearResultToTranscript(result);
+    } catch {
+      transcript = [];
+    }
+    if (!transcript.length) {
+      throw new Error("Hear returned empty transcript");
+    }
     const speakers = new Set(transcript.map((line) => line.speaker));
+    // Only retry when we chose channel-split (true stereo). Retrying
+    // diarize→channel on a mono mic/upload doubles wait time and still
+    // returns one speaker.
+    const worthRetry = mode.channel || wavChannels === 2;
 
-    if (speakers.size < 2) {
+    if (speakers.size < 2 && worthRetry) {
       const alt = oppositeHearJobMode(mode);
       try {
         const retry =
