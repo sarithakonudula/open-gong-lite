@@ -27,7 +27,7 @@ still ship.
 
 ```bash
 git clone https://github.com/sarithakonudula/open-gong-lite.git
-cd open-gong-lite
+cd open-gong-lite   # ← don't skip this
 npm install
 npm run dev
 ```
