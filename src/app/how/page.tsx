@@ -48,10 +48,12 @@ export default function HowPage() {
             <p className="mt-2 text-mist">
               Each claim carries <code className="text-signal">lineId</code> +
               quote. Quotes are checked in order: exact substring → normalized
-              match (no digit folding — &quot;forty&quot; ≠ &quot;40&quot;) →
-              long unique rescue across the call → else{" "}
-              <code className="text-signal">uncorroborated</code>. Demote, don&apos;t
-              hide. Fuzzy paraphrase never ships as verified.
+              match (no digit folding — &quot;forty&quot; ≠ &quot;40&quot;, and
+              &quot;3:30&quot; cannot become &quot;330&quot;) → long unique
+              rescue across the call → else{" "}
+              <code className="text-signal">uncorroborated</code>. Empty and
+              punctuation-only quotes fail. Demote, don&apos;t hide. Fuzzy
+              paraphrase never ships as verified.
             </p>
           </li>
           <li>
@@ -91,6 +93,32 @@ export default function HowPage() {
             </p>
           </li>
         </ol>
+
+        <section className="mt-14 space-y-4">
+          <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
+            Why this is not a prompt
+          </h2>
+          <p className="text-mist">
+            A prompt can ask for a citation. Only code can refuse to render one
+            that isn&apos;t true. Recap summaries have no segment pointers —
+            we still require a quote the transcript can re-find, or the claim
+            stays grey.
+          </p>
+          <ul className="space-y-3 text-mist">
+            <li>
+              Hyprnote&apos;s summary path never receives a line id — citation
+              is architecturally impossible there.
+            </li>
+            <li>
+              Meetily&apos;s open-source edition paywalls diarization; the
+              audio behind a summary is not replayable from the notes.
+            </li>
+            <li>
+              Gong&apos;s call brief does not carry claim-level receipts. Ours
+              does, in git-clone form.
+            </li>
+          </ul>
+        </section>
 
         <section className="mt-14 rounded-[1.4rem] border border-white/10 bg-ink-soft/55 p-6">
           <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">

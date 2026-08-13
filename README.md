@@ -69,7 +69,7 @@ Scopes for the full live path:
 - Four claim states: verified, corrected, unproven, injection-blocked — header shows % verified
 - Follow-up email drafted **only from verified claims**
 - Export Markdown / JSON + shareable link
-- Seven sample calls in `sample-calls/` (Fireflies displacement + a messy injection call)
+- Brightsmile × CallForge deal arc (six calls) plus one-shot samples in `sample-calls/` — click-to-play audio on the arc
 - **Live call** at `/live` — scripted offline stream **or** mic → Hear → gates
 - Search across past runs on the home page
 - Judge one-pager at `/how` — why the harness is the product
@@ -89,14 +89,13 @@ Scopes for the full live path:
 
 ## Demo script (90 seconds)
 
-1. Homepage — brand hits first; note PyAI key status line.
-2. Run **Basecamp Retail — Fireflies** (or Acme pricing pushback).
-3. Click an objection receipt; transcript jumps.
-4. Run **Messy call — planted lie + injection**. Point at the grey unproven claim and the struck-through injection. Note % verified. Open the follow-up — neither trap is in the email.
-5. Optional: `/live` → scripted demo **or** Record mic → End call (click receipt plays that second).
-6. Open `/how` for one sentence on gates if judges ask.
-7. Share link / Copy share URL + export Markdown.
-8. Line: *People pay Gong $1,400 a seat for this. Ours is a git clone.*
+1. Homepage — Brightsmile × CallForge deal strip. Line: *Gong asks you to trust its summary. We show you the line.*
+2. Run **Brightsmile 3 · Pricing**. Click a green receipt — audio plays that second. Silence.
+3. Grey claim: *Rep agreed to match RingHawk's twenty two…* — planted fake, demoted.
+4. Run **Brightsmile 6 · Messy**. Red injection, struck through. Follow-up email does not contain it.
+5. Search **`tcpa`** (after running call 2 + 4) — promised Friday, dropped on the ledger call.
+6. Optional encore: `/live` mic or upload. Recap notes that cannot re-find a quote stay grey.
+7. `/how` if judges ask. Close: *It's a git clone.*
 
 ## Known limitations (on purpose)
 

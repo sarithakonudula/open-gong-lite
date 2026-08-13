@@ -1,0 +1,275 @@
+{
+  "slug": "brightsmile-01-discovery",
+  "title": "Brightsmile 1 · Discovery",
+  "company": "Brightsmile Dental Group",
+  "durationLabel": "8 min",
+  "description": "Rahul names lost after-hours bookings and a trust problem, not a budget problem. RingHawk is already in the building.",
+  "dealArc": {
+    "id": "brightsmile",
+    "seq": 1,
+    "beat": "Pain + RingHawk as the incumbent"
+  },
+  "audioFile": "audio/call-01.m4a",
+  "transcript": [
+    {
+      "id": "L1",
+      "index": 0,
+      "speaker": "Maya",
+      "text": "rahu right from collefoch thanks for making time between patience i know front desk mornings are chaos",
+      "startMs": 160,
+      "endMs": 6080
+    },
+    {
+      "id": "L2",
+      "index": 1,
+      "speaker": "Rahul",
+      "text": "no problem honestly i've been meaning to look at this for a while so your timing is decent",
+      "startMs": 6080,
+      "endMs": 10960
+    },
+    {
+      "id": "L3",
+      "index": 2,
+      "speaker": "Maya",
+      "text": "tell me what's happening today you're running five locations on ringhawk right",
+      "startMs": 11120,
+      "endMs": 14880
+    },
+    {
+      "id": "L4",
+      "index": 3,
+      "speaker": "Rahul",
+      "text": "yeah well fiverr on ringhawk and have been for about three years and look the system works until it doesn't cause drop mid transfer between locations at least a few times a day now",
+      "startMs": 15040,
+      "endMs": 24320
+    },
+    {
+      "id": "L5",
+      "index": 4,
+      "speaker": "Maya",
+      "text": "where does that hurt most",
+      "startMs": 24480,
+      "endMs": 25840
+    },
+    {
+      "id": "L6",
+      "index": 5,
+      "speaker": "Rahul",
+      "text": "after hours is the real bleed anything after six just rings out and goes to a voice mail nobody checks until morning we lose maybe ten bookings a week that way a cleaning patient calls at seven nobody answers they",
+      "startMs": 25600,
+      "endMs": 37760
+    },
+    {
+      "id": "L7",
+      "index": 6,
+      "speaker": "Rahul",
+      "text": "book with whoever picks up the phone",
+      "startMs": 37760,
+      "endMs": 39600
+    },
+    {
+      "id": "L8",
+      "index": 7,
+      "speaker": "Maya",
+      "text": "that's real money at five locations what have you tried",
+      "startMs": 39520,
+      "endMs": 42000
+    },
+    {
+      "id": "L9",
+      "index": 8,
+      "speaker": "Rahul",
+      "text": "we asked ring hog for after hours routing last year the support tickets go nowhere you wait four days and get a reply asking you to restart the router i'm done filing them",
+      "startMs": 42000,
+      "endMs": 51760
+    },
+    {
+      "id": "L10",
+      "index": 9,
+      "speaker": "Maya",
+      "text": "understood can i ask about budget just so i don't waste your time later",
+      "startMs": 51840,
+      "endMs": 55280
+    },
+    {
+      "id": "L11",
+      "index": 10,
+      "speaker": "Rahul",
+      "text": "we do not have a budget problem honestly it's a trust problem i got burned once switching software and i'm not doing that dance again without proof it works",
+      "startMs": 55280,
+      "endMs": 64080
+    },
+    {
+      "id": "L12",
+      "index": 11,
+      "speaker": "Maya",
+      "text": "what is your ringhawk renewal look like",
+      "startMs": 64400,
+      "endMs": 66320
+    },
+    {
+      "id": "L13",
+      "index": 12,
+      "speaker": "Rahul",
+      "text": "it's coming up honestly it's just too expensive for what we're getting they bumped the price again this year and the service got worse",
+      "startMs": 66480,
+      "endMs": 73680
+    },
+    {
+      "id": "L14",
+      "index": 13,
+      "speaker": "Maya",
+      "text": "okay one more thing from compliance so you're texting patients",
+      "startMs": 73760,
+      "endMs": 76640
+    },
+    {
+      "id": "L15",
+      "index": 14,
+      "speaker": "Rahul",
+      "text": "we want to my office manager keeps asking about text reminders but i keep hearing letters like tcpa and i don't want to be the test case so today we just don't text at all",
+      "startMs": 76800,
+      "endMs": 87120
+    },
+    {
+      "id": "L16",
+      "index": 15,
+      "speaker": "Maya",
+      "text": "that's exactly the kind of thing our compliance tooling handles is what i'd suggest a proper demo thirty minutes i'll show you the after hours routing and the compliant texting flow live",
+      "startMs": 87120,
+      "endMs": 98240
+    },
+    {
+      "id": "L17",
+      "index": 16,
+      "speaker": "Rahul",
+      "text": "alright do it thursday before the lunch rush and keep it practical i don't need a slideshow",
+      "startMs": 98400,
+      "endMs": 104080
+    },
+    {
+      "id": "L18",
+      "index": 17,
+      "speaker": "Maya",
+      "text": "thursday tiz i'll bring the routing demo and the texting flow no slides",
+      "startMs": 103920,
+      "endMs": 108080
+    }
+  ],
+  "notes": {
+    "title": "Discovery: Brightsmile Dental, on RingHawk",
+    "summary": [
+      {
+        "text": "Discovery landed a 30-minute demo of after-hours routing and compliant texting.",
+        "evidence": {
+          "lineId": "L16",
+          "quote": "a proper demo thirty minutes i'll show you the after hours routing and the compliant texting flow live"
+        }
+      },
+      {
+        "text": "About ten bookings a week are lost after hours; calls also drop mid-transfer a few times a day.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "we lose maybe ten bookings a week that way"
+        }
+      }
+    ],
+    "objections": [
+      {
+        "text": "Trust is the blocker. They got burned switching software once and won't repeat that without proof it works.",
+        "evidence": {
+          "lineId": "L11",
+          "quote": "we do not have a budget problem honestly it's a trust problem i got burned once switching software and i'm not doing that dance again without proof it works"
+        }
+      }
+    ],
+    "intent": [
+      {
+        "text": "Office manager's pushing for text reminders internally, though she wasn't on this call.",
+        "evidence": {
+          "lineId": "L15",
+          "quote": "my office manager keeps asking about text reminders"
+        }
+      },
+      {
+        "text": "Single-threaded: only one contact in the loop so far.",
+        "evidence": {
+          "lineId": "L15",
+          "quote": "my office manager keeps asking about text reminders"
+        }
+      }
+    ],
+    "nextSteps": [
+      {
+        "text": "Rep to run a 30-minute demo Thursday covering after-hours routing and the compliant texting flow, no slides.",
+        "evidence": {
+          "lineId": "L17",
+          "quote": "do it thursday before the lunch rush and keep it practical"
+        }
+      },
+      {
+        "text": "Rep to run the demo Thursday: routing plus texting, no slides.",
+        "evidence": {
+          "lineId": "L18",
+          "quote": "i'll bring the routing demo and the texting flow no slides"
+        }
+      }
+    ],
+    "pain": [
+      {
+        "text": "Calls drop mid-transfer between locations at least a few times a day.",
+        "evidence": {
+          "lineId": "L4",
+          "quote": "cause drop mid transfer between locations at least a few times a day now"
+        }
+      },
+      {
+        "text": "After-hours calls ring out to a voicemail nobody checks until morning: the real bleed.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "after hours is the real bleed anything after six just rings out and goes to a voice mail nobody checks until morning"
+        }
+      },
+      {
+        "text": "Fear of TCPA keeps the practice from texting patients at all today, even though the office manager wants it.",
+        "evidence": {
+          "lineId": "L15",
+          "quote": "i keep hearing letters like tcpa and i don't want to be the test case so today we just don't text at all"
+        }
+      }
+    ],
+    "pricing": [
+      {
+        "text": "Buyer states budget is not the blocker: 'we do not have a budget problem.'",
+        "evidence": {
+          "lineId": "L11",
+          "quote": "we do not have a budget problem"
+        }
+      },
+      {
+        "text": "The RingHawk renewal is 'too expensive for what we're getting.' That's about the incumbent's price, not CallForge's.",
+        "evidence": {
+          "lineId": "L13",
+          "quote": "it's just too expensive for what we're getting they bumped the price again this year"
+        }
+      }
+    ],
+    "competitors": [
+      {
+        "text": "Brightsmile runs all five locations on RingHawk and has for about three years, and is now unhappy: the incumbent bumped price again while service got worse.",
+        "evidence": {
+          "lineId": "L4",
+          "quote": "and have been for about three years"
+        }
+      }
+    ],
+    "followUpEmail": {
+      "subject": "Follow-up: Discovery: Brightsmile Dental, on RingHawk",
+      "body": "Thanks for the time today.\n\nDiscovery landed a 30-minute demo of after-hours routing and compliant texting.\nAbout ten bookings a week are lost after hours; calls also drop mid-transfer a few times a day.\n\nNext steps:\n- Rep to run a 30-minute demo Thursday covering after-hours routing and the compliant texting flow, no slides.\n- Rep to run the demo Thursday: routing plus texting, no slides.\n\n— OpenGong Lite",
+      "evidence": {
+        "lineId": "L17",
+        "quote": "do it thursday before the lunch rush and keep it practical"
+      }
+    }
+  }
+}

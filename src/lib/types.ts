@@ -123,12 +123,20 @@ export const RunRecordSchema = z.object({
 });
 export type RunRecord = z.infer<typeof RunRecordSchema>;
 
+export type SampleDealArc = {
+  id: string;
+  seq: number;
+  beat: string;
+};
+
 export type SampleCall = {
   slug: string;
   title: string;
   company: string;
   durationLabel: string;
   description: string;
+  dealArc?: SampleDealArc;
+  audioFile?: string;
 };
 
 export function isEmailableStatus(

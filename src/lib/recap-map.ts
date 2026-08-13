@@ -1,49 +1,36 @@
+import { gateEvidenceQuote } from "@/lib/harness/gates";
 import type { RecapCall } from "@/lib/pyai";
 import { Claim, DealNotes, Evidence, TranscriptLine } from "@/lib/types";
 
-function normalize(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function bestEvidence(
+/**
+ * Attach a receipt using the *claim text* as the quote. Never copy a transcript
+ * line into evidence.quote — that made the gate self-pass. If the claim is not
+ * in the call, the quote still fails the gate and the claim is demoted.
+ */
+export function locateEvidence(
   text: string,
   transcript: TranscriptLine[],
 ): Evidence {
   if (!transcript.length) {
-    return { lineId: "L1", quote: text.slice(0, 80) };
+    throw new Error("Cannot attach receipts to an empty transcript");
   }
-
-  const needle = normalize(text);
-  let best = transcript[0];
-  let bestScore = -1;
+  const quote = text.trim().slice(0, 240) || "unquoted claim";
+  const first = transcript[0]!;
 
   for (const line of transcript) {
-    const hay = normalize(line.text);
-    if (!hay) continue;
-    if (hay.includes(needle) || needle.includes(hay)) {
-      return {
-        lineId: line.id,
-        quote: line.text.length > 100 ? `${line.text.slice(0, 97)}...` : line.text,
-      };
+    const gate = gateEvidenceQuote(quote, line.id, transcript);
+    if (
+      gate.verdict === "match_exact" ||
+      gate.verdict === "match_normalized"
+    ) {
+      return { lineId: gate.matchedLineId || line.id, quote };
     }
-
-    const words = needle.split(" ").filter((w) => w.length > 3);
-    const hits = words.filter((w) => hay.includes(w)).length;
-    const score = words.length ? hits / words.length : 0;
-    if (score > bestScore) {
-      bestScore = score;
-      best = line;
+    if (gate.verdict === "segment_corrected" && gate.matchedLineId) {
+      return { lineId: gate.matchedLineId, quote };
     }
   }
 
-  return {
-    lineId: best.id,
-    quote: best.text.length > 100 ? `${best.text.slice(0, 97)}...` : best.text,
-  };
+  return { lineId: first.id, quote };
 }
 
 function asStringList(value: unknown): string[] {
@@ -78,7 +65,7 @@ function asStringList(value: unknown): string[] {
 }
 
 function claim(text: string, transcript: TranscriptLine[]): Claim {
-  return { text, evidence: bestEvidence(text, transcript) };
+  return { text, evidence: locateEvidence(text, transcript) };
 }
 
 function pickStrings(
@@ -92,12 +79,22 @@ function pickStrings(
   return [];
 }
 
+function absent(label: string, transcript: TranscriptLine[]): Claim[] {
+  return [
+    claim(`${label} was not stated on this call.`, transcript),
+  ];
+}
+
 /** Map PyAI Recap artifacts into OpenGong DealNotes with transcript receipts. */
 export function mapRecapToDealNotes(
   recap: RecapCall,
   transcript: TranscriptLine[],
   titleHint?: string,
 ): DealNotes {
+  if (!transcript.length) {
+    throw new Error("Cannot map Recap onto an empty transcript");
+  }
+
   const record = (recap.record || {}) as Record<string, unknown>;
   const title =
     recap.headline ||
@@ -119,9 +116,6 @@ export function mapRecapToDealNotes(
   }
   if (!uniqueSummary.length && recap.headline) {
     uniqueSummary.push(recap.headline);
-  }
-  if (!uniqueSummary.length) {
-    uniqueSummary.push("Call completed; detailed summary unavailable from Recap.");
   }
 
   const objections = pickStrings(record, [
@@ -157,36 +151,24 @@ export function mapRecapToDealNotes(
     "alternatives",
   ]);
 
-  const fallbackLine = transcript[transcript.length - 1] || transcript[0];
-  const next =
-    nextSteps.length > 0
-      ? nextSteps
-      : [
-          fallbackLine
-            ? `Follow up on: ${fallbackLine.text.slice(0, 120)}`
-            : "Send follow-up summarizing agreed next steps.",
-        ];
+  const summaryClaims = uniqueSummary.length
+    ? uniqueSummary.map((t) => claim(t, transcript))
+    : absent("A call summary", transcript);
+  const intentClaims = intent.length
+    ? intent.slice(0, 3).map((t) => claim(t, transcript))
+    : absent("Buyer intent", transcript);
+  const nextClaims = nextSteps.length
+    ? nextSteps.slice(0, 4).map((t) => claim(t, transcript))
+    : absent("A next step", transcript);
 
-  const intentClaims =
-    intent.length > 0
-      ? intent.slice(0, 3).map((t) => claim(t, transcript))
-      : [
-          claim(
-            recap.headline ||
-              "Buyer left an actionable signal; confirm commitment in follow-up.",
-            transcript,
-          ),
-        ];
-
-  const actionLine = next[0];
-  const emailEvidence = bestEvidence(actionLine, transcript);
+  const emailSource = nextSteps[0] || uniqueSummary[0] || title;
 
   return {
     title: String(title).slice(0, 160),
-    summary: uniqueSummary.map((t) => claim(t, transcript)),
+    summary: summaryClaims,
     objections: objections.slice(0, 4).map((t) => claim(t, transcript)),
     intent: intentClaims,
-    nextSteps: next.slice(0, 4).map((t) => claim(t, transcript)),
+    nextSteps: nextClaims,
     pain: pain.slice(0, 4).map((t) => claim(t, transcript)),
     pricing: pricing.slice(0, 4).map((t) => claim(t, transcript)),
     competitors: competitors.slice(0, 4).map((t) => claim(t, transcript)),
@@ -195,18 +177,18 @@ export function mapRecapToDealNotes(
       body: [
         "Thanks again for the conversation.",
         "",
-        typeof record.summary === "string"
-          ? record.summary
-          : uniqueSummary.join(" "),
+        uniqueSummary.join(" ") || "Recap did not return a summary we could cite.",
         "",
         "Next steps:",
-        ...next.slice(0, 4).map((step) => `- ${step}`),
+        ...(nextSteps.length
+          ? nextSteps.slice(0, 4).map((step) => `- ${step}`)
+          : ["- None stated on the call — not invented here."]),
         "",
         "Happy to adjust if I missed anything.",
         "",
         "— OpenGong Lite",
       ].join("\n"),
-      evidence: emailEvidence,
+      evidence: locateEvidence(String(emailSource), transcript),
     },
   };
 }

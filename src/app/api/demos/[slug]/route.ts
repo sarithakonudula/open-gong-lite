@@ -1,6 +1,8 @@
+import { promises as fs } from "fs";
 import { NextRequest, NextResponse } from "next/server";
 import { runDealNotesLoop } from "@/lib/harness/loop";
-import { loadSample } from "@/lib/samples";
+import { loadSample, sampleAudioAbsolutePath } from "@/lib/samples";
+import { saveRunAudio } from "@/lib/store";
 
 export const runtime = "nodejs";
 
@@ -19,6 +21,19 @@ export async function POST(_request: NextRequest, context: Ctx) {
       curatedNotes: sample.notes,
       forceDemoExtract: !sample.notes,
     });
+
+    if (sample.meta.audioFile) {
+      const bytes = await fs.readFile(
+        sampleAudioAbsolutePath(sample.meta.audioFile),
+      );
+      const ext = sample.meta.audioFile.toLowerCase();
+      const contentType = ext.endsWith(".wav")
+        ? "audio/wav"
+        : ext.endsWith(".mp3")
+          ? "audio/mpeg"
+          : "audio/mp4";
+      await saveRunAudio(run.id, bytes, contentType);
+    }
 
     return NextResponse.json({ id: run.id, status: run.status });
   } catch (error) {

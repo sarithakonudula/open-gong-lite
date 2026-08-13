@@ -99,6 +99,14 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
 
   const canUpload = useMemo(() => Boolean(file) && !busy, [file, busy]);
   const canUrl = useMemo(() => url.trim().length > 8 && !busy, [url, busy]);
+  const dealSamples = useMemo(
+    () => samples.filter((s) => s.dealArc?.id === "brightsmile"),
+    [samples],
+  );
+  const otherSamples = useMemo(
+    () => samples.filter((s) => s.dealArc?.id !== "brightsmile"),
+    [samples],
+  );
 
   async function runDemo(slug: string) {
     setError(null);
@@ -176,8 +184,9 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
           OpenGong Lite
         </h1>
         <p className="animate-rise-delay-2 mt-6 max-w-xl text-lg leading-relaxed text-fog/90 md:text-xl">
-          Deal intelligence from any call: summary, objections, intent, next
-          steps, follow-up email — each claim pinned to a transcript receipt.
+          Gong asks you to trust its summary. We show you the line. Every
+          claim is a receipt — unproven stays grey, injection never reaches
+          the follow-up email.
         </p>
 
         <div className="animate-rise-delay-2 mt-10 flex flex-wrap gap-3">
@@ -212,18 +221,60 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <h2 className="font-[family-name:var(--font-display)] text-3xl tracking-tight md:text-4xl">
-              Run a sample → open deal intelligence
+              Brightsmile × CallForge — one deal, six calls
             </h2>
             <p className="mt-2 max-w-2xl text-mist">
-              Click any call. You&apos;ll land on a page with summary, objections,
-              intent, next steps, and clickable receipts. Run the messy sample
-              to watch unproven claims demoted and an injection quarantined.
+              Friday path: run call 3 (planted fake demoted), call 4 (search{" "}
+              <button
+                type="button"
+                className="text-signal underline-offset-2 hover:underline"
+                onClick={() => setSearch("tcpa")}
+              >
+                tcpa
+              </button>
+              ), call 6 (injection barred from email). Click a receipt to play
+              that second.
             </p>
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          {samples.map((sample, index) => (
+          {dealSamples.map((sample, index) => (
+            <button
+              key={sample.slug}
+              type="button"
+              onClick={() => runDemo(sample.slug)}
+              disabled={Boolean(busy)}
+              className="group rounded-[1.4rem] border border-white/10 bg-ink-soft/55 p-5 text-left transition hover:border-signal/40 hover:bg-ink-soft/90 disabled:opacity-60"
+              style={{ animationDelay: `${index * 40}ms` }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-mist">
+                  {sample.dealArc?.beat} · {sample.durationLabel}
+                </p>
+                <span className="text-signal text-sm opacity-0 transition group-hover:opacity-100">
+                  {busy === sample.slug ? "Running…" : "Run →"}
+                </span>
+              </div>
+              <h3 className="mt-3 font-[family-name:var(--font-display)] text-2xl tracking-tight">
+                {sample.title}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-fog/80">
+                {sample.description}
+              </p>
+            </button>
+          ))}
+        </div>
+
+        <h3 className="mt-12 font-[family-name:var(--font-display)] text-2xl tracking-tight">
+          More samples
+        </h3>
+        <p className="mt-2 max-w-2xl text-mist">
+          One-shot calls, including a compressed honesty demo if you skip the
+          full arc.
+        </p>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          {otherSamples.map((sample, index) => (
             <button
               key={sample.slug}
               type="button"
@@ -265,7 +316,7 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
         <input
           className="field mt-6 max-w-xl"
           type="search"
-          placeholder="e.g. Fireflies, procurement, SSO…"
+          placeholder="e.g. tcpa, ringhawk, Fireflies…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

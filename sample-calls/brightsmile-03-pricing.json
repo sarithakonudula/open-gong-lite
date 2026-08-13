@@ -1,0 +1,233 @@
+{
+  "slug": "brightsmile-03-pricing",
+  "title": "Brightsmile 3 · Pricing",
+  "company": "Brightsmile Dental Group",
+  "durationLabel": "6 min",
+  "description": "Twenty eight vs RingHawk's twenty two. A planted claim that Maya matched their price is demoted — it was never said.",
+  "dealArc": {
+    "id": "brightsmile",
+    "seq": 3,
+    "beat": "Planted fake: matching twenty-two"
+  },
+  "audioFile": "audio/call-03.m4a",
+  "transcript": [
+    {
+      "id": "L1",
+      "index": 0,
+      "speaker": "Maya",
+      "text": "got your call volume report thanks based on that here's where we land twenty eight per month all five locations routing texting and the recall tooling included",
+      "startMs": 0,
+      "endMs": 8960
+    },
+    {
+      "id": "L2",
+      "index": 1,
+      "speaker": "Rahul",
+      "text": "twenty eight archer so here's my problem may i ring hawk came back the moment they smelled a switch and offered twenty two to renew",
+      "startMs": 8960,
+      "endMs": 16080
+    },
+    {
+      "id": "L3",
+      "index": 2,
+      "speaker": "Maya",
+      "text": "it is kind of a three years of ignored tickets what does that tell you about the next three years",
+      "startMs": 16080,
+      "endMs": 20320
+    },
+    {
+      "id": "L4",
+      "index": 3,
+      "speaker": "Rahul",
+      "text": "i know i know but i answered to doctor meta on the and he signs the checks he's going to see a six gap per seat and ask me why",
+      "startMs": 20960,
+      "endMs": 29680
+    },
+    {
+      "id": "L5",
+      "index": 4,
+      "speaker": "Maya",
+      "text": "then let's give you the answer ten bookings a week recovered after hours pays that gap at one location let alone five",
+      "startMs": 29760,
+      "endMs": 35920
+    },
+    {
+      "id": "L6",
+      "index": 5,
+      "speaker": "Rahul",
+      "text": "math works on me on him soda tough can you do fifteen that gets me close enough that the conversation is about service not price",
+      "startMs": 36080,
+      "endMs": 43680
+    },
+    {
+      "id": "L7",
+      "index": 6,
+      "speaker": "Maya",
+      "text": "fifteen across the board and i then i can't what i can do is sharpen it if we commit to a pilot structure let me come back to you on exact numbers",
+      "startMs": 43680,
+      "endMs": 52800
+    },
+    {
+      "id": "L8",
+      "index": 7,
+      "speaker": "Rahul",
+      "text": "lehi tamming matters here the ringhawk renewal is november and if i'm switching i need to know before they auto renew me",
+      "startMs": 52720,
+      "endMs": 60160
+    },
+    {
+      "id": "L9",
+      "index": 8,
+      "speaker": "Maya",
+      "text": "understood that's how clock then anything else standing between you and the yes",
+      "startMs": 60400,
+      "endMs": 63680
+    },
+    {
+      "id": "L10",
+      "index": 9,
+      "speaker": "Rahul",
+      "text": "one thing that spooked me the old vendor told us back in the day that porting numbers takes months if that's true it blows up your weekend cutover story",
+      "startMs": 63840,
+      "endMs": 71840
+    },
+    {
+      "id": "L11",
+      "index": 10,
+      "speaker": "Maya",
+      "text": "it's not true and i'll prove it rather than argue the port request paperwork goes in on day one and i'll show you real time lines from practices your size",
+      "startMs": 71840,
+      "endMs": 80400
+    },
+    {
+      "id": "L12",
+      "index": 11,
+      "speaker": "Rahul",
+      "text": "let's do that bring me a sharper number and the porting proof now and then i take it to doctor meta",
+      "startMs": 80480,
+      "endMs": 85840
+    }
+  ],
+  "notes": {
+    "title": "Pricing: quote vs RingHawk renewal counter",
+    "summary": [
+      {
+        "text": "Pricing on the table: twenty eight per month all-in; RingHawk countered twenty two; buyer asked for fifteen off.",
+        "evidence": {
+          "lineId": "L1",
+          "quote": "here's where we land twenty eight per month all five locations routing texting and the recall tooling included"
+        }
+      },
+      {
+        "text": "RingHawk renews in November: the buyer needs a decision before the auto-renew locks.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "the ringhawk renewal is november and if i'm switching i need to know before they auto renew me"
+        }
+      }
+    ],
+    "objections": [
+      {
+        "text": "Buyer must justify the six-per-seat gap to Dr. Mehta, who signs the checks.",
+        "evidence": {
+          "lineId": "L4",
+          "quote": "he's going to see a six gap per seat and ask me why"
+        }
+      },
+      {
+        "text": "Porting fear is secondhand. The old vendor told them numbers take months to port, not something the buyer's actually experienced.",
+        "evidence": {
+          "lineId": "L10",
+          "quote": "the old vendor told us back in the day that porting numbers takes months if that's true it blows up your weekend cutover story"
+        }
+      }
+    ],
+    "intent": [
+      {
+        "text": "Dr. Mehta signs the checks. He's never been on these calls himself.",
+        "evidence": {
+          "lineId": "L4",
+          "quote": "i answered to doctor meta on the and he signs the checks"
+        }
+      },
+      {
+        "text": "Single-threaded: only one contact in the loop so far.",
+        "evidence": {
+          "lineId": "L12",
+          "quote": "i take it to doctor meta"
+        }
+      }
+    ],
+    "nextSteps": [
+      {
+        "text": "Rep to bring a sharper number and the porting proof; buyer will then take it to Dr. Mehta.",
+        "evidence": {
+          "lineId": "L12",
+          "quote": "bring me a sharper number and the porting proof now and then i take it to doctor meta"
+        }
+      },
+      {
+        "text": "Rep to bring a sharper number and porting proof; buyer takes it to Dr. Mehta.",
+        "evidence": {
+          "lineId": "L12",
+          "quote": "bring me a sharper number and the porting proof now and then i take it to doctor meta"
+        }
+      }
+    ],
+    "pain": [],
+    "pricing": [
+      {
+        "text": "CallForge quote: twenty eight per month, all five locations, routing and texting and recall tooling included.",
+        "evidence": {
+          "lineId": "L1",
+          "quote": "here's where we land twenty eight per month all five locations routing texting and the recall tooling included"
+        }
+      },
+      {
+        "text": "RingHawk counter-offered twenty two to retain the account the moment it sensed a switch.",
+        "evidence": {
+          "lineId": "L2",
+          "quote": "ring hawk came back the moment they smelled a switch and offered twenty two to renew"
+        }
+      },
+      {
+        "text": "Buyer flags a six-per-seat gap versus the RingHawk renewal that Dr. Mehta will question.",
+        "evidence": {
+          "lineId": "L4",
+          "quote": "he's going to see a six gap per seat and ask me why"
+        }
+      },
+      {
+        "text": "Buyer wants fifteen off, enough to make this a service decision instead of a price fight.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "can you do fifteen that gets me close enough that the conversation is about service not price"
+        }
+      },
+      {
+        "text": "Rep agreed to match RingHawk's twenty two renewal price if the buyer commits today.",
+        "evidence": {
+          "lineId": "L7",
+          "quote": "i can match their twenty two if you commit today"
+        }
+      }
+    ],
+    "competitors": [
+      {
+        "text": "RingHawk counter-offered twenty two to keep the account, and its renewal falls in November.",
+        "evidence": {
+          "lineId": "L2",
+          "quote": "ring hawk came back the moment they smelled a switch and offered twenty two to renew"
+        }
+      }
+    ],
+    "followUpEmail": {
+      "subject": "Follow-up: Pricing: quote vs RingHawk renewal counter",
+      "body": "Thanks for the time today.\n\nPricing on the table: twenty eight per month all-in; RingHawk countered twenty two; buyer asked for fifteen off.\nRingHawk renews in November: the buyer needs a decision before the auto-renew locks.\n\nNext steps:\n- Rep to bring a sharper number and the porting proof; buyer will then take it to Dr. Mehta.\n- Rep to bring a sharper number and porting proof; buyer takes it to Dr. Mehta.\n\n— OpenGong Lite",
+      "evidence": {
+        "lineId": "L12",
+        "quote": "bring me a sharper number and the porting proof now and then i take it to doctor meta"
+      }
+    }
+  }
+}

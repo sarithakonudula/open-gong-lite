@@ -28,18 +28,60 @@ export type EvidenceGateResult = {
 /** Long unique quotes may be rescued across the whole transcript (L7 stage 3). */
 const RESCUE_MIN_WORDS = 6;
 
+/** Stage-2 floor: shorter quotes may only exact-match a whole utterance. */
+export const MIN_NORMALIZED_QUOTE = 15;
+
 const REQUIRED_SECTIONS = ["summary", "intent", "nextSteps"] as const;
 
+/** Sentence punctuation only. Hyphen/slash stay so "3:30" cannot become "330". */
+const STRIP_PUNCT = /[.,;:!?'"()[\]{}]/;
+
+const TYPOGRAPHIC: Record<string, string> = {
+  "\u2018": "'",
+  "\u2019": "'",
+  "\u201C": '"',
+  "\u201D": '"',
+  "\u2013": "-",
+  "\u2014": "-",
+};
+
+function nearestNonPunct(
+  text: string,
+  index: number,
+  step: number,
+): string | undefined {
+  let cursor = index + step;
+  while (
+    cursor >= 0 &&
+    cursor < text.length &&
+    STRIP_PUNCT.test(text[cursor] ?? "")
+  ) {
+    cursor += step;
+  }
+  return text[cursor];
+}
+
 /**
- * Normalize for containment checks: lowercase, strip punctuation, collapse
- * whitespace. Digits are kept — no "forty" ↔ "40" folding.
+ * Normalize for containment checks: NFKC + casefold + whitelist punct strip.
+ * Digits are kept — no "forty" ↔ "40" folding. Marks flanked by digits
+ * ("3:30", "3..30") are preserved so they cannot fuse into another number.
  */
 export function normalizeQuote(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  const folded = [...text.normalize("NFKC").toLowerCase()]
+    .map((ch) => TYPOGRAPHIC[ch] ?? ch)
+    .join("");
+  let stripped = "";
+  for (let i = 0; i < folded.length; i++) {
+    const ch = folded[i] ?? "";
+    if (STRIP_PUNCT.test(ch)) {
+      const left = nearestNonPunct(folded, i, -1);
+      const right = nearestNonPunct(folded, i, 1);
+      const digitFlanked = /\d/.test(left ?? "") && /\d/.test(right ?? "");
+      if (!digitFlanked) continue;
+    }
+    stripped += ch;
+  }
+  return stripped.replace(/\s+/g, " ").trim();
 }
 
 function neighbors(
@@ -68,16 +110,22 @@ export function gateEvidenceQuote(
     return { verdict: "missing_line", matchedLineId: null, stage: 4 };
   }
 
-  const window = neighbors(transcript, lineId);
-
-  for (const line of window) {
-    if (line.text.includes(quote)) {
-      return { verdict: "match_exact", matchedLineId: line.id, stage: 1 };
-    }
+  const trimmed = quote.trim();
+  const normQuote = normalizeQuote(trimmed);
+  if (!trimmed || !normQuote) {
+    return { verdict: "uncorroborated", matchedLineId: null, stage: 4 };
   }
 
-  const normQuote = normalizeQuote(quote);
-  if (normQuote) {
+  const window = neighbors(transcript, lineId);
+  const short = normQuote.length < MIN_NORMALIZED_QUOTE;
+
+  for (const line of window) {
+    if (!line.text.includes(trimmed)) continue;
+    if (short && trimmed !== line.text.trim()) continue;
+    return { verdict: "match_exact", matchedLineId: line.id, stage: 1 };
+  }
+
+  if (!short) {
     for (const line of window) {
       if (normalizeQuote(line.text).includes(normQuote)) {
         return {
@@ -90,7 +138,7 @@ export function gateEvidenceQuote(
   }
 
   const wordCount = normQuote.split(" ").filter(Boolean).length;
-  if (normQuote && wordCount >= RESCUE_MIN_WORDS) {
+  if (!short && wordCount >= RESCUE_MIN_WORDS) {
     const hits = transcript.filter((line) =>
       normalizeQuote(line.text).includes(normQuote),
     );
