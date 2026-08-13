@@ -7,17 +7,26 @@ function findLine(
   return transcript.find((line) => pattern.test(line.text));
 }
 
+/**
+ * Evidence sentinel for a claim whose pattern matched no transcript line.
+ * The lineId never exists, so the gate demotes the claim instead of letting
+ * it ride on an arbitrary fallback line's quote (right quote, wrong claim —
+ * the same self-certification the recap mapper was cured of).
+ */
+const NO_EVIDENCE = { lineId: "__unsupported__", quote: "" };
+
 function claimFrom(
   line: TranscriptLine | undefined,
   text: string,
-  fallback: TranscriptLine,
 ): { text: string; evidence: { lineId: string; quote: string } } {
-  const target = line || fallback;
+  if (!line) {
+    return { text, evidence: { ...NO_EVIDENCE } };
+  }
   const quote =
-    target.text.length > 90 ? `${target.text.slice(0, 87)}...` : target.text;
+    line.text.length > 90 ? `${line.text.slice(0, 87)}...` : line.text;
   return {
     text,
-    evidence: { lineId: target.id, quote },
+    evidence: { lineId: line.id, quote },
   };
 }
 
@@ -63,17 +72,14 @@ export function demoExtractDealNotes(
       claimFrom(
         need,
         "Buyer is evaluating call intelligence because current notes lack trust or depth.",
-        first,
       ),
       claimFrom(
         expensive,
         "Cost, seats, or renewal pressure is part of the buying conversation.",
-        transcript[1] || first,
       ),
       claimFrom(
         pilot,
         "They prefer a scoped pilot before a broader rollout.",
-        transcript[Math.min(5, transcript.length - 1)],
       ),
     ],
     objections: [
@@ -82,26 +88,22 @@ export function demoExtractDealNotes(
         accuracy
           ? "Trust / proof / security constraints must be satisfied before expansion."
           : "Pricing or commercial structure is a live objection.",
-        transcript[Math.min(3, transcript.length - 1)],
       ),
     ],
     intent: [
       claimFrom(
         intent,
         intent?.text || "Buyer signaled a near-term vendor decision.",
-        transcript[transcript.length - 1],
       ),
     ],
     nextSteps: [
       claimFrom(
         next,
         "Owner committed to a concrete follow-up artifact or meeting.",
-        transcript[Math.min(6, transcript.length - 1)],
       ),
       claimFrom(
         today,
         "There is a dated checkpoint the buyer can share internally.",
-        transcript[Math.min(8, transcript.length - 1)],
       ),
     ],
     pain: accuracy
@@ -109,7 +111,6 @@ export function demoExtractDealNotes(
           claimFrom(
             accuracy,
             "Trust, proof, or security constraints are the live pain.",
-            accuracy,
           ),
         ]
       : [],
@@ -118,7 +119,6 @@ export function demoExtractDealNotes(
           claimFrom(
             expensive,
             "Pricing, seats, or renewal cost is on the table.",
-            expensive,
           ),
         ]
       : [],
@@ -132,7 +132,6 @@ export function demoExtractDealNotes(
             claimFrom(
               named,
               "An incumbent or competing tool was named on the call.",
-              named,
             ),
           ]
         : [];
@@ -146,7 +145,7 @@ export function demoExtractDealNotes(
         "",
         "Reply with anyone else who should be looped in before the next checkpoint.",
         "",
-        "— OpenGong Lite",
+        "OpenGong Lite",
       ].join("\n"),
       evidence: {
         lineId: (next || transcript[transcript.length - 2] || first).id,

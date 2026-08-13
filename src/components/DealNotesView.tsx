@@ -185,7 +185,7 @@ export function DealNotesView({
             {notes?.title || run.sourceLabel}
           </h1>
           <p className="max-w-2xl text-base text-fog/85">
-            Models draft. Gates decide. Unproven claims stay visible — they
+            Models draft. Gates decide. Unproven claims stay visible. They
             never pretend to be facts. Click a{" "}
             <span className="text-signal">Receipt</span>
             {canPlayAudio ? " to jump and play that second." : " to jump to the line."}
@@ -207,7 +207,7 @@ export function DealNotesView({
               </span>
               {verifiedPct != null && (
                 <>
-                  {" — "}
+                  {" · "}
                   <span className="text-paper">{verifiedPct}% verified</span>
                 </>
               )}
@@ -268,14 +268,14 @@ export function DealNotesView({
               </p>
               <p className="mt-1 text-fog/85">
                 {run.error ||
-                  "Demoted claims stay on this page — unproven lines never silently appear as facts."}
+                  "Demoted claims stay on this page. Unproven lines never silently appear as facts."}
               </p>
               {gateFailures.length > 0 && (
                 <ul className="mt-3 space-y-1 text-fog/80">
                   {gateFailures.slice(0, 6).map((f, i) => (
                     <li key={`${f.attempt}-${f.code}-${i}`}>
                       Attempt #{f.attempt} · {f.code}
-                      {f.path ? ` @ ${f.path}` : ""} — {f.message}
+                      {f.path ? ` @ ${f.path}` : ""}: {f.message}
                     </li>
                   ))}
                 </ul>
@@ -351,7 +351,7 @@ export function DealNotesView({
               </h3>
               {!isEmailableStatus(notes.followUpEmail.status) && (
                 <p className="text-sm text-heat">
-                  Draft withheld or rebuilt — only verified claims may leave
+                  Draft withheld or rebuilt. Only verified claims may leave
                   this page.
                 </p>
               )}
@@ -388,7 +388,7 @@ export function DealNotesView({
                   #{attempt.attempt} · {attempt.ok ? "passed" : "blocked"} ·{" "}
                   {attempt.reason || "n/a"}
                   {attempt.failures[0]
-                    ? ` — ${attempt.failures[0].message}`
+                    ? `: ${attempt.failures[0].message}`
                     : ""}
                 </li>
               ))}

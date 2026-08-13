@@ -307,7 +307,7 @@ export function validateDealNotes(
     lineId: notes.followUpEmail.evidence.lineId,
     tainted,
   });
-  let emailStatus: ClaimStatus = emailInjection.blocked
+  const emailStatus: ClaimStatus = emailInjection.blocked
     ? "blocked_injection"
     : verdictToStatus(emailGate.verdict);
   if (

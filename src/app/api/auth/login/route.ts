@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       authRequired: false,
-      message: "Auth is disabled — set OPENGONG_AUTH_PASSWORD to enable.",
+      message: "Auth is disabled. Set OPENGONG_AUTH_PASSWORD to enable.",
     });
   }
 

@@ -26,7 +26,7 @@ export default function HowPage() {
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-fog/90">
           Models draft. Gates decide what is allowed to look like a fact.
-          Unproven claims stay on the page in grey — they never silently ship.
+          Unproven claims stay on the page in grey. They never silently ship.
           Injected lines are struck through and barred from the follow-up email.
         </p>
 
@@ -48,7 +48,7 @@ export default function HowPage() {
             <p className="mt-2 text-mist">
               Each claim carries <code className="text-signal">lineId</code> +
               quote. Quotes are checked in order: exact substring → normalized
-              match (no digit folding — &quot;forty&quot; ≠ &quot;40&quot;) →
+              match (no digit folding: &quot;forty&quot; ≠ &quot;40&quot;) →
               long unique rescue across the call → else{" "}
               <code className="text-signal">uncorroborated</code>. Demote, don&apos;t
               hide. Fuzzy paraphrase never ships as verified.
@@ -61,7 +61,7 @@ export default function HowPage() {
             <p className="mt-2 text-mist">
               A planted line <em>is</em> in the transcript, so receipts alone
               cannot catch it. A separate taint screen quarantines instruction-shaped
-              utterances. Best-effort on purpose — the email choke is the
+              utterances. Best-effort on purpose. The email choke is the
               load-bearing layer.
             </p>
           </li>
@@ -87,7 +87,7 @@ export default function HowPage() {
               <code className="text-signal">shipped</code> /{" "}
               <code className="text-signal">partial</code> /{" "}
               <code className="text-signal">failed</code>. The header shows %
-              verified — honesty is the product.
+              verified. Honesty is the product.
             </p>
           </li>
         </ol>

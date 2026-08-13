@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- adversarial test runner pokes internals on purpose */
 // Adversarial vector run: OUR attack set fired at HER harness port.
 // Default-to-fail on ambiguity. Fabrication = a quote/number that was never
 // spoken getting status "verified"/"segment_corrected".
@@ -45,7 +46,7 @@ vec("F6", "reverse split: '40 15' vs spoken '40.15' — flank-guard renders both
 
 r = gateEvidenceQuote("we will send the compliance packet and the porting proof before your renewal deadline hits", "l99", T);
 vec("F7", "unknown lineId with real quote (supplied-ID screen)", "HIGH", r.verdict,
-  r.verdict !== "verified" && r.verdict !== "match_exact" && r.verdict !== "match_normalized",
+  r.verdict !== "match_exact" && r.verdict !== "match_normalized" && r.verdict !== "segment_corrected",
   "our spec: unknown shown-ID poisons the WHOLE response; hers demotes the one claim");
 
 r = gateEvidenceQuote("we should sync up again soon about this", "l1", T);

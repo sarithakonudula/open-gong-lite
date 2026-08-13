@@ -42,13 +42,13 @@ export function composeEmail(
     claimId: c.id || c.evidence.lineId,
   }));
   const body = [
-    `Thanks for ${title} — recapping what we actually discussed:`,
+    `Thanks for ${title}. Recapping what we actually discussed:`,
     "",
     ...bullets.map((b) => `- ${b.text}`),
     "",
     "Every point above is tied to a verified line in the call notes. Unproven claims were not included.",
     "",
-    "— OpenGong Lite",
+    "OpenGong Lite",
   ].join("\n");
   return { subject: `Follow-up: ${title}`, body, bullets };
 }
@@ -81,8 +81,13 @@ export function screenDraft(
 }
 
 /**
- * Keep a curated/Recap email only when its receipt passed the gate.
- * Otherwise draft from verified claims, or withhold if none passed.
+ * The follow-up email is ALWAYS composed from claims that passed the gate,
+ * or withheld when none did. A model- or Recap-authored body never ships,
+ * even when its own receipt passed: one verified receipt on the envelope
+ * must not launder an unverified body past the choke point. (The old
+ * early-return that kept a "curated" body when opts.emailStatus passed was
+ * exactly that laundering path — a fabricated Recap email shipped verbatim
+ * because its single self-assigned quote matched a transcript line.)
  */
 export function chokeFollowUp(opts: {
   title: string;
@@ -94,10 +99,6 @@ export function chokeFollowUp(opts: {
   const fallbackLine = opts.transcript[0];
   if (!fallbackLine) {
     throw new EmailError("EMAIL_INPUT_INVALID", "empty transcript");
-  }
-
-  if (isEmailableStatus(opts.emailStatus)) {
-    return { ...opts.existing, status: opts.emailStatus };
   }
 
   const usable = emailableClaims(opts.claims);

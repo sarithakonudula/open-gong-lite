@@ -9,6 +9,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { gateEvidenceQuote, normalizeQuote } from "../src/lib/harness/gates";
 import { mapRecapToDealNotes } from "../src/lib/recap-map";
+import { chokeFollowUp } from "../src/lib/harness/email";
+import { demoExtractDealNotes } from "../src/lib/demo-extract";
 import type { TranscriptLine } from "../src/lib/types";
 
 const T = [
@@ -70,4 +72,38 @@ test("recap text without a supporting line gets NO manufactured receipt", () => 
     "the recap email pass-through must not carry a manufactured receipt");
   assert.ok(!all.some((c) => c.text.startsWith("Follow up on:")),
     "a next step the buyer never agreed to must not be invented from a transcript line");
+});
+
+test("email choke: a curated body never ships on the strength of one passing receipt", () => {
+  const claims = [
+    { id: "c1", text: "prospect said pricing is the main concern", evidence: { lineId: "l1", quote: "my main concern is pricing" }, status: "verified" },
+  ] as never[];
+  const existing = {
+    subject: "Signed deal recap",
+    body: "Prospect confirmed budget is approved and agreed to sign a $50k annual contract.",
+    evidence: { lineId: "l1", quote: "honestly my main concern is pricing your competitor quoted us almost forty less last week" },
+    status: "verified",
+  } as never;
+  const out = chokeFollowUp({ title: "test", existing, emailStatus: "verified" as never, claims, transcript: T });
+  assert.ok(!out.body.includes("$50k"),
+    "a Recap-authored body must never ship verbatim, even with a passing envelope receipt");
+  assert.ok(out.body.includes("pricing is the main concern"),
+    "the shipped email must be composed from gate-passed claims only");
+});
+
+test("demo extractor: unmatched patterns demote instead of riding a fallback line", () => {
+  const quiet = [
+    { id: "q1", index: 0, speaker: "prospect", text: "thanks for the walkthrough it was clear" },
+    { id: "q2", index: 1, speaker: "rep", text: "glad it was useful" },
+  ] as unknown as TranscriptLine[];
+  const notes = demoExtractDealNotes(quiet, "quiet call");
+  const all = [
+    ...notes.summary, ...notes.objections, ...notes.intent, ...notes.nextSteps,
+    ...notes.pain, ...notes.pricing, ...notes.competitors,
+  ];
+  for (const c of all) {
+    const gate = gateEvidenceQuote(c.evidence.quote, c.evidence.lineId, quiet);
+    assert.ok(gate.verdict !== "match_exact" && gate.verdict !== "match_normalized",
+      `a claim whose pattern matched nothing must not verify: ${JSON.stringify(c.text)}`);
+  }
 });

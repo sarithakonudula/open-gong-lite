@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Mic live needs a PyAI key. Set PYAI_API_KEY or enable sandbox mint — or use the scripted live demo.",
+            "Mic live needs a PyAI key. Set PYAI_API_KEY or enable sandbox mint, or use the scripted live demo.",
         },
         { status: 503 },
       );

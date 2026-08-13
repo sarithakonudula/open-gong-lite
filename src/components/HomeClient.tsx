@@ -177,7 +177,7 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
         </h1>
         <p className="animate-rise-delay-2 mt-6 max-w-xl text-lg leading-relaxed text-fog/90 md:text-xl">
           Deal intelligence from any call: summary, objections, intent, next
-          steps, follow-up email — each claim pinned to a transcript receipt.
+          steps, follow-up email. Each claim is pinned to a transcript receipt.
         </p>
 
         <div className="animate-rise-delay-2 mt-10 flex flex-wrap gap-3">
@@ -200,7 +200,7 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
           {status?.pyai?.configured
             ? `${status.pyai.source} · ${status.pyai.preview}`
             : status?.pyai?.error
-              ? `not ready — ${status.pyai.error}`
+              ? `not ready: ${status.pyai.error}`
               : "checking…"}
           {" · "}
           Hear jobs + Recap pack `{status?.recapPackId || "sales_outbound"}`
@@ -259,7 +259,7 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
           Search past calls
         </h2>
         <p className="mt-2 max-w-2xl text-mist">
-          Find anything you&apos;ve discussed across stored runs — titles,
+          Find anything you&apos;ve discussed across stored runs: titles,
           transcript lines, and shipped claims.
         </p>
         <input
@@ -275,7 +275,7 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
         <ul className="mt-6 space-y-3">
           {runs.length === 0 ? (
             <li className="text-sm text-mist">
-              No runs yet — run a sample above to populate history.
+              No runs yet. Run a sample above to populate history.
             </li>
           ) : (
             runs.map((run) => (
