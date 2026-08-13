@@ -36,18 +36,53 @@ export type RecapUtterance = {
 
 const ROLE_LABELS = ["Rep", "Prospect"] as const;
 
-/** Stable key for a Hear speaker/channel label (`speaker_1`, `ch0`, …). */
-export function speakerKey(
+type IdentityMode = "speaker" | "channel";
+
+function speakerLabelKey(
   part: Pick<HearSegment, "speaker" | "channel">,
 ): string {
-  if (typeof part.channel === "number" && Number.isFinite(part.channel)) {
-    return `ch:${part.channel}`;
-  }
   const raw = (part.speaker || "").trim();
   if (!raw) return "";
   const numbered = raw.match(/(?:speaker|ch(?:annel)?)[_\s-]*(\d+)/i);
   if (numbered) return `spk:${Number(numbered[1])}`;
   return `name:${raw.toLowerCase()}`;
+}
+
+function channelLabelKey(
+  part: Pick<HearSegment, "speaker" | "channel">,
+): string {
+  if (typeof part.channel === "number" && Number.isFinite(part.channel)) {
+    return `ch:${part.channel}`;
+  }
+  return "";
+}
+
+/**
+ * Pick the identity that actually splits the call.
+ * Mono diarize stamps channel 0 on every turn — if we key on channel first,
+ * speaker_1 / speaker_2 collapse into one "user."
+ * Stereo channel-split often repeats the same speaker label; then channel wins.
+ */
+export function chooseIdentityMode(
+  parts: Array<Pick<HearSegment, "speaker" | "channel">>,
+): IdentityMode {
+  const speakers = new Set(parts.map(speakerLabelKey).filter(Boolean));
+  if (speakers.size >= 2) return "speaker";
+  const channels = new Set(parts.map(channelLabelKey).filter(Boolean));
+  if (channels.size >= 2) return "channel";
+  return "speaker";
+}
+
+/** Stable key for a Hear speaker/channel label (`speaker_1`, `ch0`, …). */
+export function speakerKey(
+  part: Pick<HearSegment, "speaker" | "channel">,
+  mode?: IdentityMode,
+): string {
+  const prefer = mode ?? chooseIdentityMode([part]);
+  if (prefer === "channel") {
+    return channelLabelKey(part) || speakerLabelKey(part);
+  }
+  return speakerLabelKey(part) || channelLabelKey(part);
 }
 
 function wordText(word: HearWord): string {
@@ -57,21 +92,25 @@ function wordText(word: HearWord): string {
 function uniqueSpeakerCount(
   parts: Array<Pick<HearSegment, "speaker" | "channel">>,
 ) {
+  const mode = chooseIdentityMode(parts);
   const keys = new Set(
-    parts.map((part) => speakerKey(part)).filter((key) => key.length > 0),
+    parts
+      .map((part) => speakerKey(part, mode))
+      .filter((key) => key.length > 0),
   );
   return keys.size;
 }
 
 /** Group word-level speaker turns (Sortformer aligns speakers on words). */
 export function wordsToSegments(words: HearWord[]): HearSegment[] {
+  const mode = chooseIdentityMode(words);
   const segments: HearSegment[] = [];
   for (const word of words) {
     const text = wordText(word);
     if (!text) continue;
-    const key = speakerKey(word);
+    const key = speakerKey(word, mode);
     const last = segments[segments.length - 1];
-    if (last && speakerKey(last) === key) {
+    if (last && speakerKey(last, mode) === key) {
       last.text = `${(last.text || "").trim()} ${text}`.trim();
       if (typeof word.end === "number") last.end = word.end;
     } else {
@@ -109,11 +148,14 @@ export function speakerTurnsFromResult(result: HearJobResult): HearSegment[] {
   return segments;
 }
 
-function roleLabelsInOrder(turns: HearSegment[]): Map<string, string> {
+function roleLabelsInOrder(
+  turns: HearSegment[],
+  mode: IdentityMode,
+): Map<string, string> {
   const labels = new Map<string, string>();
   let next = 0;
   for (const turn of turns) {
-    const key = speakerKey(turn);
+    const key = speakerKey(turn, mode);
     if (!key || labels.has(key)) continue;
     labels.set(key, ROLE_LABELS[next] || `Speaker ${next + 1}`);
     next += 1;
@@ -125,8 +167,9 @@ function displaySpeaker(
   turn: HearSegment,
   labels: Map<string, string>,
   index: number,
+  mode: IdentityMode,
 ): string {
-  const key = speakerKey(turn);
+  const key = speakerKey(turn, mode);
   if (key && labels.has(key)) return labels.get(key)!;
   const raw = turn.speaker?.trim();
   if (raw) return raw;
@@ -137,14 +180,15 @@ function displaySpeaker(
 export function segmentsToTranscript(
   segments: HearSegment[],
 ): TranscriptLine[] {
-  const labels = roleLabelsInOrder(segments);
+  const mode = chooseIdentityMode(segments);
+  const labels = roleLabelsInOrder(segments, mode);
   return segments
     .map((segment, index) => {
       const text = (segment.text || "").trim();
       return {
         id: `L${index + 1}`,
         index,
-        speaker: displaySpeaker(segment, labels, index),
+        speaker: displaySpeaker(segment, labels, index, mode),
         text,
         startMs:
           typeof segment.start === "number"
