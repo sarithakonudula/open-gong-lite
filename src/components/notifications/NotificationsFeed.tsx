@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { SampleDataControls } from "@/components/SampleDataControls";
 import type { AppNotification, NotificationKind } from "@/lib/notifications";
 
 const READ_KEY = "og-notifications-read";
@@ -145,6 +146,10 @@ export function NotificationsFeed({ items }: { items: AppNotification[] }) {
         >
           Mark all as read
         </button>
+      </div>
+
+      <div className="mt-6">
+        <SampleDataControls compact afterHref="/notifications" />
       </div>
 
       {items.length === 0 ? (

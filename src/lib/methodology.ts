@@ -580,6 +580,42 @@ export function demoScorecardForRun(
   return demoMethodologyScorecard(slug, run.transcript);
 }
 
+/**
+ * Scorecard for a run: stored methodology (dummy seed + live scores) first,
+ * then the Brightsmile offline demo verdict.
+ */
+export function scorecardForRun(
+  run: {
+    source: string;
+    sourceLabel: string;
+    sampleSlug?: string;
+    transcript: TranscriptLine[];
+    methodology?: {
+      packId: string;
+      dealValueUsd: number | null;
+      verdict: unknown;
+    } | null;
+  },
+  titleToSlug?: Record<string, string>,
+): MethodologyScorecard | null {
+  if (run.methodology?.verdict) {
+    const pack = getMethodologyPack(run.methodology.packId);
+    if (pack) {
+      try {
+        return applyMethodologyVerdict(
+          pack,
+          run.transcript,
+          run.methodology.verdict,
+          { dealValueUsd: run.methodology.dealValueUsd ?? undefined },
+        );
+      } catch {
+        // Stored verdict didn't re-gate — fall through to the slug demo.
+      }
+    }
+  }
+  return demoScorecardForRun(run, titleToSlug);
+}
+
 // ── Embedded packs (14) ─────────────────────────────────────────────────────
 // Generated from the methodology-coach pack library; component lists follow
 // the methodology owners' materials. rigor drives deal-band scoring above.

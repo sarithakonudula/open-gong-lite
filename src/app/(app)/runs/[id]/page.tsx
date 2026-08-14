@@ -4,10 +4,15 @@ import {
   RecordingWorkspace,
 } from "@/components/recording/RecordingWorkspace";
 import { detectCallKind, KIND_DEFAULT_PACK, KIND_LABEL } from "@/lib/call-kind";
-import { buildSampleCompanyIndex, companyForRun } from "@/lib/company";
-import { hasLlmAvailable } from "@/lib/llm";
+import {
+  buildSampleCompanyIndex,
+  companyForRun,
+  normalizeCompanyKey,
+} from "@/lib/company";
 import { demoSignalFeedForRun } from "@/lib/deal-signals";
-import { demoScorecardForRun, listMethodologyPacks } from "@/lib/methodology";
+import { hasLlmAvailable } from "@/lib/llm";
+import { listMethodologyPacks, scorecardForRun } from "@/lib/methodology";
+import { sampleDatasetFeedForRun } from "@/lib/sample-data";
 import { listSamples } from "@/lib/samples";
 import { getRun } from "@/lib/store";
 
@@ -20,6 +25,7 @@ function resolveTab(tab: string | undefined): RecordingTab {
   if (tab === "scorecard") return "scorecard";
   if (tab === "signals") return "signals";
   if (tab === "email") return "email";
+  if (tab === "deal") return "deal";
   return "transcript";
 }
 
@@ -33,16 +39,19 @@ export default async function RunPage({ params, searchParams }: Props) {
 
   const samples = await listSamples();
   const index = buildSampleCompanyIndex(samples);
+  const company = companyForRun(run, index);
   const callKind = detectCallKind(run.transcript);
-  const initialCard = demoScorecardForRun(run, index.titleToSlug);
-  const signalFeed = demoSignalFeedForRun(run, index.titleToSlug);
+  const initialCard = scorecardForRun(run, index.titleToSlug);
+  const signalFeed =
+    sampleDatasetFeedForRun(run) ?? demoSignalFeedForRun(run, index.titleToSlug);
   const packs = listMethodologyPacks().map((p) => ({ id: p.id, name: p.name }));
   const llmAvailable = await hasLlmAvailable();
 
   return (
     <RecordingWorkspace
       run={run}
-      company={companyForRun(run, index)}
+      company={company}
+      companyKey={normalizeCompanyKey(company)}
       initialTab={resolveTab(tab)}
       initialCard={initialCard}
       signalFeed={signalFeed}

@@ -1,71 +1,26 @@
 import Link from "next/link";
-import { loadSample } from "@/lib/samples";
+import { DealSignalsView } from "@/components/DealSignalsView";
 import {
-  demoDealSignalFeed,
-  type AlertSeverity,
-  type DealAlert,
-} from "@/lib/deal-signals";
-import { SIGNAL_EVIDENCE_LABEL, SIGNAL_SEVERITY_LABEL } from "@/lib/labels";
+  buildSampleCall,
+  SAMPLE_CALLS,
+  sampleSignalFeedFor,
+} from "@/lib/sample-data";
 
 export const dynamic = "force-static";
 
-const SEVERITY_STYLE: Record<AlertSeverity, { label: string; badge: string }> = {
-  hot: { label: SIGNAL_SEVERITY_LABEL.hot!, badge: "border-danger/60 text-danger" },
-  high: { label: SIGNAL_SEVERITY_LABEL.high!, badge: "border-danger/40 text-danger" },
-  watch: { label: SIGNAL_SEVERITY_LABEL.watch!, badge: "border-edge-strong text-fg-muted" },
-  info: { label: SIGNAL_SEVERITY_LABEL.info!, badge: "border-edge text-fg-soft" },
-};
+const SHOWCASE_SLUGS = [
+  "pickle-rick-discovery",
+  "gigglepixel-qbr",
+  "sloth-speed-export",
+] as const;
 
-function AlertCard({ alert }: { alert: DealAlert }) {
-  const style = SEVERITY_STYLE[alert.severity];
-  return (
-    <li className="rounded-xl border border-edge bg-surface p-5">
-      <div className="flex flex-wrap items-center gap-3">
-        <span
-          className={`rounded-full border px-2.5 py-0.5 text-xs uppercase tracking-wide ${style.badge}`}
-        >
-          {style.label}
-        </span>
-        <h2 className="font-[family-name:var(--font-display)] text-lg tracking-tight">
-          {alert.title}
-        </h2>
-      </div>
-      <p className="mt-2 text-sm leading-relaxed text-fg-muted">{alert.detail}</p>
-      {alert.evidenceState === "cited" && alert.context ? (
-        <div className="mt-3 space-y-1">
-          {alert.context.evidence.map((e) => (
-            <blockquote
-              key={`${e.lineId}:${e.quote.slice(0, 16)}`}
-              className="border-l-2 border-brand/50 pl-3 text-sm italic text-fg-soft"
-            >
-              “{e.quote}” <span className="not-italic text-xs">[{e.lineId}]</span>
-            </blockquote>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-3 text-xs uppercase tracking-wide text-fg-soft">
-          {SIGNAL_EVIDENCE_LABEL.signal_only}
-        </p>
-      )}
-      <p className="mt-3 text-sm text-fg-muted">
-        <span className="font-medium text-foreground">What to do:</span>{" "}
-        {alert.play}
-      </p>
-      {alert.resolvesWhen && (
-        <p className="mt-2 text-xs text-fg-soft">{alert.resolvesWhen}</p>
-      )}
-      {alert.push && (
-        <p className="mt-2 text-xs uppercase tracking-wide text-brand">
-          → sent to the CRM as a task
-        </p>
-      )}
-    </li>
-  );
-}
-
-export default async function SignalsPage() {
-  const sample = await loadSample("brightsmile-01-discovery");
-  const feed = sample ? demoDealSignalFeed(sample.transcript) : null;
+export default function SignalsPage() {
+  const feeds = SHOWCASE_SLUGS.map((slug) => {
+    const spec = SAMPLE_CALLS.find((s) => s.slug === slug);
+    if (!spec) return null;
+    const { transcript } = buildSampleCall(spec);
+    return sampleSignalFeedFor(spec, transcript);
+  }).filter((feed): feed is NonNullable<typeof feed> => feed != null);
 
   return (
     <main className="relative min-h-screen overflow-hidden">
@@ -91,24 +46,17 @@ export default async function SignalsPage() {
           Page visits, support tickets, renewal dates, and promises nobody
           kept, turned into things worth doing today. Each one carries the line
           from the call that makes it matter, or says plainly that no line
-          backs it. Sample data: the Brightsmile deal, one week after the first
-          call.
+          backs it. Sample data from Pickle Rick Robotics, Gigglepixel Games,
+          and Sloth Speed Internet — load dummy data on Upload to browse the
+          full 24-company set.
         </p>
 
-        {feed ? (
-          <>
-            <p className="mt-8 text-sm uppercase tracking-wide text-fg-soft">
-              {feed.company} · {feed.alerts.length}{" "}
-              {feed.alerts.length === 1 ? "signal" : "signals"}
-              {feed.suppressed.length > 0 &&
-                ` · ${feed.suppressed.length} too small to raise on a deal this size`}
-            </p>
-            <ul className="mt-4 space-y-4">
-              {feed.alerts.map((a) => (
-                <AlertCard key={a.id} alert={a} />
-              ))}
-            </ul>
-          </>
+        {feeds.length > 0 ? (
+          <div className="mt-8 space-y-10">
+            {feeds.map((feed) => (
+              <DealSignalsView key={feed.company} feed={feed} />
+            ))}
+          </div>
         ) : (
           <p className="mt-8 text-fg-soft">Demo sample unavailable.</p>
         )}

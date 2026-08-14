@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { SampleDataControls } from "@/components/SampleDataControls";
 
 export type RepTrait = {
   traitId: string;
@@ -95,13 +96,13 @@ export function RepsClient({ cards, asks }: { cards: RepCard[]; asks: Ask[] }) {
             No scored calls yet
           </p>
           <p className="mt-1 text-sm text-fg-muted">
-            Run Brightsmile 1 · Discovery from Upload (it ships with an offline
-            scorecard), or score any run on its Scorecard tab — every score
-            feeds a rep&rsquo;s card here.
+            Load dummy data (scorecards ship with every sample call), or score
+            any run on its Scorecard tab — every score feeds a rep&rsquo;s card
+            here.
           </p>
-          <Link href="/" className="btn-primary mt-5 inline-flex text-sm">
-            Go to Upload
-          </Link>
+          <div className="mx-auto mt-5 max-w-2xl text-left">
+            <SampleDataControls compact afterHref="/reps" />
+          </div>
         </div>
       </div>
     );
@@ -110,6 +111,9 @@ export function RepsClient({ cards, asks }: { cards: RepCard[]; asks: Ask[] }) {
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10">
       <h1 className="text-3xl font-semibold tracking-tight text-fg">Reps</h1>
+      <div className="mt-6">
+        <SampleDataControls compact afterHref="/reps" />
+      </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
         {asks.map((ask) => (
