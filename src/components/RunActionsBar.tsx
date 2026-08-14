@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { linesCutLine, modelSourceLabel } from "@/lib/labels";
 
-/** Action layer for one run: CRM write-back + contextual follow-up draft. */
+/** Action layer for one run: CRM write-back + follow-up drafts. */
 type DealCandidate = {
   id: string;
   name: string;
@@ -15,9 +16,11 @@ export function RunActionsBar({ runId }: { runId: string }) {
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<DealCandidate[] | null>(null);
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{ subject: string; body: string } | null>(
-    null,
-  );
+  const [draft, setDraft] = useState<{
+    subject: string;
+    body: string;
+    templateTitle?: string;
+  } | null>(null);
 
   useEffect(() => {
     fetch("/api/hubspot/status")
@@ -83,6 +86,35 @@ export function RunActionsBar({ runId }: { runId: string }) {
     }
   }
 
+  async function draftFromTemplate() {
+    setEmailStatus("Matching a template…");
+    setDraft(null);
+    try {
+      const response = await fetch(`/api/runs/${runId}/routed-email`, {
+        method: "POST",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Draft failed");
+      setDraft({
+        subject: data.subject,
+        body: data.body,
+        templateTitle: data.template?.title,
+      });
+      setEmailStatus(
+        `${data.template.title} template · written by ${modelSourceLabel(
+          data.provenance.source,
+        )} · ${linesCutLine(
+          data.provenance.cut,
+          data.provenance.offTemplateCut,
+        )}`,
+      );
+    } catch (error) {
+      setEmailStatus(
+        `❌ ${error instanceof Error ? error.message : "Draft failed"}`,
+      );
+    }
+  }
+
   return (
     <div className="mt-4 rounded-xl border border-mist/25 bg-paper/40 p-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -91,6 +123,13 @@ export function RunActionsBar({ runId }: { runId: string }) {
         </span>
         <button className="btn-ghost" onClick={draftContextualEmail}>
           Draft contextual email
+        </button>
+        <button
+          className="btn-ghost"
+          onClick={draftFromTemplate}
+          title="Match this call against the template library and draft from backed notes"
+        >
+          Draft from template
         </button>
         <button
           className="btn-ghost"
@@ -130,6 +169,11 @@ export function RunActionsBar({ runId }: { runId: string }) {
       {emailStatus && <p className="mt-2 text-sm text-fog">{emailStatus}</p>}
       {draft && (
         <div className="mt-3 rounded-lg border border-mist/20 bg-paper/60 p-3">
+          {draft.templateTitle && (
+            <p className="text-xs uppercase tracking-wide text-mist">
+              {draft.templateTitle}
+            </p>
+          )}
           <p className="text-sm font-medium">{draft.subject}</p>
           <p className="mt-2 whitespace-pre-wrap text-sm text-fog/90">
             {draft.body}

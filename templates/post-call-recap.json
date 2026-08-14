@@ -1,0 +1,32 @@
+{
+  "id": "post-call-recap",
+  "version": "1.0.0",
+  "title": "Post-call recap",
+  "short": "recap",
+  "priority": 90,
+  "situation": "The catch-all. A call happened, something was backed, and no sharper situation matched.",
+  "notes": "Last in the ladder on purpose: every other template describes a specific situation, and this one only fires when none of them do. It asks for nothing but a summary, so a call that carried no pain, no price and no answered objection still gets a template instead of an empty panel. Each slot renders only if the gate passed something for it, so a call with no agreed next step gets no next-steps block rather than an invented one.",
+  "panel": {
+    "explainer": "No sharper situation matched this call, so the recap template picked itself. Every line below came from a backed note."
+  },
+  "subject": "Recap of our call",
+  "word_limit": 120,
+  "routing": {
+    "trigger": {
+      "all_of": [
+        { "section": "summary", "extractor": "summary" }
+      ]
+    }
+  },
+  "blocks": [
+    { "type": "text", "role": "greeting", "text": "Hi {{recipient}},", "fallback": "Hi there," },
+    { "type": "text", "role": "opener", "text": "Thanks for the time today. Here is what I took away." },
+    { "type": "slot", "role": "outcome", "section": "summary", "extractor": "summary", "limit": 1, "hint": "Where the call landed, in one line." },
+    { "type": "slot", "role": "recap", "label": "What we covered", "section": "pain", "limit": 2, "hint": "Anything the buyer named as a problem. Renders nothing when there was none." },
+    { "type": "slot", "role": "recap", "label": "What we covered", "section": "objections", "limit": 2, "hint": "Concerns the buyer raised, exactly as the claim states them. Renders nothing when there were none." },
+    { "type": "slot", "role": "next_steps", "label": "Next steps", "section": "next_steps", "extractor": "next_steps", "limit": 3, "hint": "What each side agreed to do, with the owner and due date the claim carries. Renders nothing when nothing was agreed." },
+    { "type": "instruction", "text": "Rewrite the lines above as one short email in the second person. Every sentence that says something about the call must carry the claim id it came from. Say only what those lines say. Never add a step, a date, a number, a name, or a reason to hurry. Short sentences." },
+    { "type": "text", "role": "assurance", "text": "Every line above came from something said on the call. If I got any of it wrong, tell me and I will fix it." },
+    { "type": "text", "role": "signoff", "text": "Best,\n{{sender}}", "fallback": "Best," }
+  ]
+}

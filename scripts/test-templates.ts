@@ -108,10 +108,10 @@ const stub = (payload: unknown, model = "stub", source?: string) => async () => 
 // ── the template files are the product ──────────────────────────────────────
 
 describe("the template library", () => {
-  it("ships eight files, and every one of them validates", () => {
+  it("ships nine files, and every one of them validates", () => {
     const onDisk = readdirSync(TEMPLATES_DIR).filter((f) => f.endsWith(".json"));
-    assert.equal(onDisk.length, 8, "the starter library is 8 templates");
-    assert.equal(TEMPLATE_FILES.length, 8, "every file on disk is wired in");
+    assert.equal(onDisk.length, 9, "the starter library is 9 templates");
+    assert.equal(TEMPLATE_FILES.length, 9, "every file on disk is wired in");
     for (const file of onDisk) {
       const raw = JSON.parse(readFileSync(join(TEMPLATES_DIR, file), "utf8"));
       assert.doesNotThrow(() => validateTemplate(raw), `${file} must validate`);
@@ -119,10 +119,10 @@ describe("the template library", () => {
   });
 
   it("keeps ids, priorities and subjects unique and demo safe", () => {
-    assert.equal(new Set(library.map((t) => t.id)).size, 8, "no duplicate ids");
+    assert.equal(new Set(library.map((t) => t.id)).size, 9, "no duplicate ids");
     assert.equal(
       new Set(library.map((t) => t.priority)).size,
-      8,
+      9,
       "no two templates share a priority, so the ladder is total",
     );
     for (const t of library) {
@@ -211,13 +211,31 @@ describe("the ladder", () => {
     assert.equal(trace.considered.filter((c) => c.fired).length >= 1, true);
   });
 
-  it("returns null rather than forcing a template on a quiet call", () => {
+  it("falls to the recap template when no sharper situation matched", () => {
     const quiet = notes({
       summary: [claim("summary[0]", "A short call happened.")],
       objections: [],
       nextSteps: [claim("nextSteps[0]", "Rep to send the SOC 2 report by Friday.")],
     });
-    assert.equal(routeTemplate(quiet, TEMPLATE_FILES, {}), null, "nothing to say is a valid answer");
+    assert.equal(
+      routeTemplate(quiet, TEMPLATE_FILES, {})?.id,
+      "post-call-recap",
+      "a backed call gets the catch-all rather than an empty panel",
+    );
+  });
+
+  it("returns null when nothing was backed, or the library is empty", () => {
+    const unbacked = notes({
+      summary: [claim("summary[0]", "Nothing here held up.", "uncorroborated")],
+      objections: [],
+      intent: [],
+      nextSteps: [],
+    });
+    assert.equal(
+      routeTemplate(unbacked, TEMPLATE_FILES, {}),
+      null,
+      "no backed claim means no template, catch-all included",
+    );
     assert.equal(routeTemplate(base, [], {}), null, "an empty library returns null");
     assert.equal(routeTemplate(base, null, {}), null);
   });

@@ -25,6 +25,7 @@ import commitment from "../../templates/commitment-fulfillment.json";
 import ghosted from "../../templates/ghosted-deal-nudge.json";
 import noNextStep from "../../templates/no-next-step-reengagement.json";
 import objectionAddressed from "../../templates/objection-addressed.json";
+import postCallRecap from "../../templates/post-call-recap.json";
 import postDemo from "../../templates/post-demo-followup.json";
 import postDiscovery from "../../templates/post-discovery-followup.json";
 import pricing from "../../templates/pricing-followup.json";
@@ -49,6 +50,7 @@ export const TEMPLATE_FILES: unknown[] = [
   ghosted,
   noNextStep,
   objectionAddressed,
+  postCallRecap,
   postDemo,
   postDiscovery,
   pricing,
