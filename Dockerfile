@@ -24,7 +24,9 @@ ENV PORT=3000
 # Writable run store (mount a Railway volume here for persistence across deploys)
 ENV OPENGONG_DATA_DIR=/app/data
 
-RUN addgroup --system --gid 1001 nodejs \
+# System ffmpeg for compressing large meeting uploads before Hear (413 avoidance).
+RUN apk add --no-cache ffmpeg \
+  && addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public

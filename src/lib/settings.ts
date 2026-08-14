@@ -19,11 +19,35 @@ export const SECRET_MASK = "__unchanged__";
 export const RiskFloorSchema = z.enum(["hot", "high", "watch"]);
 export type RiskFloor = z.infer<typeof RiskFloorSchema>;
 
+/**
+ * One entry in the scoring LLM chain. Checked (enabled) providers form the
+ * chain in list order: first is primary, the rest are failover. Unchecked
+ * providers are stored but never called.
+ */
+export const LlmProviderSchema = z.object({
+  id: z.string().regex(/^[a-z0-9-]{1,40}$/),
+  label: z.string().max(80).default(""),
+  baseUrl: z.string().trim().default(""),
+  apiKey: z.string().trim().default(""),
+  model: z.string().trim().default(""),
+  enabled: z.boolean().default(false),
+});
+export type LlmProvider = z.infer<typeof LlmProviderSchema>;
+
 export const AppSettingsSchema = z.object({
-  /** OpenAI-compatible endpoint. Admin values win over LLM_* env vars. */
+  /** Legacy single endpoint — acts as the chain's last fallback. */
   llmBaseUrl: z.string().trim().default(""),
   llmApiKey: z.string().trim().default(""),
   llmModel: z.string().trim().default(""),
+  /** Scoring LLM chain: checked entries are called in order with failover. */
+  llmProviders: z.array(LlmProviderSchema).max(8).default([]),
+  /** When on, calls outside allowedLanguages are refused LLM scoring. */
+  languageFilterEnabled: z.boolean().default(false),
+  /** ISO 639-1 codes; options come from what PyAI reports as available. */
+  allowedLanguages: z
+    .array(z.string().regex(/^[a-z]{2}$/))
+    .min(1)
+    .default(["en"]),
   /** Appended to the extraction system prompt — never replaces the gate rules. */
   extractionGuidance: z.string().max(4000).default(""),
   /** Tone/structure guidance for the contextual follow-up email. */
@@ -104,6 +128,10 @@ function decryptSecretFields(s: AppSettings): AppSettings {
   for (const field of SECRET_FIELDS) {
     out[field] = decryptSecret(out[field]);
   }
+  out.llmProviders = s.llmProviders.map((p) => ({
+    ...p,
+    apiKey: decryptSecret(p.apiKey),
+  }));
   return out;
 }
 
@@ -112,6 +140,10 @@ function encryptSecretFields(s: AppSettings): AppSettings {
   for (const field of SECRET_FIELDS) {
     out[field] = encryptSecret(out[field]);
   }
+  out.llmProviders = s.llmProviders.map((p) => ({
+    ...p,
+    apiKey: encryptSecret(p.apiKey),
+  }));
   return out;
 }
 
@@ -164,6 +196,16 @@ export function applySettingsPatch(
   ) {
     next.llmApiKey = "";
   }
+  // Same rules per chain provider, matched by id: a masked key keeps the
+  // stored value, and a changed baseUrl with a masked key clears it.
+  const existingById = new Map(existing.llmProviders.map((p) => [p.id, p]));
+  next.llmProviders = next.llmProviders.map((p) => {
+    const prior = existingById.get(p.id);
+    if (p.apiKey !== SECRET_MASK) return p;
+    if (!prior) return { ...p, apiKey: "" };
+    if (p.baseUrl !== prior.baseUrl) return { ...p, apiKey: "" };
+    return { ...p, apiKey: prior.apiKey };
+  });
   return next;
 }
 
@@ -180,6 +222,10 @@ export function maskSettings(s: AppSettings): MaskedSettings {
     llmApiKey: s.llmApiKey ? SECRET_MASK : "",
     hubspotToken: s.hubspotToken ? SECRET_MASK : "",
     slackWebhookUrl: s.slackWebhookUrl ? SECRET_MASK : "",
+    llmProviders: s.llmProviders.map((p) => ({
+      ...p,
+      apiKey: p.apiKey ? SECRET_MASK : "",
+    })),
     hasLlm: resolveLlm(s) !== null,
     hasHubspot: resolveHubspotToken(s) !== null,
     hasSlack: resolveSlackWebhook(s) !== null,
@@ -206,31 +252,72 @@ export type LlmTarget = {
   baseUrl: string;
   apiKey: string;
   model: string;
-  source: "admin" | "env";
+  /** Which config layer produced this target. */
+  source: "chain" | "admin" | "env";
+  /** Provider label for display/telemetry ("Groq · llama-3.3-70b"). */
+  label: string;
 };
 
-export function resolveLlm(s: AppSettings = getSettings()): LlmTarget | null {
+/**
+ * The scoring chain: checked providers in list order, then the legacy single
+ * admin endpoint, then LLM_* env vars. Callers try targets in order —
+ * first success wins, the rest are failover.
+ */
+export function resolveLlmChain(s: AppSettings = getSettings()): LlmTarget[] {
+  const chain: LlmTarget[] = [];
+  for (const p of s.llmProviders) {
+    if (!p.enabled || !p.baseUrl || !p.apiKey || !p.model) continue;
+    chain.push({
+      baseUrl: p.baseUrl.replace(/\/$/, ""),
+      apiKey: p.apiKey,
+      model: p.model,
+      source: "chain",
+      label: p.label || p.id,
+    });
+  }
   if (s.llmBaseUrl && s.llmApiKey) {
-    return {
+    chain.push({
       baseUrl: s.llmBaseUrl.replace(/\/$/, ""),
       apiKey: s.llmApiKey,
       model: s.llmModel || config.llmModel,
       source: "admin",
-    };
+      label: "admin default",
+    });
   }
   if (config.llmBaseUrl && config.llmApiKey) {
-    return {
+    chain.push({
       baseUrl: config.llmBaseUrl,
       apiKey: config.llmApiKey,
       model: config.llmModel,
       source: "env",
-    };
+      label: "env (LLM_*)",
+    });
   }
-  return null;
+  return chain;
+}
+
+/** Primary target (head of the chain), for callers that need just one. */
+export function resolveLlm(s: AppSettings = getSettings()): LlmTarget | null {
+  return resolveLlmChain(s)[0] ?? null;
 }
 
 export function hasLlmConfigured(): boolean {
   return resolveLlm() !== null;
+}
+
+// ── Language filter ─────────────────────────────────────────────────────────
+
+export function isLanguageAllowed(
+  code: string,
+  s: AppSettings = getSettings(),
+): boolean {
+  if (!s.languageFilterEnabled) return true;
+  return s.allowedLanguages.includes(code.toLowerCase().slice(0, 2));
+}
+
+/** Language sent to PyAI Recap — the first allowed one. */
+export function preferredLanguage(s: AppSettings = getSettings()): string {
+  return s.allowedLanguages[0] ?? "en";
 }
 
 export function resolveHubspotToken(

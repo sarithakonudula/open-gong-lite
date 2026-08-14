@@ -1,12 +1,12 @@
-import { getSettings, resolveLlm } from "@/lib/settings";
+import { chatText } from "@/lib/llm";
+import { getSettings, hasLlmConfigured } from "@/lib/settings";
 import { TranscriptLine } from "@/lib/types";
 
 export async function extractDealNotesWithLlm(
   transcript: TranscriptLine[],
   priorFailures?: string,
 ): Promise<unknown> {
-  const llm = resolveLlm();
-  if (!llm) {
+  if (!hasLlmConfigured()) {
     throw new Error("LLM fallback is not configured");
   }
   const guidance = getSettings().extractionGuidance;
@@ -44,34 +44,7 @@ Rules:
     ? `Previous attempt failed gates:\n${priorFailures}\n\nFix and re-extract from transcript:\n${transcriptBlock}`
     : `Extract deal notes with receipts from this transcript:\n${transcriptBlock}`;
 
-  const response = await fetch(`${llm.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${llm.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: llm.model,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(
-      `LLM extract failed (${response.status}): ${body.slice(0, 300)}`,
-    );
-  }
-
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Empty LLM extract response");
+  // chatText walks the admin's checked provider chain with failover.
+  const content = await chatText({ system, user });
   return JSON.parse(content);
 }

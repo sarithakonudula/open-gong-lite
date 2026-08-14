@@ -386,9 +386,9 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
           Bring your own call
         </h2>
         <p className="mt-2 max-w-2xl text-mist">
-          Upload a recording or paste a link to one. It gets transcribed,
-          turned into notes, and every citation is checked before you see the
-          page. The samples above need no key at all. Or try the{" "}
+          Upload a recording or paste a direct media link (not Google Drive).
+          Large webm/mp4 meetings are compressed to speech MP3 before Hear.
+          Samples need no key. Or try the{" "}
           <a href="/live" className="text-signal underline-offset-2 hover:underline">
             live call demo
           </a>

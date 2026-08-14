@@ -955,6 +955,7 @@ async function callTier(
       baseUrl: tier.baseUrl,
       apiKey: tier.apiKey,
       model: tier.model,
+      label: tier.source === "ollama-local" ? `local Ollama · ${tier.model}` : tier.model,
       source: tier.source,
     },
     signal,

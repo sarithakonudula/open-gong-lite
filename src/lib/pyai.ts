@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { preferredLanguage } from "@/lib/settings";
 import { config, hasLivePyai } from "@/lib/config";
 import {
   hearResultToTranscript,
@@ -6,6 +7,7 @@ import {
   type HearJobResult,
   type RecapUtterance,
 } from "@/lib/hear-speakers";
+import { prepareAudioForHear } from "@/lib/prepare-hear-audio";
 import {
   canRemintSandbox,
   isSandboxKey,
@@ -57,6 +59,14 @@ export function pyaiUserMessage(error: unknown): {
   }
   const message =
     error instanceof Error ? error.message : "PyAI request failed";
+  if (/\(413\)|entity too large/i.test(message)) {
+    return {
+      message:
+        "Hear rejected this upload as too large (413). Export an audio-only MP3 under ~18MB, or retry — large webm/mp4 meeting files are compressed automatically when ffmpeg is available.",
+      status: 413,
+      code: "HEAR_UPLOAD_TOO_LARGE",
+    };
+  }
   return { message, status: 500 };
 }
 
@@ -448,7 +458,7 @@ export async function triggerRecap(opts: {
       pack_id: config.recapPackId,
       call_direction: "outbound",
       customer_name: opts.customerName,
-      language: "en",
+      language: preferredLanguage(),
       utterances,
     }),
   });
@@ -510,6 +520,14 @@ export async function runHearAndMaybeRecap(opts: {
 }> {
   const callId = `og_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
 
+  let uploadFile = opts.file;
+  let uploadFilename = opts.filename || "call.webm";
+  if (opts.mode === "upload" && uploadFile) {
+    const prepared = await prepareAudioForHear(uploadFile, uploadFilename);
+    uploadFile = prepared.file;
+    uploadFilename = prepared.filename;
+  }
+
   async function withRecap(
     transcript: TranscriptLine[],
     hearPath: "jobs" | "sync",
@@ -533,11 +551,11 @@ export async function runHearAndMaybeRecap(opts: {
   }
 
   const wavChannels =
-    opts.mode === "upload" && opts.file
-      ? await detectWavChannels(opts.file)
+    opts.mode === "upload" && uploadFile
+      ? await detectWavChannels(uploadFile)
       : null;
   const mode = chooseHearJobMode({
-    filename: opts.filename,
+    filename: uploadFilename,
     audioUrl: opts.audioUrl,
     wavChannels,
   });
@@ -553,8 +571,8 @@ export async function runHearAndMaybeRecap(opts: {
             idempotencyKey: `${callId}_${mode.channel ? "ch" : "dz"}`,
           })
         : await createTranscriptionJobFromUpload({
-            file: opts.file!,
-            filename: opts.filename || "call.webm",
+            file: uploadFile!,
+            filename: uploadFilename,
             callId,
             customerName: opts.customerName,
             mode,
@@ -590,8 +608,8 @@ export async function runHearAndMaybeRecap(opts: {
                 idempotencyKey: `${callId}_${alt.channel ? "ch" : "dz"}`,
               })
             : await createTranscriptionJobFromUpload({
-                file: opts.file!,
-                filename: opts.filename || "call.webm",
+                file: uploadFile!,
+                filename: uploadFilename,
                 callId,
                 customerName: opts.customerName,
                 mode: alt,
@@ -612,15 +630,12 @@ export async function runHearAndMaybeRecap(opts: {
 
     return withRecap(transcript, "jobs");
   } catch (jobError) {
-    if (opts.mode !== "upload" || !opts.file) throw jobError;
+    if (opts.mode !== "upload" || !uploadFile) throw jobError;
 
     // Fallback: sync Hear when jobs scope is missing or format fails.
     // Sync has no speaker diarization — last resort only.
     try {
-      const transcript = await transcribeAudioSync(
-        opts.file,
-        opts.filename || "call.wav",
-      );
+      const transcript = await transcribeAudioSync(uploadFile, uploadFilename);
       return withRecap(transcript, "sync");
     } catch (syncError) {
       const jobMsg = jobError instanceof Error ? jobError.message : String(jobError);
