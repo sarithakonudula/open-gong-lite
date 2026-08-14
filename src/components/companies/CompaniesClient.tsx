@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { DealSummaryCard } from "@/components/companies/DealSummaryCard";
 import { formatDateShort } from "@/lib/format";
 import type { DealStateLabel } from "@/lib/sentiment";
 import { dealStateChipClass } from "@/lib/sentiment";
@@ -16,6 +17,8 @@ export type CompanyClusterCall = {
 
 export type CompanyCluster = {
   company: string;
+  /** Normalized grouping key — addresses the deal summary API. */
+  companyKey: string;
   callCount: number;
   callKindLabel: string;
   isSales: boolean;
@@ -172,6 +175,8 @@ export function CompaniesClient({
                   )}
                 </div>
               </div>
+
+              <DealSummaryCard companyKey={cluster.companyKey} />
 
               {(cluster.highlights.length > 0 ||
                 cluster.openObjections.length > 0 ||

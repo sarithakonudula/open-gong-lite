@@ -11,8 +11,13 @@ import {
   hubspotConfigured,
   listOpenDeals,
 } from "@/lib/hubspot";
+import {
+  buildSampleCompanyIndex,
+  companyForRun,
+  normalizeCompanyKey,
+} from "@/lib/company";
 import { alertsAtOrAbove, formatAlertsMessage, sendSlack } from "@/lib/notify";
-import { loadSample } from "@/lib/samples";
+import { listSamples } from "@/lib/samples";
 import { getSettings, resolveSlackWebhook } from "@/lib/settings";
 import { listFullRuns } from "@/lib/store";
 import { RunRecord, TranscriptLine } from "@/lib/types";
@@ -116,10 +121,12 @@ export async function POST(request: Request) {
   const now = new Date().toISOString();
   const floor = getSettings().riskNotifyFloor;
   const runs = await listFullRuns(100);
+  // Same fallback chain as every other company surface (run.company → CRM →
+  // sample → sourceLabel) — signals and Companies must never disagree.
+  const index = buildSampleCompanyIndex(await listSamples());
   const companies = new Map<string, string>();
   for (const run of runs) {
-    const sample = run.sampleSlug ? await loadSample(run.sampleSlug) : null;
-    companies.set(run.id, sample?.meta.company ?? run.sourceLabel);
+    companies.set(run.id, companyForRun(run, index));
   }
 
   const feeds: DealSignalFeed[] = [];
@@ -167,15 +174,19 @@ export async function POST(request: Request) {
     }
   } else {
     // Keyless: latest run per company, inactivity measured from run age.
-    const latestByCompany = new Map<string, RunRecord>();
+    const latestByCompany = new Map<
+      string,
+      { company: string; run: RunRecord }
+    >();
     for (const run of runs) {
       const company = companies.get(run.id) ?? run.sourceLabel;
-      const existing = latestByCompany.get(company);
-      if (!existing || run.createdAt > existing.createdAt) {
-        latestByCompany.set(company, run);
+      const key = normalizeCompanyKey(company);
+      const existing = latestByCompany.get(key);
+      if (!existing || run.createdAt > existing.run.createdAt) {
+        latestByCompany.set(key, { company, run });
       }
     }
-    for (const [company, run] of latestByCompany) {
+    for (const { company, run } of latestByCompany.values()) {
       const idle = simulateIdleDays ?? daysSince(run.createdAt, Date.parse(now));
       if (idle == null || idle < 1) continue;
       const feed = evaluateDealSignals({

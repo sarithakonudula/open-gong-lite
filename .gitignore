@@ -37,6 +37,7 @@ yarn-error.log*
 # local run artifacts
 /data/runs/*.json
 !/data/runs/.gitkeep
+/data/companies/
 /data/audio/*
 !/data/audio/.gitkeep
 /data/.pyai-sandbox-key.json
