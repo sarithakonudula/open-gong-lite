@@ -10,7 +10,7 @@
     "build": "next build && node scripts/prepare-standalone.mjs",
     "start": "node .next/standalone/server.js",
     "lint": "eslint",
-    "test:gates": "tsx --test scripts/test-fabrication.ts scripts/test-gates.ts scripts/test-speakers.ts scripts/test-injection.ts scripts/test-email.ts scripts/test-pyai-errors.ts scripts/test-recap-map.ts scripts/test-methodology.ts scripts/test-deal-signals.ts scripts/test-settings.ts scripts/test-momentum.ts scripts/test-contextual-email.ts scripts/test-hubspot-map.ts scripts/test-coaching.ts scripts/test-digest.ts scripts/test-call-kind.ts scripts/test-llm-chain.ts scripts/test-prepare-hear-audio.ts scripts/test-llm-detect.ts scripts/test-templates.ts scripts/test-call-link.ts",
+    "test:gates": "tsx --test scripts/test-fabrication.ts scripts/test-gates.ts scripts/test-speakers.ts scripts/test-injection.ts scripts/test-email.ts scripts/test-pyai-errors.ts scripts/test-recap-map.ts scripts/test-methodology.ts scripts/test-deal-signals.ts scripts/test-settings.ts scripts/test-momentum.ts scripts/test-contextual-email.ts scripts/test-hubspot-map.ts scripts/test-coaching.ts scripts/test-digest.ts scripts/test-call-kind.ts scripts/test-llm-chain.ts scripts/test-prepare-hear-audio.ts scripts/test-llm-detect.ts scripts/test-templates.ts scripts/test-call-link.ts scripts/test-recordings-view.ts",
     "smoke": "npm run build && node scripts/smoke.mjs"
   },
   "dependencies": {

@@ -5,7 +5,7 @@
 // a provider that errors or returns nothing is skipped and the next one is
 // tried, so a rate-limited primary doesn't take scoring down with it.
 
-import { resolveLlm, resolveLlmChain, type LlmTarget } from "@/lib/settings";
+import { resolveLlmChain, type LlmTarget } from "@/lib/settings";
 
 /**
  * An endpoint the caller resolved itself, used instead of resolveLlm().
