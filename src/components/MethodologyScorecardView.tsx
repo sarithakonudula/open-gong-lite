@@ -2,28 +2,35 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MethodologyScorecard, Depth } from "@/lib/methodology";
+import {
+  contextFlagLabel,
+  DEPTH_LABEL,
+  DEPTH_UNBACKED_LABEL,
+  rigorLine,
+  scorecardBackedFraction,
+} from "@/lib/labels";
 import type { RunRecord } from "@/lib/types";
 
 const DEPTH_BADGE: Record<Depth, { label: string; className: string }> = {
-  mastery: { label: "mastery", className: "badge-verified" },
-  developing: { label: "developing", className: "badge-corrected" },
-  surface: { label: "surface", className: "badge-unproven" },
-  missing: { label: "missing", className: "badge-blocked" },
-  not_applicable: { label: "n/a", className: "badge-corrected" },
+  mastery: { label: DEPTH_LABEL.mastery, className: "badge-verified" },
+  developing: { label: DEPTH_LABEL.developing, className: "badge-corrected" },
+  surface: { label: DEPTH_LABEL.surface, className: "badge-unproven" },
+  missing: { label: DEPTH_LABEL.missing, className: "badge-blocked" },
+  not_applicable: {
+    label: DEPTH_LABEL.not_applicable,
+    className: "badge-corrected",
+  },
 };
 
 function reportMarkdown(card: MethodologyScorecard): string {
   const lines: string[] = [];
   lines.push(`# ${card.pack.name} scorecard`);
   lines.push("");
-  const bandNote = card.band
-    ? `deal band: ${card.band.label} — scored against ${card.band.rigor}-rigor expectations`
-    : "no deal value given — scored against the full methodology";
   lines.push(
-    `Score: ${card.score}/100 · call type: ${card.callType} · ${bandNote} · evidence corroborated: ${card.evidenceStats.corroborated}/${card.evidenceStats.total}`,
+    `Score: ${card.score} out of 100 · call type: ${card.callType} · ${rigorLine(card.band)} · ${scorecardBackedFraction(card.evidenceStats)}`,
   );
   if (card.contextFlags.length > 0) {
-    lines.push(`Context flags: ${card.contextFlags.join(", ")}`);
+    lines.push(`Read this against: ${card.contextFlags.map(contextFlagLabel).join(", ")}`);
   }
   if (card.overallNote) {
     lines.push("");
@@ -31,7 +38,9 @@ function reportMarkdown(card: MethodologyScorecard): string {
   }
   lines.push("");
   for (const row of card.traits.filter((r) => r.inScope)) {
-    const depth = row.verdict?.effectiveDepth ?? "not assessed";
+    const depth = row.verdict
+      ? DEPTH_LABEL[row.verdict.effectiveDepth]
+      : "not assessed";
     lines.push(`- ${row.trait.name}: ${depth}`);
   }
   return lines.join("\n");
@@ -169,9 +178,10 @@ export function MethodologyScorecardView({
             {card ? `${card.pack.name} scorecard` : "Score this call"}
           </h1>
           <p className="max-w-2xl text-base text-fog/85">
-            Depth, not activity. Every trait still needs a verbatim quote the
-            transcript can re-find — same L7 gate as deal notes. Out-of-band
-            traits inform; they do not drag the score.
+            How deeply the call went, not how much was said. Every line of
+            this scorecard needs a quote the transcript can re-find, checked
+            the same way the notes are. What a call this size had no reason to
+            reach is shown but never counted against the score.
           </p>
           {card && (
             <div className="grid grid-cols-2 gap-3 pt-2 sm:grid-cols-4">
@@ -183,10 +193,10 @@ export function MethodologyScorecardView({
               </div>
               <div className="rounded-2xl border border-white/10 bg-ink-soft/55 px-4 py-3">
                 <p className="text-2xl font-semibold text-paper">
-                  {card.evidenceStats.corroborated}/{card.evidenceStats.total}
+                  {card.evidenceStats.corroborated} of {card.evidenceStats.total}
                 </p>
                 <p className="text-xs uppercase tracking-[0.14em] text-mist">
-                  corroborated
+                  backed by the call
                 </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-ink-soft/55 px-4 py-3">
@@ -202,7 +212,7 @@ export function MethodologyScorecardView({
                   {card.band?.label ?? "Full pack"}
                 </p>
                 <p className="text-xs uppercase tracking-[0.14em] text-mist">
-                  deal band
+                  measured as
                 </p>
               </div>
             </div>
@@ -271,8 +281,9 @@ export function MethodologyScorecardView({
           </div>
           {!llmAvailable && (
             <p className="text-sm text-mist">
-              LLM scoring is off (set LLM_BASE_URL and LLM_API_KEY). Brightsmile
-              1 still ships a stored MEDDIC verdict with no keys.
+              Scoring a new call needs a language model, which is off right
+              now (set LLM_BASE_URL and LLM_API_KEY). Brightsmile 1 · Discovery
+              ships with its scorecard already made, so it works with no keys.
             </p>
           )}
           {error && <p className="text-sm text-heat">{error}</p>}
@@ -280,9 +291,9 @@ export function MethodologyScorecardView({
 
         {!card ? (
           <p className="text-mist animate-rise-delay">
-            No stored methodology verdict for this run. Brightsmile 1 · Discovery
-            ships a MEDDIC scorecard offline. Other calls can be scored with an
-            LLM when configured.
+            This call has not been scored yet. Brightsmile 1 · Discovery ships
+            with its scorecard already made and needs no keys. Any other call
+            can be scored once a language model is configured.
           </p>
         ) : (
           <div className="space-y-10 animate-rise-delay">
@@ -290,7 +301,7 @@ export function MethodologyScorecardView({
               <div className="flex flex-wrap gap-2">
                 {card.contextFlags.map((flag) => (
                   <span key={flag} className="badge-corrected">
-                    {flag.replaceAll("_", " ")}
+                    {contextFlagLabel(flag)}
                   </span>
                 ))}
               </div>
@@ -318,7 +329,9 @@ export function MethodologyScorecardView({
                           {row.points != null ? ` · ${row.points}/3` : ""}
                         </span>
                         {row.verdict?.unverified && (
-                          <span className="badge-unproven">unverified</span>
+                          <span className="badge-unproven">
+                            {DEPTH_UNBACKED_LABEL}
+                          </span>
                         )}
                       </div>
                       <p className="text-[1.05rem] text-paper/95">{row.trait.name}</p>
@@ -336,7 +349,9 @@ export function MethodologyScorecardView({
                           }`}
                           onClick={() => jumpToLine(ev.lineId)}
                         >
-                          {ev.status === "uncorroborated" ? "Unproven" : "Receipt"}{" "}
+                          {ev.status === "uncorroborated"
+                            ? "Quote the AI offered"
+                            : "Source"}{" "}
                           · {ev.lineId}: “{ev.quote}”
                         </button>
                       ))}
@@ -352,8 +367,9 @@ export function MethodologyScorecardView({
                   Not scored at this deal size
                 </h3>
                 <p className="text-sm text-mist">
-                  Shown for information, not judgment. A low mark here would
-                  mislead on a {card.band?.label ?? "smaller"} deal.
+                  Shown so nothing is hidden, but left out of the score. A low
+                  mark here would mislead on a{" "}
+                  {card.band?.label ?? "smaller"} deal.
                 </p>
                 <ul className="space-y-3">
                   {outOfScope.map((row) => {
@@ -382,8 +398,8 @@ export function MethodologyScorecardView({
               </h3>
               {gaps.length === 0 ? (
                 <p className="text-mist">
-                  Every scored trait reached developing or better with
-                  corroborated evidence.
+                  Everything scored here was at least explored, and every line
+                  of it is backed by the call.
                 </p>
               ) : (
                 <ul className="space-y-5">
@@ -415,7 +431,7 @@ export function MethodologyScorecardView({
               Transcript
             </p>
             <p className="mt-1 text-sm text-fog/80">
-              Click a receipt to jump to the cited line.
+              Click a Source to jump to the line it came from.
             </p>
             {canPlayAudio && (
               <audio

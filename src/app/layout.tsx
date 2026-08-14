@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { Fraunces, IBM_Plex_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 
@@ -19,12 +20,16 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OpenGong Lite — deal notes with receipts",
+  title: "OpenGong Lite: sales call notes that cite the call",
   description:
-    "Upload a sales call. Get summary, objections, intent, next steps, and a follow-up email — every claim pinned to the transcript.",
+    "Upload a sales call. Get summary, objections, intent, next steps, and a follow-up email. Every note carries a citation to the moment it came from, and the app checks every citation before it ships.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+// `LayoutProps<"/">` is a global Next generates into .next/types during a
+// build. On a fresh clone there is no .next yet, so `npx tsc --noEmit` — the
+// first thing a cloner runs — failed on an undefined name. Typing the props
+// here keeps the typecheck honest before the first build.
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"

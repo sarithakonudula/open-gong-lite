@@ -3,12 +3,13 @@ import type {
   DealAlert,
   DealSignalFeed,
 } from "@/lib/deal-signals";
+import { SIGNAL_EVIDENCE_LABEL, SIGNAL_SEVERITY_LABEL } from "@/lib/labels";
 
 const SEVERITY_STYLE: Record<AlertSeverity, { label: string; badge: string }> = {
-  hot: { label: "Hot", badge: "border-heat/60 text-heat" },
-  high: { label: "High", badge: "border-heat/40 text-heat/90" },
-  watch: { label: "Watch", badge: "border-mist/50 text-fog" },
-  info: { label: "Info", badge: "border-mist/30 text-mist" },
+  hot: { label: SIGNAL_SEVERITY_LABEL.hot!, badge: "border-heat/60 text-heat" },
+  high: { label: SIGNAL_SEVERITY_LABEL.high!, badge: "border-heat/40 text-heat/90" },
+  watch: { label: SIGNAL_SEVERITY_LABEL.watch!, badge: "border-mist/50 text-fog" },
+  info: { label: SIGNAL_SEVERITY_LABEL.info!, badge: "border-mist/30 text-mist" },
 };
 
 function AlertCard({ alert }: { alert: DealAlert }) {
@@ -39,18 +40,19 @@ function AlertCard({ alert }: { alert: DealAlert }) {
         </div>
       ) : (
         <p className="mt-3 text-xs uppercase tracking-wide text-mist">
-          no call evidence — signal only
+          {SIGNAL_EVIDENCE_LABEL.signal_only}
         </p>
       )}
       <p className="mt-3 text-sm text-fog">
-        <span className="font-medium text-foreground">Play:</span> {alert.play}
+        <span className="font-medium text-foreground">What to do:</span>{" "}
+        {alert.play}
       </p>
       {alert.resolvesWhen && (
         <p className="mt-2 text-xs text-mist">{alert.resolvesWhen}</p>
       )}
       {alert.push && (
         <p className="mt-2 text-xs uppercase tracking-wide text-signal">
-          → pushed to CRM as a task
+          → sent to the CRM as a task
         </p>
       )}
     </li>
@@ -65,11 +67,11 @@ export function DealSignalsView({ feed }: { feed: DealSignalFeed | null }) {
           No signal sources wired for this deal yet
         </h2>
         <p className="mt-3 leading-relaxed text-fog/90">
-          Deal signals turn de-anonymized page visits, support tickets, renewal
-          windows, and overdue commitments into alerts that cite the exact line
-          from the call that makes them matter. Wire a vendor (Factors, RB2B,
-          your ticketing tool) to POST /api/signals, or open the Brightsmile 1
-          sample run to see the demo feed.
+          Signals turn page visits, support tickets, renewal dates, and
+          promises nobody kept into things worth doing today, each carrying the
+          line from the call that makes it matter. Point a vendor (Factors,
+          RB2B, your ticketing tool) at POST /api/signals, or open the
+          Brightsmile 1 sample run to see it with sample data.
         </p>
       </div>
     );
@@ -78,9 +80,10 @@ export function DealSignalsView({ feed }: { feed: DealSignalFeed | null }) {
   return (
     <div className="mx-auto max-w-3xl px-5 py-10 md:px-8">
       <p className="text-sm uppercase tracking-wide text-mist">
-        {feed.company} · {feed.alerts.length} alerts
+        {feed.company} · {feed.alerts.length}{" "}
+        {feed.alerts.length === 1 ? "signal" : "signals"}
         {feed.suppressed.length > 0 &&
-          ` · ${feed.suppressed.length} below the noise floor for this deal size`}
+          ` · ${feed.suppressed.length} too small to raise on a deal this size`}
         {feed.mode === "demo" && " · demo data"}
       </p>
       <ul className="mt-4 space-y-4">

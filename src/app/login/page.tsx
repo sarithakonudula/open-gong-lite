@@ -17,7 +17,7 @@ export default function LoginPage() {
           OpenGong Lite
         </h1>
         <p className="animate-rise-delay-2 mt-4 max-w-md text-base leading-relaxed text-fog/90">
-          Sign in to run deal intelligence with receipt gates. Share links stay
+          Sign in to turn calls into notes that cite the call. Share links stay
           public without a login.
         </p>
 

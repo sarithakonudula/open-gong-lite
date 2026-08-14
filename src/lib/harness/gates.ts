@@ -28,7 +28,7 @@ export type EvidenceGateResult = {
 /** Long unique quotes may be rescued across the whole transcript (L7 stage 3). */
 const RESCUE_MIN_WORDS = 6;
 
-/** Stage-2 floor: shorter quotes may only exact-match a whole utterance. */
+/** Evidence floor: a quote shorter than this can never anchor a claim. */
 export const MIN_NORMALIZED_QUOTE = 15;
 
 const REQUIRED_SECTIONS = ["summary", "intent", "nextSteps"] as const;
@@ -112,33 +112,35 @@ export function gateEvidenceQuote(
 
   const trimmed = quote.trim();
   const normQuote = normalizeQuote(trimmed);
-  if (!trimmed || !normQuote) {
+
+  // Fabrication guard: an empty, punctuation-only, or too-short quote is never
+  // evidence. Empty quotes exact-match anything (`includes("")` is always
+  // true), and a short quote lets arbitrary claim text ride on one common word
+  // or a bare "yes" — even when that word is the whole utterance.
+  if (!trimmed || !normQuote || normQuote.length < MIN_NORMALIZED_QUOTE) {
     return { verdict: "uncorroborated", matchedLineId: null, stage: 4 };
   }
 
   const window = neighbors(transcript, lineId);
-  const short = normQuote.length < MIN_NORMALIZED_QUOTE;
 
   for (const line of window) {
-    if (!line.text.includes(trimmed)) continue;
-    if (short && trimmed !== line.text.trim()) continue;
-    return { verdict: "match_exact", matchedLineId: line.id, stage: 1 };
+    if (line.text.includes(trimmed)) {
+      return { verdict: "match_exact", matchedLineId: line.id, stage: 1 };
+    }
   }
 
-  if (!short) {
-    for (const line of window) {
-      if (normalizeQuote(line.text).includes(normQuote)) {
-        return {
-          verdict: "match_normalized",
-          matchedLineId: line.id,
-          stage: 2,
-        };
-      }
+  for (const line of window) {
+    if (normalizeQuote(line.text).includes(normQuote)) {
+      return {
+        verdict: "match_normalized",
+        matchedLineId: line.id,
+        stage: 2,
+      };
     }
   }
 
   const wordCount = normQuote.split(" ").filter(Boolean).length;
-  if (!short && wordCount >= RESCUE_MIN_WORDS) {
+  if (wordCount >= RESCUE_MIN_WORDS) {
     const hits = transcript.filter((line) =>
       normalizeQuote(line.text).includes(normQuote),
     );
@@ -348,8 +350,11 @@ export function validateDealNotes(
   }
 
   const allClaims = collectClaims(notes).map((c) => notes[c.section][c.index]!);
+  // The run title is model-authored (Recap headline or extractor label) and
+  // is NOT gate-verified, so it must never ride into the outbound email:
+  // a fabricated number in the headline would leak through the greeting.
   notes.followUpEmail = chokeFollowUp({
-    title: notes.title,
+    title: "our call",
     existing: notes.followUpEmail,
     emailStatus,
     claims: allClaims,
