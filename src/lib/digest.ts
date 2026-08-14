@@ -179,3 +179,30 @@ export function buildDigest(
     markdown: renderDigestMarkdown(entries, totals, generatedAt),
   };
 }
+
+// ── Public projection (what the API may serialize) ──────────────────────────
+// Full RunRecords carry shareToken (the secret behind public /share links)
+// and complete transcripts. Neither belongs in an API response — the digest
+// UI only needs id/createdAt/title. Never serialize Digest directly.
+
+export type PublicDigestEntry = Omit<DigestEntry, "latestRun"> & {
+  latestRun: { id: string; createdAt: string; title: string };
+};
+
+export type PublicDigest = Omit<Digest, "entries"> & {
+  entries: PublicDigestEntry[];
+};
+
+export function toPublicDigest(digest: Digest): PublicDigest {
+  return {
+    ...digest,
+    entries: digest.entries.map((e) => ({
+      ...e,
+      latestRun: {
+        id: e.latestRun.id,
+        createdAt: e.latestRun.createdAt,
+        title: e.latestRun.notes?.title ?? e.latestRun.sourceLabel,
+      },
+    })),
+  };
+}

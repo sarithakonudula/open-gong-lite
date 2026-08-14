@@ -2,18 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   HubspotError,
   hubspotConfigured,
+  openDealCandidatesForCompany,
   syncRunToHubspot,
 } from "@/lib/hubspot";
 import { computeMomentum, renderMomentum } from "@/lib/momentum";
 import { loadSample } from "@/lib/samples";
-import { getRun } from "@/lib/store";
+import { getRun, saveRun } from "@/lib/store";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /**
  * POST { runId, company?, dealId? } — write this run's gated notes + momentum
- * back to the matching HubSpot deal: ai_* properties + a timeline note.
+ * back to a HubSpot deal.
+ *
+ * Deal resolution ladder (name matching proposes, never writes):
+ * 1. explicit dealId in the body (a human picked it)
+ * 2. the run's stored crm link (a human picked it before)
+ * 3. exactly ONE open-deal candidate for the company name
+ * Anything ambiguous returns { needsSelection, candidates } for the UI picker.
+ * A successful sync persists the link on the run for next time.
  */
 export async function POST(request: NextRequest) {
   if (!hubspotConfigured()) {
@@ -55,16 +63,41 @@ export async function POST(request: NextRequest) {
 
   if (!company) {
     const sample = run.sampleSlug ? await loadSample(run.sampleSlug) : null;
-    company = sample?.meta.company ?? run.notes.title ?? run.sourceLabel;
+    company = run.crm?.company ?? sample?.meta.company ?? run.sourceLabel;
   }
 
-  const momentum = computeMomentum(run.notes);
   try {
+    if (!dealId && run.crm?.dealId) {
+      dealId = run.crm.dealId;
+    }
+    if (!dealId) {
+      const candidates = await openDealCandidatesForCompany(company);
+      if (candidates.length === 1) {
+        dealId = candidates[0]!.id;
+      } else {
+        return NextResponse.json({
+          needsSelection: true,
+          company,
+          candidates,
+        });
+      }
+    }
+
+    const momentum = computeMomentum(run.notes);
     const result = await syncRunToHubspot(run, {
       company,
       dealId,
       momentum,
       momentumBlock: renderMomentum(momentum),
+    });
+    await saveRun({
+      ...run,
+      crm: {
+        dealId: result.dealId,
+        dealName: result.dealName,
+        company,
+        linkedAt: new Date().toISOString(),
+      },
     });
     return NextResponse.json({ result });
   } catch (error) {

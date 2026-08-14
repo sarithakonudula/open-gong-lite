@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { getPortalId, hubspotConfigured } from "@/lib/hubspot";
 import { chatText } from "@/lib/llm";
 import { sendSlack } from "@/lib/notify";
@@ -9,10 +9,8 @@ export const runtime = "nodejs";
 
 /** Connectivity probes for the admin page: llm | hubspot | slack. */
 export async function POST(request: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await requireAdmin();
+  if (denied) return denied;
   let kind = "";
   try {
     kind = String(((await request.json()) as { kind?: unknown }).kind ?? "");

@@ -1,0 +1,11 @@
+{
+  "llmBaseUrl": "",
+  "llmApiKey": "enc:v1:8+P5s3MobzGKS4VcIavUDP+Fgj47Hev07QmJ49S5QQ9+TfE/3eS8lQ==",
+  "llmModel": "",
+  "extractionGuidance": "",
+  "emailGuidance": "",
+  "coachingGuidance": "",
+  "hubspotToken": "enc:v1:/DKEaoO02sM57zPLV0UBKch6jYpEGsqQ3irDBHQ8UfyHp3Y=",
+  "slackWebhookUrl": "",
+  "riskNotifyFloor": "high"
+}

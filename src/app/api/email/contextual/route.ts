@@ -69,8 +69,10 @@ export async function POST(request: NextRequest) {
 
   if (!company) {
     const sample = run.sampleSlug ? await loadSample(run.sampleSlug) : null;
-    company = sample?.meta.company ?? "";
+    company = run.crm?.company ?? sample?.meta.company ?? "";
   }
+  // A previously confirmed deal link beats name-based resolution.
+  if (!dealId && run.crm?.dealId) dealId = run.crm.dealId;
 
   // CRM context pull — optional, additive.
   let context: CrmEmailContext = company ? { company } : {};

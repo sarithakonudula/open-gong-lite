@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import {
   getSettings,
   maskSettings,
@@ -8,23 +8,20 @@ import {
 
 export const runtime = "nodejs";
 
-// Route protection: src/proxy.ts already gates /api/admin/* behind the login
-// wall when OPENGONG_AUTH_PASSWORD is set; getSession() is a second check so
-// a proxy misconfiguration can never expose settings writes.
+// Route protection: src/proxy.ts gates /api/admin/* behind the login wall
+// when OPENGONG_AUTH_PASSWORD is set; requireAdmin() is a second check that
+// also refuses open-admin in production builds, so a public deployment
+// without a password can never have its settings read or rewritten.
 
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await requireAdmin();
+  if (denied) return denied;
   return NextResponse.json({ settings: maskSettings(getSettings()) });
 }
 
 export async function PUT(request: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const denied = await requireAdmin();
+  if (denied) return denied;
   let patch: Record<string, unknown>;
   try {
     patch = (await request.json()) as Record<string, unknown>;

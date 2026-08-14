@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 
 export const SESSION_COOKIE = "og_session";
 const SESSION_DAYS = 7;
@@ -131,6 +132,33 @@ export async function getSession(): Promise<SessionPayload | null> {
 export async function requireSession(): Promise<SessionPayload | null> {
   if (!isAuthEnabled()) return { sub: "open", iat: 0, exp: Number.MAX_SAFE_INTEGER };
   return getSession();
+}
+
+/**
+ * Guard for /api/admin/*: authenticated session when auth is on; when auth
+ * is off, only dev builds may use admin (keyless local flow). A production
+ * deployment without OPENGONG_AUTH_PASSWORD gets a hard 403 — this blocks
+ * the exfiltration chain where anyone repoints llmBaseUrl at their own host.
+ * Returns the error response to send, or null when the caller may proceed.
+ */
+export async function requireAdmin(): Promise<NextResponse | null> {
+  if (isAuthEnabled()) {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    return null;
+  }
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      {
+        error:
+          "Admin is locked on deployed instances. Set OPENGONG_AUTH_PASSWORD (and OPENGONG_SESSION_SECRET) to enable it, or configure via env vars.",
+      },
+      { status: 403 },
+    );
+  }
+  return null;
 }
 
 export function newCsrfNonce(): string {

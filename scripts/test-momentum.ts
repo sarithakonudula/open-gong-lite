@@ -59,6 +59,25 @@ describe("momentum", () => {
     assert.equal(m.direction, "at_risk");
   });
 
+  it("softens objection penalty when the call still advanced", () => {
+    const withNextStep = computeMomentum(
+      baseNotes({
+        objections: [claim("Price too high", "L5")],
+      }),
+    );
+    const withoutNextStep = computeMomentum(
+      baseNotes({
+        objections: [claim("Price too high", "L5")],
+        nextSteps: [claim("Maybe later", "L4", "uncorroborated")],
+      }),
+    );
+    const softened = withNextStep.reasons.find((r) => r.text.includes("Objection"));
+    const full = withoutNextStep.reasons.find((r) => r.text.includes("Objection"));
+    assert.equal(softened?.delta, -4);
+    assert.match(softened!.text, /call still advanced/);
+    assert.equal(full?.delta, -8);
+  });
+
   it("ignores unproven claims entirely", () => {
     const withFake = computeMomentum(
       baseNotes({

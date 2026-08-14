@@ -60,25 +60,43 @@ export type RepCoachingProfile = {
 
 /**
  * The rep is the speaker doing seller work: proposing, demoing, asking.
- * Deterministic heuristic so samples and live calls agree.
+ * Priority order:
+ * 1. An explicit seller label ("Rep", "AE", "SDR", …) — live-call
+ *    transcripts from hear-speakers label diarized speakers exactly "Rep".
+ * 2. Seller-language score, tie-broken by word count (a talkative buyer who
+ *    asks questions no longer outranks a rep with real seller markers).
  */
 export function detectRepSpeaker(transcript: TranscriptLine[]): string | null {
   if (transcript.length === 0) return null;
+
+  const REP_LABEL = /^(rep|sales(person)?|ae|account exec(utive)?|sdr|bdr|seller|agent)$/i;
+  for (const line of transcript) {
+    if (REP_LABEL.test(line.speaker.trim())) return line.speaker;
+  }
+
   const SELLER_MARKERS =
     /\b(i'?ll send|let me|we can|our (platform|product|team|customers)|walk you through|pricing works|book(ing)? a demo|next step|proposal|onboard)\b/i;
   const scores = new Map<string, number>();
+  const words = new Map<string, number>();
   for (const line of transcript) {
     let score = scores.get(line.speaker) ?? 0;
     if (SELLER_MARKERS.test(line.text)) score += 3;
     score += (line.text.match(/\?/g) ?? []).length;
     scores.set(line.speaker, score);
+    words.set(
+      line.speaker,
+      (words.get(line.speaker) ?? 0) + line.text.split(/\s+/).length,
+    );
   }
   let best: string | null = null;
   let bestScore = -1;
+  let bestWords = -1;
   for (const [speaker, score] of scores) {
-    if (score > bestScore) {
+    const w = words.get(speaker) ?? 0;
+    if (score > bestScore || (score === bestScore && w > bestWords)) {
       best = speaker;
       bestScore = score;
+      bestWords = w;
     }
   }
   return best;

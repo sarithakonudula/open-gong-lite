@@ -27,6 +27,7 @@ export async function GET() {
   const titleToSlug = Object.fromEntries(samples.map((s) => [s.title, s.slug]));
 
   const byRep = new Map<string, CoachingInput[]>();
+  const displayName = new Map<string, string>();
   for (const run of runs) {
     if (run.transcript.length === 0) continue;
 
@@ -52,8 +53,12 @@ export async function GET() {
 
     const rep = detectRepSpeaker(run.transcript);
     if (!rep) continue;
-    byRep.set(rep, [
-      ...(byRep.get(rep) ?? []),
+    // Case-insensitive merge: "maya" and "Maya" are one profile; the
+    // first-seen spelling is kept as the display name.
+    const key = rep.trim().toLowerCase();
+    if (!displayName.has(key)) displayName.set(key, rep.trim());
+    byRep.set(key, [
+      ...(byRep.get(key) ?? []),
       {
         runId: run.id,
         at: run.createdAt,
@@ -64,8 +69,8 @@ export async function GET() {
   }
 
   const profiles: RepCoachingProfile[] = [];
-  for (const [rep, inputs] of byRep) {
-    const profile = buildRepProfile(rep, inputs);
+  for (const [key, inputs] of byRep) {
+    const profile = buildRepProfile(displayName.get(key) ?? key, inputs);
     profiles.push(profile);
     try {
       await saveRepProfile(profile);

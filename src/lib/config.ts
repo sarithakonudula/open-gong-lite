@@ -28,6 +28,8 @@ export const config = {
   maxTokensEstimate: Number(process.env.OPENGONG_MAX_TOKENS || 8_000),
   allowDemoWithoutKey: process.env.OPENGONG_DEMO_WITHOUT_KEY !== "false",
   autoMintSandbox: process.env.OPENGONG_AUTO_MINT_SANDBOX !== "false",
+  /** Days a /share link stays valid. 0/unset = never expires (demo default). */
+  shareTtlDays: Number(process.env.OPENGONG_SHARE_TTL_DAYS) || 0,
   diarizeDefault: process.env.OPENGONG_DIARIZE !== "false",
   channelDefault: process.env.OPENGONG_CHANNEL === "true",
   /** Run JSON + sandbox key file live under this directory. */

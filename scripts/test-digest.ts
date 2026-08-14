@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildDigest } from "../src/lib/digest";
+import { buildDigest, toPublicDigest } from "../src/lib/digest";
+import { isShareExpired } from "../src/lib/store";
 import type { DealNotes, RunRecord } from "../src/lib/types";
 
 function notes(overrides: Partial<DealNotes> = {}): DealNotes {
@@ -80,6 +81,33 @@ describe("management digest", () => {
     });
     assert.match(digest.markdown, /Wants after-hours routing \[L1\]/);
     assert.doesNotMatch(digest.markdown, /Invented fact/);
+  });
+
+  it("public projection never leaks shareToken or transcript", () => {
+    const digest = buildDigest([run("a1", "Acme", NOW, notes())], {
+      companyForRun: (r) => r.sourceLabel,
+      now: NOW,
+    });
+    const pub = toPublicDigest(digest);
+    assert.deepEqual(Object.keys(pub.entries[0]!.latestRun).sort(), [
+      "createdAt",
+      "id",
+      "title",
+    ]);
+    // Keys, not words — the markdown legitimately says "transcript line".
+    const serialized = JSON.stringify(pub.entries);
+    assert.ok(!serialized.includes('"shareToken":'));
+    assert.ok(!serialized.includes('"transcript":'));
+    assert.equal(pub.entries[0]!.latestRun.title, "Discovery call");
+  });
+
+  it("share links expire only when a TTL is set", () => {
+    const created = "2026-08-01T00:00:00Z";
+    const nowMs = Date.parse("2026-08-14T00:00:00Z");
+    assert.equal(isShareExpired(created, 0, nowMs), false); // no TTL: never
+    assert.equal(isShareExpired(created, 30, nowMs), false); // inside window
+    assert.equal(isShareExpired(created, 7, nowMs), true); // 13 days > 7
+    assert.equal(isShareExpired("garbage", 7, nowMs), true); // unparsable = expired
   });
 
   it("markdown is deterministic for a frozen now", () => {

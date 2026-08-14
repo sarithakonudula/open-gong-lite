@@ -2,6 +2,12 @@
 // configurable from the UI instead of .env-and-restart. Stored as one JSON
 // file under the data dir; secrets never leave the server unmasked.
 
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+} from "crypto";
 import { promises as fs, readFileSync, statSync } from "fs";
 import path from "path";
 import { z } from "zod";
@@ -39,6 +45,76 @@ export const SECRET_FIELDS = [
   "slackWebhookUrl",
 ] as const;
 
+// ── Secrets at rest: AES-256-GCM keyed off OPENGONG_SESSION_SECRET ─────────
+// Set a real OPENGONG_SESSION_SECRET in production — the dev fallback only
+// obfuscates. Losing/rotating the secret invalidates stored secrets (they
+// read back as empty and must be re-entered on /admin), never crashes.
+
+const ENC_PREFIX = "enc:v1:";
+
+function encryptionSecret(): string {
+  return (
+    process.env.OPENGONG_SESSION_SECRET?.trim() ||
+    "opengong-dev-session-secret"
+  );
+}
+
+function derivedKey(secret: string): Buffer {
+  return createHash("sha256").update(`${secret}:settings-v1`).digest();
+}
+
+export function encryptSecret(
+  plain: string,
+  secret: string = encryptionSecret(),
+): string {
+  if (!plain) return "";
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", derivedKey(secret), iv);
+  const ct = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
+  return (
+    ENC_PREFIX +
+    Buffer.concat([iv, cipher.getAuthTag(), ct]).toString("base64")
+  );
+}
+
+/** Returns "" when the blob is malformed or the secret changed. */
+export function decryptSecret(
+  blob: string,
+  secret: string = encryptionSecret(),
+): string {
+  if (!blob) return "";
+  if (!blob.startsWith(ENC_PREFIX)) return blob; // legacy plaintext
+  try {
+    const raw = Buffer.from(blob.slice(ENC_PREFIX.length), "base64");
+    const iv = raw.subarray(0, 12);
+    const tag = raw.subarray(12, 28);
+    const ct = raw.subarray(28);
+    const decipher = createDecipheriv("aes-256-gcm", derivedKey(secret), iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(ct), decipher.final()]).toString(
+      "utf8",
+    );
+  } catch {
+    return "";
+  }
+}
+
+function decryptSecretFields(s: AppSettings): AppSettings {
+  const out = { ...s };
+  for (const field of SECRET_FIELDS) {
+    out[field] = decryptSecret(out[field]);
+  }
+  return out;
+}
+
+function encryptSecretFields(s: AppSettings): AppSettings {
+  const out = { ...s };
+  for (const field of SECRET_FIELDS) {
+    out[field] = encryptSecret(out[field]);
+  }
+  return out;
+}
+
 function settingsPath(): string {
   return path.join(config.dataDir, "settings.json");
 }
@@ -51,7 +127,9 @@ export function getSettings(): AppSettings {
     const stat = statSync(settingsPath());
     if (cache && cache.mtimeMs === stat.mtimeMs) return cache.value;
     const raw = readFileSync(settingsPath(), "utf8");
-    const value = AppSettingsSchema.parse(JSON.parse(raw));
+    const value = decryptSecretFields(
+      AppSettingsSchema.parse(JSON.parse(raw)),
+    );
     cache = { mtimeMs: stat.mtimeMs, value };
     return value;
   } catch {
@@ -76,7 +154,17 @@ export function applySettingsPatch(
     }
     merged[key] = incoming;
   }
-  return AppSettingsSchema.parse(merged);
+  const next = AppSettingsSchema.parse(merged);
+  // Exfiltration guard: repointing the LLM endpoint without supplying a new
+  // key clears the stored one, so a stored key can never be replayed against
+  // an attacker-chosen host.
+  if (
+    next.llmBaseUrl !== existing.llmBaseUrl &&
+    (patch.llmApiKey === undefined || patch.llmApiKey === SECRET_MASK)
+  ) {
+    next.llmApiKey = "";
+  }
+  return next;
 }
 
 export type MaskedSettings = AppSettings & {
@@ -103,7 +191,11 @@ export async function saveSettings(
 ): Promise<AppSettings> {
   const next = applySettingsPatch(getSettings(), patch);
   await fs.mkdir(config.dataDir, { recursive: true });
-  await fs.writeFile(settingsPath(), JSON.stringify(next, null, 2), "utf8");
+  await fs.writeFile(
+    settingsPath(),
+    JSON.stringify(encryptSecretFields(next), null, 2),
+    "utf8",
+  );
   cache = null;
   return next;
 }

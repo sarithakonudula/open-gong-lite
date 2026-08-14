@@ -10,7 +10,7 @@ type DigestEntry = {
   nextSteps: string[];
   openObjections: string[];
   riskAlerts: Array<{ severity: string; title: string; play: string }>;
-  latestRun: { id: string; createdAt: string; notes: { title: string } | null; sourceLabel: string };
+  latestRun: { id: string; createdAt: string; title: string };
 };
 
 type Digest = {

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DealNotesView } from "@/components/DealNotesView";
-import { getRunByShareToken } from "@/lib/store";
+import { config } from "@/lib/config";
+import { getRunByShareToken, isShareExpired } from "@/lib/store";
 
 type Props = { params: Promise<{ token: string }> };
 
@@ -13,6 +14,7 @@ export default async function SharePage({ params }: Props) {
   if (!run || (run.status !== "shipped" && run.status !== "partial")) {
     notFound();
   }
+  if (isShareExpired(run.createdAt, config.shareTtlDays)) notFound();
 
   return (
     <main className="min-h-screen">

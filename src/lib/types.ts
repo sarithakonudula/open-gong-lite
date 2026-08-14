@@ -121,6 +121,19 @@ export const RunRecordSchema = z.object({
   error: z.string().nullable().default(null),
   audioContentType: z.string().nullable().optional(),
   /**
+   * Confirmed CRM deal link. Once set, every write-back targets this deal —
+   * name-based matching is only used to propose candidates, never to write.
+   */
+  crm: z
+    .object({
+      dealId: z.string().min(1),
+      dealName: z.string(),
+      company: z.string(),
+      linkedAt: z.string(),
+    })
+    .nullable()
+    .optional(),
+  /**
    * Persisted methodology verdict (raw LLM output, re-gated on read).
    * Presence powers the coaching loop: trait trends across a rep's calls.
    */

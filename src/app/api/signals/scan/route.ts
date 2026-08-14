@@ -39,12 +39,20 @@ function tokenize(s: string): Set<string> {
   );
 }
 
-/** Best stored transcript for a deal, by company-name token overlap. */
+/**
+ * Best stored transcript for a deal: a run explicitly linked to this deal id
+ * wins; token overlap on the company name is the evidence-only fallback
+ * (it selects context for alerts, never a write target).
+ */
 function transcriptForDeal(
   deal: HsDeal,
   runs: RunRecord[],
   companies: Map<string, string>,
 ): TranscriptLine[] {
+  const linked = runs
+    .filter((r) => r.crm?.dealId === deal.id)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  if (linked) return linked.transcript;
   const dealTokens = tokenize(deal.name);
   let best: { overlap: number; run: RunRecord } | null = null;
   for (const run of runs) {
@@ -91,8 +99,20 @@ function signalsForHubspotDeal(deal: HsDeal, now: string): DealSignal[] {
  * scans open deals for inactivity/age risk grounded in stored call
  * transcripts; keyless it scans stored runs. Alerts at or above the admin
  * threshold go to Slack; pushable alerts become HubSpot tasks.
+ *
+ * Body (optional): { simulateIdleDays: 14 } — keyless demo lever that
+ * pretends every stored run has been idle N days, so the risk loop is
+ * showable without waiting a real day. Ignored when HubSpot is configured.
  */
-export async function POST() {
+export async function POST(request: Request) {
+  let simulateIdleDays: number | null = null;
+  try {
+    const body = (await request.json()) as { simulateIdleDays?: unknown };
+    const n = Number(body.simulateIdleDays);
+    if (Number.isFinite(n) && n >= 1 && n <= 365) simulateIdleDays = Math.floor(n);
+  } catch {
+    // body optional
+  }
   const now = new Date().toISOString();
   const floor = getSettings().riskNotifyFloor;
   const runs = await listFullRuns(100);
@@ -156,7 +176,7 @@ export async function POST() {
       }
     }
     for (const [company, run] of latestByCompany) {
-      const idle = daysSince(run.createdAt, Date.parse(now));
+      const idle = simulateIdleDays ?? daysSince(run.createdAt, Date.parse(now));
       if (idle == null || idle < 1) continue;
       const feed = evaluateDealSignals({
         company,

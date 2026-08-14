@@ -90,6 +90,22 @@ describe("coaching loop", () => {
     assert.equal(detectRepSpeaker([]), null);
   });
 
+  it("an explicit Rep label wins over any heuristic", () => {
+    const labeled: TranscriptLine[] = [
+      { id: "L1", index: 0, speaker: "Prospect", text: "What does it cost? And who uses it? Why you?" },
+      { id: "L2", index: 1, speaker: "Rep", text: "Good questions." },
+    ];
+    assert.equal(detectRepSpeaker(labeled), "Rep");
+  });
+
+  it("ties break toward the speaker who talked more", () => {
+    const tied: TranscriptLine[] = [
+      { id: "L1", index: 0, speaker: "A", text: "Hello there, thanks for making the time today everyone." },
+      { id: "L2", index: 1, speaker: "B", text: "Hi." },
+    ];
+    assert.equal(detectRepSpeaker(tied), "A");
+  });
+
   it("trends traits across calls and picks the weakest as focus", () => {
     const profile = buildRepProfile("Maya", [
       { runId: "r1", at: "2026-08-01T00:00:00Z", title: "Call 1", card: card(55, { metrics: 1, champion: 2, decision_process: 3 }) },

@@ -74,9 +74,20 @@ export function computeMomentum(notes: DealNotes): MomentumResult {
     add(reasonFor(pain[0]!, `Pain acknowledged: ${pain[0]!.text}`, 4));
   }
 
+  // We can't tell from gated claims whether an objection was resolved on the
+  // call, so the penalty is softened when the call still produced a verified
+  // next step — an objection that didn't stop the deal moving is a watch
+  // item, not a stall signal.
   const objections = corroborated(notes.objections);
+  const objectionDelta = nextSteps.length > 0 ? -4 : -8;
   for (const c of objections.slice(0, 3)) {
-    add(reasonFor(c, `Open objection: ${c.text}`, -8));
+    add(
+      reasonFor(
+        c,
+        `Objection raised${nextSteps.length > 0 ? " (call still advanced)" : ""}: ${c.text}`,
+        objectionDelta,
+      ),
+    );
   }
 
   const competitors = corroborated(notes.competitors);
