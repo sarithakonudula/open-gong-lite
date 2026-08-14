@@ -9,7 +9,7 @@ const CARDS = [
     icon: "☁",
     style: "bg-indigo-50 text-indigo-500",
     title: "Uploading recordings",
-    body: "Formats, size limits (100MB), and recording links",
+    body: "Formats, size limits (500MB), and recording links",
     href: "/upload",
   },
   {

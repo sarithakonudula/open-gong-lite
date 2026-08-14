@@ -25,7 +25,7 @@ export async function ensureStore(): Promise<void> {
   await fs.mkdir(audioDir(), { recursive: true });
 }
 
-const MAX_AUDIO_BYTES = 100 * 1024 * 1024;
+const MAX_AUDIO_BYTES = 500 * 1024 * 1024;
 
 export async function saveRunAudio(
   id: string,

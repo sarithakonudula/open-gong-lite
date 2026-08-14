@@ -214,7 +214,7 @@ type FetchLike = (
 }>;
 
 const MAX_PAGE_BYTES = 2_000_000;
-const DEFAULT_DRIVE_MAX_BYTES = 100 * 1024 * 1024;
+const DEFAULT_DRIVE_MAX_BYTES = 500 * 1024 * 1024;
 const GDRIVE_FILE_ID_RE = /^[\w-]{10,}$/;
 const GDRIVE_DOWNLOAD_HOSTS = new Set([
   "drive.google.com",
