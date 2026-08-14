@@ -23,8 +23,10 @@ export async function POST(request: NextRequest) {
       if (!hasLlmConfigured()) {
         return NextResponse.json({ ok: false, detail: "LLM not configured" });
       }
+      // Prompt must contain the word "JSON": providers that enforce the
+      // OpenAI json_object contract (e.g. Groq) 400 otherwise.
       const raw = await chatText({
-        system: 'Reply with exactly {"pong": true}',
+        system: 'Reply with exactly this JSON: {"pong": true}',
         user: "ping",
       });
       return NextResponse.json({ ok: raw.includes("pong"), detail: "LLM reachable" });
