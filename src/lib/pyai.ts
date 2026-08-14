@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { preferredLanguage } from "@/lib/settings";
 import { config, hasLivePyai } from "@/lib/config";
 import {
   hearResultToTranscript,
@@ -448,7 +449,7 @@ export async function triggerRecap(opts: {
       pack_id: config.recapPackId,
       call_direction: "outbound",
       customer_name: opts.customerName,
-      language: "en",
+      language: preferredLanguage(),
       utterances,
     }),
   });

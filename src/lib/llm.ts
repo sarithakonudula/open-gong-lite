@@ -1,11 +1,18 @@
-// Shared OpenAI-compatible chat helper for the action-layer modules.
-// Existing extraction/methodology code keeps its own fetch (patched to
-// resolveLlm); new modules go through chatJson so gates stay in one place.
+// Shared OpenAI-compatible chat layer for everything that scores or drafts.
+//
+// The admin's checked providers form a CHAIN (settings.resolveLlmChain):
+// the first is primary, the rest are failover. chatText walks the chain —
+// a provider that errors or returns nothing is skipped and the next one is
+// tried, so a rate-limited primary doesn't take scoring down with it.
 
-import { resolveLlm } from "@/lib/settings";
+import { LlmTarget, resolveLlmChain } from "@/lib/settings";
 
 export type ChatArgs = { system: string; user: string; temperature?: number };
 export type ChatFn = (args: ChatArgs) => Promise<string>;
+export type FetchLike = (
+  url: string,
+  init: RequestInit,
+) => Promise<{ ok: boolean; status: number; json(): Promise<unknown>; text(): Promise<string> }>;
 
 export class LlmNotConfiguredError extends Error {
   constructor() {
@@ -14,18 +21,19 @@ export class LlmNotConfiguredError extends Error {
   }
 }
 
-/** Raw chat completion returning the assistant text. */
-export const chatText: ChatFn = async ({ system, user, temperature = 0.2 }) => {
-  const llm = resolveLlm();
-  if (!llm) throw new LlmNotConfiguredError();
-  const response = await fetch(`${llm.baseUrl}/chat/completions`, {
+async function callOne(
+  target: LlmTarget,
+  { system, user, temperature = 0.2 }: ChatArgs,
+  fetchImpl: FetchLike,
+): Promise<string> {
+  const response = await fetchImpl(`${target.baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${llm.apiKey}`,
+      Authorization: `Bearer ${target.apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: llm.model,
+      model: target.model,
       temperature,
       response_format: { type: "json_object" },
       messages: [
@@ -36,7 +44,9 @@ export const chatText: ChatFn = async ({ system, user, temperature = 0.2 }) => {
   });
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(`LLM call failed (${response.status}): ${body.slice(0, 300)}`);
+    throw new Error(
+      `LLM call failed (${response.status}): ${body.slice(0, 300)}`,
+    );
   }
   const data = (await response.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
@@ -44,7 +54,35 @@ export const chatText: ChatFn = async ({ system, user, temperature = 0.2 }) => {
   const content = data.choices?.[0]?.message?.content;
   if (!content) throw new Error("Empty LLM response");
   return content;
-};
+}
+
+/**
+ * Walk the chain until one provider answers. Throws LlmNotConfiguredError on
+ * an empty chain, otherwise the LAST provider's error when all fail.
+ */
+export async function chatTextChain(
+  args: ChatArgs,
+  opts: { chain?: LlmTarget[]; fetchImpl?: FetchLike } = {},
+): Promise<{ text: string; provider: LlmTarget }> {
+  const chain = opts.chain ?? resolveLlmChain();
+  if (chain.length === 0) throw new LlmNotConfiguredError();
+  const fetchImpl = opts.fetchImpl ?? (fetch as unknown as FetchLike);
+  let lastError: unknown = null;
+  for (const target of chain) {
+    try {
+      return { text: await callOne(target, args, fetchImpl), provider: target };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("All LLM providers in the chain failed");
+}
+
+/** Chain-backed chat returning just the assistant text. */
+export const chatText: ChatFn = async (args) =>
+  (await chatTextChain(args)).text;
 
 /** Strip accidental code fences before JSON.parse. */
 export function parseJsonLoose(text: string): unknown {
