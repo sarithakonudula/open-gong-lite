@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { config } from "@/lib/config";
-import { hasLlmConfigured } from "@/lib/settings";
+import { hasLlmAvailable } from "@/lib/llm";
 import { ensurePyaiKey, getKeyStatus } from "@/lib/pyai-key";
 
 export const runtime = "nodejs";
@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 export async function GET() {
   const before = await getKeyStatus();
   let status = before;
+  const llmFallback = await hasLlmAvailable();
 
   if (!before.configured && config.autoMintSandbox) {
     try {
@@ -21,7 +22,7 @@ export async function GET() {
           error:
             error instanceof Error ? error.message : "Sandbox mint failed",
         },
-        llmFallback: hasLlmConfigured(),
+        llmFallback,
         recapPackId: config.recapPackId,
         hearModel: config.hearModel,
         hearJobModel: config.hearJobModel,
@@ -37,7 +38,7 @@ export async function GET() {
       scopes: status.scopes,
       expiresAt: status.expiresAt,
     },
-    llmFallback: hasLlmConfigured(),
+    llmFallback,
     recapPackId: config.recapPackId,
     hearModel: config.hearModel,
     hearJobModel: config.hearJobModel,

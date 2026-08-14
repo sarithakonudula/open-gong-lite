@@ -4,7 +4,8 @@ import {
   getMethodologyPack,
   scoreCallWithLlm,
 } from "@/lib/methodology";
-import { getSettings, hasLlmConfigured, isLanguageAllowed } from "@/lib/settings";
+import { getSettings, isLanguageAllowed } from "@/lib/settings";
+import { hasLlmAvailable } from "@/lib/llm";
 import { getRun, saveRun } from "@/lib/store";
 
 export const runtime = "nodejs";
@@ -19,9 +20,12 @@ export async function POST(request: NextRequest, context: Ctx) {
     return NextResponse.json({ error: "Invalid run id" }, { status: 400 });
   }
 
-  if (!hasLlmConfigured()) {
+  if (!(await hasLlmAvailable())) {
     return NextResponse.json(
-      { error: "LLM is not configured" },
+      {
+        error:
+          "LLM is not configured — set keys on /admin or run Ollama locally",
+      },
       { status: 400 },
     );
   }

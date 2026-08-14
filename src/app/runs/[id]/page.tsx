@@ -5,7 +5,7 @@ import { RunActionsBar } from "@/components/RunActionsBar";
 import { RunWorkspace } from "@/components/RunWorkspace";
 import { isAuthEnabled } from "@/lib/auth";
 import { detectCallKind, KIND_DEFAULT_PACK, KIND_LABEL } from "@/lib/call-kind";
-import { hasLlmConfigured } from "@/lib/settings";
+import { hasLlmAvailable } from "@/lib/llm";
 import { demoSignalFeedForRun } from "@/lib/deal-signals";
 import {
   demoScorecardForRun,
@@ -36,6 +36,7 @@ export default async function RunPage({ params, searchParams }: Props) {
   const initialCard = demoScorecardForRun(run, titleToSlug);
   const signalFeed = demoSignalFeedForRun(run, titleToSlug);
   const packs = listMethodologyPacks().map((p) => ({ id: p.id, name: p.name }));
+  const llmAvailable = await hasLlmAvailable();
 
   return (
     <main className="min-h-screen">
@@ -65,7 +66,7 @@ export default async function RunPage({ params, searchParams }: Props) {
         initialTab={initialTab}
         initialCard={initialCard}
         signalFeed={signalFeed}
-        llmAvailable={hasLlmConfigured()}
+        llmAvailable={llmAvailable}
         packs={packs}
         defaultPackId={KIND_DEFAULT_PACK[callKind.kind]}
         detectedKind={`${KIND_LABEL[callKind.kind]}${callKind.confidence === "low" ? " (default)" : ""}`}
