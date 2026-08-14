@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
+import { ElectronLogo } from "@/components/shell/ElectronLogo";
 import { OPEN_SEARCH_EVENT } from "@/components/shell/GlobalSearch";
 
 type NavItem = {
@@ -231,13 +232,8 @@ export function AppSidebar() {
 
   return (
     <aside className="flex h-svh w-60 shrink-0 flex-col border-r border-edge bg-sidebar">
-      <div className="flex items-center gap-2 px-4 pb-2 pt-4">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white">
-          O
-        </span>
-        <span className="text-[15px] font-semibold tracking-tight text-fg">
-          OpenGong Lite
-        </span>
+      <div className="px-4 pb-2 pt-4">
+        <ElectronLogo markClassName="h-7 w-7" textClassName="text-[17px]" />
       </div>
 
       <div className="px-3 pt-2">
