@@ -169,10 +169,35 @@ function NavLink({
   );
 }
 
+const READ_KEY = "og-notifications-read";
+
 export function AppSidebar() {
   const pathname = usePathname() ?? "/";
   const [authUser, setAuthUser] = useState<string | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/notifications")
+      .then((res) => res.json())
+      .then((data: { ids?: string[] }) => {
+        if (cancelled || !data.ids) return;
+        let read: string[] = [];
+        try {
+          read = JSON.parse(window.localStorage.getItem(READ_KEY) || "[]");
+        } catch {
+          read = [];
+        }
+        const readSet = new Set(read);
+        setUnread(data.ids.filter((id) => !readSet.has(id)).length);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // Recompute on route change so marking-as-read clears the dot on nav.
+  }, [pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -245,7 +270,12 @@ export function AppSidebar() {
 
       <div className="space-y-0.5 border-t border-edge px-3 py-3">
         {FOOTER.map((item) => (
-          <NavLink key={item.href} item={item} pathname={pathname} />
+          <NavLink
+            key={item.href}
+            item={item}
+            pathname={pathname}
+            badge={item.href === "/notifications" ? unread : undefined}
+          />
         ))}
       </div>
 

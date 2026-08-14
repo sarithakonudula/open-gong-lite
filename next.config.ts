@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
   experimental: {
     proxyClientMaxBodySize: "110mb",
   },
+  async redirects() {
+    return [
+      { source: "/digest", destination: "/companies", permanent: false },
+      { source: "/coach", destination: "/reps", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

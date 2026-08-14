@@ -1,24 +1,92 @@
-import { DigestClient } from "@/components/DigestClient";
+import {
+  CompaniesClient,
+  CompanyCluster,
+} from "@/components/companies/CompaniesClient";
+import { KIND_LABEL } from "@/lib/call-kind";
+import { buildSampleCompanyIndex, companyForRun } from "@/lib/company";
+import { demoSignalFeedForRun, DealSignalFeed } from "@/lib/deal-signals";
+import { buildDigestEntries, digestTotals } from "@/lib/digest";
+import { toRecordingRow } from "@/lib/recording-row";
+import { listSamples } from "@/lib/samples";
+import { dealState } from "@/lib/sentiment";
+import { listFullRuns } from "@/lib/store";
+import type { RunRecord } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Companies — OpenGong Lite" };
 
-// Interim: renders the existing management digest (per-company momentum,
-// risks, next steps) inside the light shell until the Companies re-skin lands.
-export default function CompaniesPage() {
+export default async function CompaniesPage() {
+  const [runs, samples] = await Promise.all([listFullRuns(200), listSamples()]);
+  const index = buildSampleCompanyIndex(samples);
+  const forRun = (run: RunRecord) => companyForRun(run, index);
+
+  // Newest run's signal feed per company (mirrors the digest route wiring).
+  const feedByCompany = new Map<string, DealSignalFeed | null>();
+  for (const run of runs) {
+    const company = forRun(run);
+    if (feedByCompany.has(company)) continue;
+    feedByCompany.set(company, demoSignalFeedForRun(run, index.titleToSlug));
+  }
+
+  const entries = buildDigestEntries(runs, {
+    companyForRun: forRun,
+    feedForCompany: (company) => feedByCompany.get(company) ?? null,
+  });
+  const totals = digestTotals(entries);
+
+  // The full call cluster per company, newest first.
+  const rowsByCompany = new Map<string, CompanyCluster["calls"]>();
+  for (const run of runs) {
+    if (!run.notes) continue;
+    const company = forRun(run);
+    const row = toRecordingRow(run, index);
+    rowsByCompany.set(company, [
+      ...(rowsByCompany.get(company) ?? []),
+      {
+        id: row.id,
+        title: row.title,
+        createdAt: row.createdAt,
+        score: row.score,
+        dealState: row.dealState,
+      },
+    ]);
+  }
+
+  const clusters: CompanyCluster[] = entries.map((entry) => ({
+    company: entry.company,
+    callCount: entry.callCount,
+    callKindLabel: KIND_LABEL[entry.callKind],
+    isSales: entry.callKind === "sales",
+    momentum: entry.momentum
+      ? { score: entry.momentum.score, direction: entry.momentum.direction }
+      : null,
+    dealState: entry.momentum ? dealState(entry.momentum.direction) : null,
+    latestAt: entry.latestRun.createdAt,
+    highlights: entry.highlights,
+    nextSteps: entry.nextSteps,
+    openObjections: entry.openObjections,
+    riskAlerts: entry.riskAlerts.map((a) => ({
+      severity: a.severity,
+      title: a.title,
+      play: a.play,
+    })),
+    calls: (rowsByCompany.get(entry.company) ?? []).sort((a, b) =>
+      b.createdAt.localeCompare(a.createdAt),
+    ),
+  }));
+
   return (
-    <div className="legacy-dark min-h-svh">
-      <div className="mx-auto max-w-4xl px-5 py-10 md:px-8">
-        <h1 className="font-[family-name:var(--font-display)] text-3xl tracking-tight">
-          Companies
-        </h1>
-        <p className="mt-2 text-sm text-mist">
-          Every company&rsquo;s call cluster — momentum, risks, and next steps
-          per deal, built only from gate-passed claims.
-        </p>
-        <div className="mt-8">
-          <DigestClient />
-        </div>
-      </div>
-    </div>
+    <CompaniesClient
+      clusters={clusters}
+      totals={{
+        companies: totals.companies,
+        calls: totals.calls,
+        advancing: totals.advancing,
+        steady: totals.steady,
+        stalling: totals.stalling,
+        atRisk: totals.atRisk,
+      }}
+    />
   );
 }
