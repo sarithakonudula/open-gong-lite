@@ -25,6 +25,7 @@ import commitment from "../../templates/commitment-fulfillment.json";
 import ghosted from "../../templates/ghosted-deal-nudge.json";
 import noNextStep from "../../templates/no-next-step-reengagement.json";
 import objectionAddressed from "../../templates/objection-addressed.json";
+import postCallRecap from "../../templates/post-call-recap.json";
 import postDemo from "../../templates/post-demo-followup.json";
 import postDiscovery from "../../templates/post-discovery-followup.json";
 import pricing from "../../templates/pricing-followup.json";
@@ -49,6 +50,7 @@ export const TEMPLATE_FILES: unknown[] = [
   ghosted,
   noNextStep,
   objectionAddressed,
+  postCallRecap,
   postDemo,
   postDiscovery,
   pricing,
@@ -938,6 +940,53 @@ export type GenerateResult =
       considered: RouteTrace["considered"];
     };
 
+/**
+ * Keyless fill of a routed template: chrome text + slot claim lines only.
+ * Same screen path as a model draft, so an unbacked id still cannot ship.
+ */
+export function deterministicDraftFromContext(
+  context: RenderedContext,
+): ParsedDraft {
+  let greeting = "Hi there,";
+  let opener = "";
+  let assurance = "";
+  let signoff = "Best,";
+  const bullets: DraftBullet[] = [];
+
+  for (const block of context.blocks) {
+    if (block.type === "text") {
+      const role = norm(block.role);
+      if (role === "greeting") greeting = block.text;
+      else if (role === "opener") opener = block.text;
+      else if (role === "assurance" || role === "cta" || role === "close") {
+        assurance = block.text;
+      } else if (role === "signoff") signoff = block.text;
+      continue;
+    }
+    if (block.type !== "slot") continue;
+    const group = SLOT_ROLES.has(norm(block.role)) ? norm(block.role) : "recap";
+    for (const claim of block.claims) {
+      bullets.push({ text: claim.text, group, claim_id: claim.id });
+    }
+  }
+
+  if (!bullets.length) {
+    throw new TemplateError(
+      "DRAFT_MALFORMED",
+      "the deterministic draft carries no bullets, so it asserts nothing",
+    );
+  }
+
+  return {
+    greeting,
+    opener,
+    assurance,
+    signoff,
+    bullets,
+    off_template_cut: 0,
+  };
+}
+
 async function callTier(
   tier: LlmTier,
   prompt: ReturnType<typeof buildPrompt>,
@@ -992,43 +1041,87 @@ export async function generateTemplateEmail(
 
   const prompt = buildPrompt(context);
   const tier = opts.tier ?? (await resolveLlmTier());
-  const complete: CompleteFn =
-    opts.complete ?? ((p) => callTier(tier, p, opts.signal));
+  const complete: CompleteFn | undefined =
+    opts.complete ??
+    (tier.source === "offline"
+      ? undefined
+      : (p) => callTier(tier, p, opts.signal));
 
+  let draft: ParsedDraft | null = null;
   let completion: Completion;
-  try {
-    completion = await complete(prompt, context);
-  } catch (err) {
-    // No tier at all is not a failure to report as one: it is the documented
-    // keyless state, and the caller answers it with the baseline email alone.
-    const reason =
-      err instanceof LlmNotConfiguredError || (err as Error)?.name === "LLM_NOT_CONFIGURED"
-        ? "no_llm_tier"
-        : "llm_call_failed";
-    return {
-      ok: false,
-      reason,
-      template_id: template.id,
-      error: (err as Error).message,
-      considered,
-    };
-  }
 
-  let draft: ParsedDraft;
-  try {
-    draft = parseDraft(completion, context);
-  } catch (err) {
-    const reason =
-      (err as TemplateError).code === "DRAFT_UNPARSEABLE"
-        ? "draft_unparseable"
-        : "draft_malformed";
-    return {
-      ok: false,
-      reason,
-      template_id: template.id,
-      error: (err as Error).message,
-      considered,
+  if (!complete) {
+    // No model tier: still ship the template that routed, filled only with
+    // gate-passed slot claims. The page keeps a second email variant without
+    // inventing prose a model never wrote.
+    try {
+      draft = deterministicDraftFromContext(context);
+    } catch (err) {
+      return {
+        ok: false,
+        reason: "draft_malformed",
+        template_id: template.id,
+        error: (err as Error).message,
+        considered,
+      };
+    }
+    completion = {
+      text: "",
+      model: "template (deterministic)",
+      source: "deterministic",
     };
+  } else {
+    try {
+      completion = await complete(prompt, context);
+    } catch (err) {
+      const noTier =
+        err instanceof LlmNotConfiguredError ||
+        (err as Error)?.name === "LLM_NOT_CONFIGURED";
+      if (noTier) {
+        try {
+          draft = deterministicDraftFromContext(context);
+          completion = {
+            text: "",
+            model: "template (deterministic)",
+            source: "deterministic",
+          };
+        } catch (fallbackErr) {
+          return {
+            ok: false,
+            reason: "no_llm_tier",
+            template_id: template.id,
+            error: (fallbackErr as Error).message,
+            considered,
+          };
+        }
+      } else {
+        return {
+          ok: false,
+          reason: "llm_call_failed",
+          template_id: template.id,
+          error: (err as Error).message,
+          considered,
+        };
+      }
+    }
+
+    if (!draft) {
+      try {
+        draft = parseDraft(completion, context);
+      } catch (err) {
+        const reason =
+          (err as TemplateError).code === "DRAFT_UNPARSEABLE"
+            ? "draft_unparseable"
+            : "draft_malformed";
+        return {
+          ok: false,
+          reason,
+          template_id: template.id,
+          error: (err as Error).message,
+          considered,
+        };
+      }
+    }
   }
 
   let screened: { bullets: Array<{ text: string; claimId: string }>; cut: number };
@@ -1122,7 +1215,6 @@ export async function generateRoutedFollowUp(
 ): Promise<RoutedFollowUpEmail | null> {
   try {
     const tier = opts.tier ?? (await resolveLlmTier());
-    if (tier.source === "offline" && !opts.complete) return null;
     const result = await generateTemplateEmail(notes, TEMPLATE_FILES, {
       ...opts,
       tier,

@@ -6,15 +6,19 @@ import {
   coverageToRunStatus,
   validateDealNotes,
 } from "@/lib/harness/gates";
+import { shouldDiscardRepair } from "@/lib/harness/repair";
 import { extractDealNotesWithLlm } from "@/lib/llm-extract";
 import type { RecapCall } from "@/lib/pyai";
 import { mapRecapToDealNotes } from "@/lib/recap-map";
 import { newShareToken, saveRun } from "@/lib/store";
-import { generateRoutedFollowUp } from "@/lib/template-email";
+import {
+  backedClaims,
+  generateRoutedFollowUp,
+} from "@/lib/template-email";
 import {
   AttemptRecord,
   DealNotes,
-  isEmailableStatus,
+  NotesSource,
   RunNotes,
   RunRecord,
   TranscriptLine,
@@ -29,13 +33,13 @@ const ROUTED_DRAFT_TIMEOUT_MS = 20_000;
  *
  * 1. It reads the gated notes, so it only ever sees claims the gate passed.
  * 2. Its draft goes back through the same screen the baseline goes through.
- * 3. Every failure, including no model tier at all, returns null, and null
- *    leaves the run byte for byte what it is today.
+ * 3. When no model tier is available, a deterministic template fill still
+ *    ships so the routed panel is not blank; LLM polish is additive.
  */
-async function withRoutedFollowUp(notes: DealNotes): Promise<RunNotes> {
+async function withRoutedFollowUp(notes: RunNotes): Promise<RunNotes> {
   // Nothing was backed, so nothing left the page. A second variant of an
   // email that was withheld would be the one way back in.
-  if (!isEmailableStatus(notes.followUpEmail.status)) return notes;
+  if (!backedClaims(notes).length) return notes;
   try {
     const routed = await generateRoutedFollowUp(notes, {
       signal: AbortSignal.timeout(ROUTED_DRAFT_TIMEOUT_MS),
@@ -65,25 +69,43 @@ function deadlinePassed(startedAt: number, deadlineMs: number): boolean {
   return Date.now() - startedAt >= deadlineMs;
 }
 
+type Candidate = { raw: unknown; reason: string; source: NotesSource };
+
+/**
+ * Pick the next producer to try.
+ *
+ * `heldModelNotes` says the run already holds gate-checked notes a summarizer
+ * or language model wrote. When it does, the keyword extractor is no longer a
+ * candidate: its template lines pass the quote check trivially, so letting it
+ * run last means the emptiest reading of the call wins the page. That is the
+ * inversion this loop used to have. The keyword pass still contributes, as
+ * topic chips the screen builds from the transcript, and never as notes.
+ *
+ * Returns null when nothing is left that could improve on what is held.
+ */
 async function produceCandidate(
   input: AnalyzeInput,
   attempt: number,
   lastFailures: string,
-): Promise<{ raw: unknown; reason: string }> {
+  heldModelNotes: boolean,
+): Promise<Candidate | null> {
   if (input.curatedNotes && attempt === 1) {
     return {
       raw: input.curatedNotes,
       reason: "sample_curated_notes",
+      source: "curated",
     };
   }
 
   if (input.forceDemoExtract) {
+    if (heldModelNotes) return null;
     return {
       raw: demoExtractDealNotes(
         input.transcript,
         input.titleHint || input.sourceLabel,
       ),
       reason: "demo_extract",
+      source: "keyword",
     };
   }
 
@@ -96,6 +118,7 @@ async function produceCandidate(
         input.titleHint || input.sourceLabel,
       ),
       reason: "pyai_recap",
+      source: "model",
     };
   }
 
@@ -106,16 +129,19 @@ async function produceCandidate(
         lastFailures || undefined,
       ),
       reason: "llm_fallback",
+      source: "model",
     };
   }
 
   // Deterministic local extract keeps demos shipping when Recap/LLM are unavailable.
+  if (heldModelNotes) return null;
   return {
     raw: demoExtractDealNotes(
       input.transcript,
       input.titleHint || input.sourceLabel,
     ),
     reason: input.recap ? "demo_after_recap_map_retry" : "demo_extract",
+    source: "keyword",
   };
 }
 
@@ -150,6 +176,10 @@ export async function runDealNotesLoop(
 
   let lastFailures = "";
   let shippedNotes: RunNotes | null = null;
+  // The best reading of the call the run has produced so far, kept whatever
+  // the run-level verdict says about it. A demoted note is still a note.
+  let heldNotes: RunNotes | null = null;
+  let heldStatus: RunRecord["status"] = "failed";
 
   for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
     if (deadlinePassed(startedAt, config.deadlineMs)) {
@@ -176,11 +206,56 @@ export async function runDealNotesLoop(
     }
 
     try {
-      const { raw, reason } = await produceCandidate(
+      const heldModelNotes =
+        heldNotes != null && heldNotes.notesSource !== "keyword";
+      const candidate = await produceCandidate(
         input,
         attempt,
         lastFailures,
+        heldModelNotes,
       );
+
+      // Nothing left to try that could beat what is already held. Stop here
+      // rather than spend a try on a pass that would only overwrite it.
+      if (!candidate) break;
+
+      const { raw, reason, source } = candidate;
+
+      // A repair that answers with placeholder text instead of a copied line
+      // is discarded, and the demoted original stays. This is the exact move
+      // the live run got wrong: three placeholder repairs in a row, then a
+      // keyword pass that shipped empty notes as fully backed.
+      // Only a model can be asked to copy a line, so only a model's answer
+      // can be a failed repair. The keyword pass writes its own sentinel and
+      // is judged by the gate like any other candidate.
+      if (
+        source === "model" &&
+        shouldDiscardRepair({
+          attempt,
+          holdingNotes: heldNotes != null,
+          raw,
+        })
+      ) {
+        const record: AttemptRecord = {
+          attempt,
+          at: new Date().toISOString(),
+          ok: false,
+          reason: "repair_placeholder_discarded",
+          failures: [
+            {
+              code: "repair_placeholder",
+              message:
+                "The repair wrote a stand-in where a copied line belongs, so it was thrown away and the earlier notes kept.",
+            },
+          ],
+        };
+        run = await saveRun({
+          ...run,
+          attempts: [...run.attempts, record],
+        });
+        continue;
+      }
+
       const gate = validateDealNotes(raw, input.transcript);
 
       if (!gate.ok) {
@@ -201,28 +276,37 @@ export async function runDealNotesLoop(
         continue;
       }
 
-      const coverage = gate.notes.coverage;
+      const graded: RunNotes = { ...gate.notes, notesSource: source };
+      const coverage = graded.coverage;
       const runStatus = coverage
         ? coverageToRunStatus(coverage)
         : "shipped";
       const demotions = [
-        ...gate.notes.summary,
-        ...gate.notes.objections,
-        ...gate.notes.intent,
-        ...gate.notes.nextSteps,
-        ...(gate.notes.pain || []),
-        ...(gate.notes.pricing || []),
-        ...(gate.notes.competitors || []),
+        ...graded.summary,
+        ...graded.objections,
+        ...graded.intent,
+        ...graded.nextSteps,
+        ...(graded.pain || []),
+        ...(graded.pricing || []),
+        ...(graded.competitors || []),
       ].filter(
         (c) =>
           c.status === "uncorroborated" || c.status === "blocked_injection",
       );
 
+      // Hold the first reading of the call, and let a later pass take its
+      // place only when that pass actually shipped. A repair that fails is
+      // not an improvement on what it was repairing.
+      if (!heldNotes || runStatus !== "failed") {
+        heldNotes = graded;
+        heldStatus = runStatus;
+      }
+
       if (runStatus === "failed" && attempt < config.maxAttempts) {
         lastFailures = demotions
           .map(
             (c) =>
-              `${c.status} @ ${c.id || c.evidence.lineId}: ${c.evidence.quote}`,
+              `The note "${c.text}" was sent back because this quote is not in the call: "${c.evidence.quote}"`,
           )
           .join("\n");
         const record: AttemptRecord = {
@@ -238,7 +322,7 @@ export async function runDealNotesLoop(
         };
         run = await saveRun({
           ...run,
-          notes: gate.notes,
+          notes: heldNotes,
           attempts: [...run.attempts, record],
         });
         continue;
@@ -246,8 +330,8 @@ export async function runDealNotesLoop(
 
       shippedNotes =
         runStatus === "failed"
-          ? gate.notes
-          : await withRoutedFollowUp(gate.notes);
+          ? (heldNotes ?? graded)
+          : await withRoutedFollowUp(graded);
       const record: AttemptRecord = {
         attempt,
         at: new Date().toISOString(),
@@ -271,7 +355,7 @@ export async function runDealNotesLoop(
         attempts: [...run.attempts, record],
         error:
           runStatus === "failed"
-            ? "Nothing here could be backed by a line in the call. The notes stay on this page, marked."
+            ? "Some of these notes could not be matched to a line in the call. They stay on this page, marked, and the follow-up email is held back."
             : null,
       });
       return run;
@@ -294,13 +378,19 @@ export async function runDealNotesLoop(
     }
   }
 
+  // Whatever the run-level verdict is, the notes the run did produce stay on
+  // the page. The verdict decides whether an email leaves, not whether a
+  // reader gets to see what was found.
+  const finalNotes = shippedNotes ?? heldNotes;
   run = await saveRun({
     ...run,
-    status: shippedNotes ? "partial" : "failed",
-    notes: shippedNotes,
-    error:
-      run.error ||
-      "The notes never came back in a form that could be checked. What each try did is listed below.",
+    status: shippedNotes ? "partial" : finalNotes ? heldStatus : "failed",
+    notes: finalNotes,
+    error: finalNotes
+      ? (run.error ??
+        "Some of these notes could not be matched to a line in the call. They stay on this page, marked, and the follow-up email is held back.")
+      : (run.error ||
+        "Nothing came back from this call that could be checked against the transcript."),
   });
   return run;
 }

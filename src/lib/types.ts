@@ -120,12 +120,25 @@ export const DealNotesSchema = z.object({
 export type DealNotes = z.infer<typeof DealNotesSchema>;
 
 /**
+ * Where the notes on a run came from. Set by the harness after the gate, never
+ * accepted from a model: DealNotesSchema is the contract the extractor answers
+ * and zod strips anything it does not name, so a keyword pass cannot label
+ * itself "model" to win the ordering on the page.
+ *
+ * `model` covers a summarizer or language model. `keyword` is the local
+ * pattern extractor. `curated` is notes that shipped with a sample.
+ */
+export const NotesSourceSchema = z.enum(["model", "keyword", "curated"]);
+export type NotesSource = z.infer<typeof NotesSourceSchema>;
+
+/**
  * What a run stores: the gated notes, plus the routed variant when one was
  * generated. Additive and optional, so every run written before this existed
  * still parses and still renders the same page.
  */
 export const RunNotesSchema = DealNotesSchema.extend({
   routedFollowUp: RoutedFollowUpEmailSchema.optional(),
+  notesSource: NotesSourceSchema.optional(),
 });
 export type RunNotes = z.infer<typeof RunNotesSchema>;
 
