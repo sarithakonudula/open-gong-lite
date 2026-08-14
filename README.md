@@ -94,6 +94,35 @@ and never reaches the browser. Do two things first — set
 `OPENGONG_AUTH_PASSWORD` so only people you let in can spend your tokens, and
 put a hard spend cap on the key in your provider's console.
 
+## Action layer
+
+Gong records what happened. This layer does what was promised — and it keeps
+the receipts discipline: nothing reaches the CRM, an email, a manager, or a
+coaching drill unless it passed the evidence gate.
+
+| Piece | What it does | Where |
+|-------|--------------|-------|
+| **Admin settings** | LLM endpoint/key/model, prompt guidance, HubSpot token, Slack webhook, risk threshold — editable at runtime, no restart. Secrets masked; stored server-side in `data/settings.json` (admin values win over env vars). | `/admin` |
+| **HubSpot write-back** | One click on a run: auto-creates `ai_momentum_score` / `ai_momentum_direction` / `ai_next_action` / `ai_last_followup` / `ai_risk_level` deal properties, writes them, and logs the full cited notes as a deal note. Risk alerts become HubSpot tasks. | run page → *Sync to HubSpot*, `POST /api/hubspot/sync` |
+| **Momentum score** | Deterministic 0–100 + direction (advancing / steady / stalling / at-risk) from gated claims only — every reason carries a transcript receipt. | digest, CRM properties |
+| **Contextual follow-up email** | LLM drafts from *verified claims + CRM context only* (it never sees the transcript). Output is post-gated: cites an unproven claim → whole draft rejected; leak screen catches injected lines; falls back to the deterministic draft. | run page → *Draft contextual email*, `POST /api/email/contextual` |
+| **Deal-risk warnings** | `POST /api/signals/scan` (hit it from any cron) scans open HubSpot deals — or stored runs, keyless — through the signal rule engine. Alerts ≥ your threshold go to **Slack**; pushable alerts become **HubSpot tasks**. The rep gets warned where they live, not on a page they forgot. | `/api/signals/scan` |
+| **Management digest** | Per-deal rollup for a sales leader: momentum, verified highlights with receipts, open objections, risks, next steps. One click to Slack, or copy as markdown. | `/digest` |
+| **Rep training loop** | Methodology scorecards now persist per run. Per-rep trait trends across calls, with drills that pair the pack's coaching content with the rep's *own gate-passed quotes* — "what you said" vs "what mastery sounds like". Personalized with receipts, never generic. | `/coach` |
+
+HubSpot setup: create a [private app](https://developers.hubspot.com/docs/api/private-apps)
+with `crm.objects.contacts/companies/deals/notes/tasks` read+write and
+`crm.schemas.deals.write`, paste the token on `/admin` (or set
+`HUBSPOT_ACCESS_TOKEN`). Slack: paste an incoming-webhook URL. Everything
+degrades gracefully — no HubSpot means drafts stay local, no Slack means
+alerts stay on `/signals`, no LLM means deterministic drafts.
+
+Cron for risk warnings (Railway cron, GitHub Action, or crontab):
+
+```bash
+curl -X POST https://your-app.example/api/signals/scan
+```
+
 ## What you get
 
 - Diarized transcript with speaker labels

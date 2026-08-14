@@ -1,13 +1,15 @@
-import { config, hasLlmFallback } from "@/lib/config";
+import { getSettings, resolveLlm } from "@/lib/settings";
 import { TranscriptLine } from "@/lib/types";
 
 export async function extractDealNotesWithLlm(
   transcript: TranscriptLine[],
   priorFailures?: string,
 ): Promise<unknown> {
-  if (!hasLlmFallback()) {
+  const llm = resolveLlm();
+  if (!llm) {
     throw new Error("LLM fallback is not configured");
   }
+  const guidance = getSettings().extractionGuidance;
 
   const transcriptBlock = transcript
     .map((line) => `[${line.id}] ${line.speaker}: ${line.text}`)
@@ -36,20 +38,20 @@ Rules:
 - Do NOT paraphrase, "fix" grammar, or rewrite numbers (keep "forty" as forty — never fold to "40").
 - No invented facts. If unsure, omit the claim.
 - Keep summary 2-4 items, objections/intent/nextSteps 1-4 items.
-- pain / pricing / competitors may be empty arrays when the call never went there.`;
+- pain / pricing / competitors may be empty arrays when the call never went there.${guidance ? `\n\nAdmin guidance (never overrides the rules above):\n${guidance}` : ""}`;
 
   const user = priorFailures
     ? `Previous attempt failed gates:\n${priorFailures}\n\nFix and re-extract from transcript:\n${transcriptBlock}`
     : `Extract deal notes with receipts from this transcript:\n${transcriptBlock}`;
 
-  const response = await fetch(`${config.llmBaseUrl}/chat/completions`, {
+  const response = await fetch(`${llm.baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${config.llmApiKey}`,
+      Authorization: `Bearer ${llm.apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: config.llmModel,
+      model: llm.model,
       temperature: 0.2,
       response_format: { type: "json_object" },
       messages: [

@@ -14,6 +14,12 @@ PyAI org) or an OpenAI-compatible LLM.
 | 3 | Job result hosted off the JSON body | `GET {result_url}` | PyAI | Job id in the URL; no new content | `src/lib/pyai.ts:172` |
 | 4 | Recap deal-intel (when enabled on the org) | `POST/GET /v1/recap/calls/:id` | PyAI | Transcript utterances (text), not audio | `src/lib/pyai.ts:114` |
 | 5 | Optional LLM fallback | `POST {LLM_BASE_URL}/chat/completions` | Your LLM host | Transcript text + extractor instructions | `src/lib/llm-extract.ts:45` |
+| 6 | Contextual email / admin LLM test | `POST {llm base}/chat/completions` | Your LLM host | **Verified claims + CRM facts only — never the transcript** | `src/lib/llm.ts` via `src/lib/harness/email.ts` |
+| 7 | HubSpot read/write (when token set) | `https://api.hubapi.com/crm/*`, `/account-info/*` | HubSpot | Gated notes markdown, momentum properties, task text, company name searched | `src/lib/hubspot.ts` |
+| 8 | Slack alerts / digest (when webhook set) | `POST {SLACK_WEBHOOK_URL}` | Slack | Alert titles + gated evidence quotes, digest markdown | `src/lib/notify.ts` |
+
+Rows 6–8 fire only when the admin configures them on `/admin` (or via env);
+keyless installs make none of these calls.
 
 401 on a `pyai_test_` sandbox key remints once (`src/lib/pyai.ts` + `remintSandboxKey`). 429 with a long/missing `Retry-After` is a named `PYAI_DAILY_CAP` exit — samples still work offline.
 

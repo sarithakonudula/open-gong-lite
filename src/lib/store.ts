@@ -112,6 +112,26 @@ function toSummary(run: RunRecord): RunSummary {
   };
 }
 
+/** Full records, newest first — digest and coaching need notes + transcript. */
+export async function listFullRuns(limit = 100): Promise<RunRecord[]> {
+  await ensureStore();
+  const dir = runsDir();
+  const files = await fs.readdir(dir);
+  const runs: RunRecord[] = [];
+  for (const file of files) {
+    if (!file.endsWith(".json")) continue;
+    try {
+      const raw = await fs.readFile(path.join(dir, file), "utf8");
+      runs.push(RunRecordSchema.parse(JSON.parse(raw)));
+    } catch {
+      // skip corrupt files
+    }
+  }
+  return runs
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, Math.max(1, Math.min(limit, 500)));
+}
+
 export async function listRuns(limit = 40): Promise<RunSummary[]> {
   await ensureStore();
   const dir = runsDir();

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { config, hasLlmFallback } from "@/lib/config";
+import { config } from "@/lib/config";
+import { hasLlmConfigured } from "@/lib/settings";
 import { ensurePyaiKey, getKeyStatus } from "@/lib/pyai-key";
 
 export const runtime = "nodejs";
@@ -20,7 +21,7 @@ export async function GET() {
           error:
             error instanceof Error ? error.message : "Sandbox mint failed",
         },
-        llmFallback: hasLlmFallback(),
+        llmFallback: hasLlmConfigured(),
         recapPackId: config.recapPackId,
         hearModel: config.hearModel,
         hearJobModel: config.hearJobModel,
@@ -36,7 +37,7 @@ export async function GET() {
       scopes: status.scopes,
       expiresAt: status.expiresAt,
     },
-    llmFallback: hasLlmFallback(),
+    llmFallback: hasLlmConfigured(),
     recapPackId: config.recapPackId,
     hearModel: config.hearModel,
     hearJobModel: config.hearJobModel,

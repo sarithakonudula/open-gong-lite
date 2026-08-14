@@ -120,6 +120,19 @@ export const RunRecordSchema = z.object({
   attempts: z.array(AttemptRecordSchema).default([]),
   error: z.string().nullable().default(null),
   audioContentType: z.string().nullable().optional(),
+  /**
+   * Persisted methodology verdict (raw LLM output, re-gated on read).
+   * Presence powers the coaching loop: trait trends across a rep's calls.
+   */
+  methodology: z
+    .object({
+      packId: z.string(),
+      dealValueUsd: z.number().nullable(),
+      scoredAt: z.string(),
+      verdict: z.unknown(),
+    })
+    .nullable()
+    .optional(),
   budget: z.object({
     maxAttempts: z.number(),
     maxTokensEstimate: z.number(),
