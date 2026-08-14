@@ -159,6 +159,35 @@ and never reaches the browser. Do two things first — set
 `OPENGONG_AUTH_PASSWORD` so only people you let in can spend your tokens, and
 put a hard spend cap on the key in your provider's console.
 
+## A second follow-up email, routed from a template
+
+The email at the bottom of a run is always the deterministic one: gate-passed
+notes, one bullet each, no model in the loop. When a model tier is available, a
+second variant appears beside it.
+
+How it picks one: the gate-passed claims are matched against the eight template
+files in `templates/`, each of which declares what a call has to carry before
+it fires (a dated next step, an addressed objection, a price on the table).
+Highest-priority match wins, and a call that matches nothing gets no second
+variant at all.
+
+The model only ever sees the template and the claims the gate passed, never the
+transcript, and its draft comes back through the same screen the baseline goes
+through. A line with no citation is cut and counted. A line citing anything the
+gate did not pass rejects the whole draft, and the run ships with the baseline
+email alone. The subject always comes from the template file, so a model
+authored subject cannot reach an envelope.
+
+Which model writes it:
+
+1. `LLM_API_KEY` plus `LLM_BASE_URL` set, and that endpoint writes it.
+2. Neither set, and a local Ollama on `127.0.0.1:11434` is probed once, for
+   half a second. If it answers, it writes the draft, keyless.
+3. Neither available, and nothing changes: the page renders exactly as it does
+   with no keys at all.
+
+The probe never runs when a key is configured.
+
 ## What you get
 
 Notes
@@ -283,7 +312,7 @@ npm run dev
 npm run build
 npm run start        # production (standalone)
 npm run lint
-npm run test:gates   # 35 assertions on shape, citations, instructions, email, speakers
+npm run test:gates   # 137 assertions on shape, citations, instructions, email, templates, speakers
 npx tsx vectors.ts   # 21 adversarial vectors
 npm run smoke        # offline sample → notes on the page
 ```

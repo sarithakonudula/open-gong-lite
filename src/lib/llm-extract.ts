@@ -1,4 +1,5 @@
 import { config, hasLlmFallback } from "@/lib/config";
+import { chatCompletion } from "@/lib/llm-client";
 import { TranscriptLine } from "@/lib/types";
 
 export async function extractDealNotesWithLlm(
@@ -42,34 +43,16 @@ Rules:
     ? `Previous attempt failed gates:\n${priorFailures}\n\nFix and re-extract from transcript:\n${transcriptBlock}`
     : `Extract deal notes with receipts from this transcript:\n${transcriptBlock}`;
 
-  const response = await fetch(`${config.llmBaseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.llmApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: config.llmModel,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
+  const completion = await chatCompletion({
+    baseUrl: config.llmBaseUrl,
+    apiKey: config.llmApiKey,
+    model: config.llmModel,
+    temperature: 0.2,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
   });
 
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(
-      `LLM extract failed (${response.status}): ${body.slice(0, 300)}`,
-    );
-  }
-
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Empty LLM extract response");
-  return JSON.parse(content);
+  return JSON.parse(completion.text);
 }

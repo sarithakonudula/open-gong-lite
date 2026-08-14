@@ -1,0 +1,36 @@
+{
+  "id": "close-pilot-confirmation",
+  "version": "1.0.0",
+  "title": "Close and pilot confirmation",
+  "short": "close",
+  "priority": 30,
+  "spec": "research/13-sybill-deep/05-template-library.md section 4, template 8",
+  "situation": "The buyer committed on the call and there are steps to confirm.",
+  "notes": "The spec routes this on buying_stage stage value committed. Bundle claims carry the stage as text plus a basis, and the enum value travels only when the extractor writes it onto the claim, so the trigger accepts either that value or an objection the buyer accepted on this call.",
+  "panel": {
+    "explainer": "The commit on this call picked this template. A free model drafted it. The gate checked every line."
+  },
+  "subject": "Confirming what we agreed",
+  "word_limit": 120,
+  "routing": {
+    "trigger": {
+      "all_of": [
+        { "section": "next_steps", "extractor": "next_steps" }
+      ],
+      "any_of": [
+        { "section": "objections", "where": { "objection_status": ["buyer_accepted"] } },
+        { "section": "buying_stage", "where": { "value": ["committed"] } }
+      ]
+    }
+  },
+  "blocks": [
+    { "type": "text", "role": "greeting", "text": "Hi {{recipient}},", "fallback": "Hi there," },
+    { "type": "text", "role": "opener", "text": "Thanks for the time today. Here is what we agreed." },
+    { "type": "slot", "role": "outcome", "section": "summary", "extractor": "summary", "limit": 1, "hint": "The commit itself, in one line." },
+    { "type": "slot", "role": "recap", "label": "What we covered", "section": "pricing", "where": { "kind": ["quote"] }, "limit": 1, "hint": "The price that landed, exactly as the claim states it. Renders nothing when no quote was backed." },
+    { "type": "slot", "role": "next_steps", "label": "Next steps", "section": "next_steps", "extractor": "next_steps", "hint": "Signature and logistics, with owner and due date." },
+    { "type": "instruction", "text": "Rewrite the lines above as one short email in the second person. Every sentence that says something about the call must carry the claim id it came from. Copy the price exactly as the claim writes it. Do not promise a date nobody named. Short sentences." },
+    { "type": "text", "role": "assurance", "text": "Every line above came from something said on the call. If I got any of it wrong, tell me and I will fix it." },
+    { "type": "text", "role": "signoff", "text": "Best,\n{{sender}}", "fallback": "Best," }
+  ]
+}

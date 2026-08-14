@@ -1,0 +1,32 @@
+{
+  "id": "post-demo-followup",
+  "version": "1.0.0",
+  "title": "Post-demo follow-up",
+  "short": "post-demo",
+  "priority": 50,
+  "spec": "research/13-sybill-deep/05-template-library.md section 4, template 2",
+  "situation": "The demo landed, a concern got answered, and both sides agreed to do something.",
+  "panel": {
+    "explainer": "The detected next step picked this template. A free model drafted it. The gate checked every line."
+  },
+  "subject": "Next steps after the demo",
+  "word_limit": 120,
+  "routing": {
+    "trigger": {
+      "all_of": [
+        { "section": "next_steps", "extractor": "next_steps", "where": { "type": ["concrete_date", "send_info"] } },
+        { "section": "objections", "where": { "handling": ["addressed"] } }
+      ]
+    }
+  },
+  "blocks": [
+    { "type": "text", "role": "greeting", "text": "Hi {{recipient}},", "fallback": "Hi there," },
+    { "type": "text", "role": "opener", "text": "Thanks for the time on the demo. Here is what I took away, and what we said we would do next." },
+    { "type": "slot", "role": "outcome", "section": "summary", "extractor": "summary", "limit": 1, "hint": "Where the demo landed, in one line." },
+    { "type": "slot", "role": "recap", "label": "What we covered", "section": "objections", "where": { "handling": ["addressed"] }, "hint": "The concern the buyer raised and how it was answered on the call." },
+    { "type": "slot", "role": "next_steps", "label": "Next steps", "section": "next_steps", "extractor": "next_steps", "hint": "What each side agreed to do. Keep the owner and the due date that came with the claim." },
+    { "type": "instruction", "text": "Rewrite the lines above as one short email in the second person. Every sentence that says something about the call must carry the claim id it came from. Say only what those lines say. Do not add a step, a number, a date, or a name that is not in them. Short sentences." },
+    { "type": "text", "role": "assurance", "text": "Every line above came from something said on the call. If I got any of it wrong, tell me and I will fix it." },
+    { "type": "text", "role": "signoff", "text": "Best,\n{{sender}}", "fallback": "Best," }
+  ]
+}

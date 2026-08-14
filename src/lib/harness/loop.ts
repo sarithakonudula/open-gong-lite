@@ -9,12 +9,41 @@ import { extractDealNotesWithLlm } from "@/lib/llm-extract";
 import type { RecapCall } from "@/lib/pyai";
 import { mapRecapToDealNotes } from "@/lib/recap-map";
 import { newShareToken, saveRun } from "@/lib/store";
+import { generateRoutedFollowUp } from "@/lib/template-email";
 import {
   AttemptRecord,
   DealNotes,
+  isEmailableStatus,
+  RunNotes,
   RunRecord,
   TranscriptLine,
 } from "@/lib/types";
+
+/** How long the routed draft gets before the run ships without it. */
+const ROUTED_DRAFT_TIMEOUT_MS = 20_000;
+
+/**
+ * The second email variant, attempted only after the gate has finalized the
+ * first one. Three things make this safe to bolt on:
+ *
+ * 1. It reads the gated notes, so it only ever sees claims the gate passed.
+ * 2. Its draft goes back through the same screen the baseline goes through.
+ * 3. Every failure, including no model tier at all, returns null, and null
+ *    leaves the run byte for byte what it is today.
+ */
+async function withRoutedFollowUp(notes: DealNotes): Promise<RunNotes> {
+  // Nothing was backed, so nothing left the page. A second variant of an
+  // email that was withheld would be the one way back in.
+  if (!isEmailableStatus(notes.followUpEmail.status)) return notes;
+  try {
+    const routed = await generateRoutedFollowUp(notes, {
+      signal: AbortSignal.timeout(ROUTED_DRAFT_TIMEOUT_MS),
+    });
+    return routed ? { ...notes, routedFollowUp: routed } : notes;
+  } catch {
+    return notes;
+  }
+}
 
 export type AnalyzeInput = {
   source: "upload" | "url" | "sample" | "live";
@@ -116,7 +145,7 @@ export async function runDealNotesLoop(
   run = await saveRun(run);
 
   let lastFailures = "";
-  let shippedNotes: DealNotes | null = null;
+  let shippedNotes: RunNotes | null = null;
 
   for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
     if (deadlinePassed(startedAt, config.deadlineMs)) {
@@ -211,7 +240,10 @@ export async function runDealNotesLoop(
         continue;
       }
 
-      shippedNotes = gate.notes;
+      shippedNotes =
+        runStatus === "failed"
+          ? gate.notes
+          : await withRoutedFollowUp(gate.notes);
       const record: AttemptRecord = {
         attempt,
         at: new Date().toISOString(),

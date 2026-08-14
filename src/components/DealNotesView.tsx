@@ -8,7 +8,10 @@ import {
   backedFraction,
   blockedReasonLine,
   COVERAGE_BAND_LABEL,
+  linesCutLine,
+  modelSourceLabel,
   NOTE_STATUS_LABEL,
+  routedPanelTitle,
   RUN_STATUS_LABEL,
 } from "@/lib/labels";
 
@@ -385,6 +388,52 @@ export function DealNotesView({
                 {notes.followUpEmail.evidence.quote}”
               </button>
             </section>
+
+            {notes.routedFollowUp && (
+              <section className="space-y-3">
+                <h3 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
+                  6 · {routedPanelTitle(notes.routedFollowUp.template.short)}
+                </h3>
+                <p className="text-sm text-fog/85">
+                  {notes.routedFollowUp.template.explainer}
+                </p>
+                <p className="text-sm text-mist">
+                  Subject: {notes.routedFollowUp.subject}
+                </p>
+                <pre className="whitespace-pre-wrap rounded-2xl border border-white/10 bg-ink-soft/70 p-4 text-sm leading-relaxed text-paper/90">
+                  {notes.routedFollowUp.body}
+                </pre>
+                <p className="text-sm text-mist">
+                  From the template library · Template{" "}
+                  {notes.routedFollowUp.template.id} · Written by{" "}
+                  {notes.routedFollowUp.provenance.model}, which is{" "}
+                  {modelSourceLabel(notes.routedFollowUp.provenance.source)} ·{" "}
+                  {linesCutLine(
+                    notes.routedFollowUp.provenance.cut,
+                    notes.routedFollowUp.provenance.offTemplateCut,
+                  )}
+                </p>
+                <ul className="space-y-2 text-sm text-fog/80">
+                  {notes.routedFollowUp.bullets.map((bullet, index) => (
+                    <li key={`${bullet.claimId}-${index}`}>
+                      <button
+                        type="button"
+                        className="receipt-link"
+                        data-claim={bullet.claimId}
+                        onClick={() => {
+                          const cited = allClaims.find(
+                            (c) => (c.id || c.evidence.lineId) === bullet.claimId,
+                          );
+                          if (cited) jumpToLine(cited.evidence.lineId);
+                        }}
+                      >
+                        Source · {bullet.claimId}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
           </div>
         ) : (
           <p className="text-mist animate-rise-delay">
