@@ -240,6 +240,26 @@ describe("the ladder", () => {
     assert.equal(routeTemplate(base, null, {}), null);
   });
 
+  it("lets the caller force a library template instead of auto-match", () => {
+    const forced = routeWithTrace(base, TEMPLATE_FILES, {
+      templateId: "pricing-followup",
+    });
+    assert.equal(forced.template?.id, "pricing-followup");
+    assert.equal(
+      forced.considered.find((c) => c.id === "post-demo-followup")?.fired,
+      true,
+      "auto-match still shows up in the considered ladder",
+    );
+
+    assert.throws(
+      () =>
+        routeWithTrace(base, TEMPLATE_FILES, { templateId: "not-a-real-template" }),
+      (err: unknown) =>
+        err instanceof Error &&
+        (err as { code?: string }).code === "TEMPLATE_NOT_FOUND",
+    );
+  });
+
   it("survives sparse and malformed claim rows", () => {
     const messy = notes({
       pricing: [

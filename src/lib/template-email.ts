@@ -431,6 +431,11 @@ export type RenderOptions = {
   sender?: string | null;
   dealName?: string | null;
   title?: string | null;
+  /**
+   * When set, skip priority routing and fill this library template instead.
+   * The draft still only sees gate-passed claims — forcing never invents notes.
+   */
+  templateId?: string | null;
 };
 
 export type RouteTrace = {
@@ -441,6 +446,10 @@ export type RouteTrace = {
 /**
  * Same routing, with the ladder it walked. The reason a call got the template
  * it got is which triggers said no first, and that stays inspectable.
+ *
+ * Pass `templateId` to force a library template the user picked. Auto-routing
+ * still runs for the `considered` trace so the UI can label which templates
+ * would have matched on their own.
  */
 export function routeWithTrace(
   notes: DealNotes,
@@ -462,19 +471,32 @@ export function routeWithTrace(
     (a, b) => a.priority - b.priority || a.id.localeCompare(b.id),
   );
   const considered: RouteTrace["considered"] = [];
-  let picked: Template | null = null;
+  let autoPicked: Template | null = null;
   for (const t of ordered) {
     const fired = triggerFires(t, env);
     considered.push({ id: t.id, priority: t.priority, fired });
-    if (fired && !picked) picked = t;
+    if (fired && !autoPicked) autoPicked = t;
   }
-  return { template: picked, considered };
+
+  const forcedId = ctx.templateId?.trim();
+  if (forcedId) {
+    const forced = ordered.find((t) => t.id === forcedId) ?? null;
+    if (!forced) {
+      throw new TemplateError(
+        "TEMPLATE_NOT_FOUND",
+        `unknown template id: ${forcedId}`,
+      );
+    }
+    return { template: forced, considered };
+  }
+
+  return { template: autoPicked, considered };
 }
 
 /**
  * Picks ONE template, from gate passed claims only, in declared priority
  * order. Returns null when nothing fires, and null means the caller keeps the
- * deterministic baseline email. A template is never forced onto a call.
+ * deterministic baseline email. Pass `templateId` to force a specific file.
  */
 export function routeTemplate(
   notes: DealNotes,
@@ -482,6 +504,26 @@ export function routeTemplate(
   ctx: RenderOptions = {},
 ): Template | null {
   return routeWithTrace(notes, templates, ctx).template;
+}
+
+/** Lightweight library rows for the draft-from-template picker. */
+export function listTemplatesForUi(): Array<{
+  id: string;
+  title: string;
+  short: string;
+  explainer: string;
+  priority: number;
+}> {
+  return templateLibrary()
+    .slice()
+    .sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id))
+    .map((t) => ({
+      id: t.id,
+      title: t.title,
+      short: t.short,
+      explainer: t.panel.explainer,
+      priority: t.priority,
+    }));
 }
 
 // ── the model's input ───────────────────────────────────────────────────────
@@ -1024,7 +1066,25 @@ export async function generateTemplateEmail(
   templates: unknown[] | null | undefined,
   opts: GenerateOptions = {},
 ): Promise<GenerateResult> {
-  const { template, considered } = routeWithTrace(notes, templates, opts);
+  let template: Template | null = null;
+  let considered: RouteTrace["considered"] = [];
+  try {
+    ({ template, considered } = routeWithTrace(notes, templates, opts));
+  } catch (err) {
+    if (
+      err instanceof TemplateError &&
+      err.code === "TEMPLATE_NOT_FOUND"
+    ) {
+      return {
+        ok: false,
+        reason: "template_not_found",
+        template_id: opts.templateId?.trim() || null,
+        error: err.message,
+        considered: [],
+      };
+    }
+    throw err;
+  }
   if (!template) {
     return { ok: false, reason: "no_template_routed", template_id: null, considered };
   }
@@ -1220,8 +1280,12 @@ export async function generateRoutedFollowUp(
       tier,
     });
     return result.ok ? result.email : null;
-  } catch {
-    // A routed draft is an extra. It never takes the run down with it.
+  } catch (err) {
+    // Unknown forced id is the caller's mistake — surface it. Everything else
+    // stays an optional extra that must not take the run down.
+    if (err instanceof TemplateError && err.code === "TEMPLATE_NOT_FOUND") {
+      throw err;
+    }
     return null;
   }
 }

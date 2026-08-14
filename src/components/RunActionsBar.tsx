@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { linesCutLine, modelSourceLabel } from "@/lib/labels";
 
 /** Action layer for one run: CRM write-back + follow-up drafts. */
@@ -11,7 +12,18 @@ type DealCandidate = {
   amount: number | null;
 };
 
+type TemplateOption = {
+  id: string;
+  title: string;
+  short: string;
+  explainer: string;
+  priority: number;
+};
+
+const AUTO_MATCH = "";
+
 export function RunActionsBar({ runId }: { runId: string }) {
+  const router = useRouter();
   const [hubspotReady, setHubspotReady] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<DealCandidate[] | null>(null);
@@ -21,6 +33,21 @@ export function RunActionsBar({ runId }: { runId: string }) {
     body: string;
     templateTitle?: string;
   } | null>(null);
+  const [catalog, setCatalog] = useState<{
+    runId: string;
+    templates: TemplateOption[];
+    matchingIds: string[];
+    suggestedId: string | null;
+  } | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(AUTO_MATCH);
+
+  const templatesBusy = catalog?.runId !== runId;
+  const templates = catalog?.runId === runId ? catalog.templates : [];
+  const matchingIds = new Set(
+    catalog?.runId === runId ? catalog.matchingIds : [],
+  );
+  const suggestedId =
+    catalog?.runId === runId ? catalog.suggestedId : null;
 
   useEffect(() => {
     fetch("/api/hubspot/status")
@@ -28,6 +55,44 @@ export function RunActionsBar({ runId }: { runId: string }) {
       .then((d) => setHubspotReady(Boolean(d.connected)))
       .catch(() => null);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/runs/${runId}/routed-email`)
+      .then((r) => r.json())
+      .then(
+        (data: {
+          templates?: TemplateOption[];
+          suggestedId?: string | null;
+          matchingIds?: string[];
+        }) => {
+          if (cancelled) return;
+          const list = data.templates ?? [];
+          setCatalog({
+            runId,
+            templates: list,
+            suggestedId: data.suggestedId ?? null,
+            matchingIds: data.matchingIds ?? [],
+          });
+          setSelectedTemplateId((prev) => {
+            if (prev === AUTO_MATCH) return AUTO_MATCH;
+            return list.some((t) => t.id === prev) ? prev : AUTO_MATCH;
+          });
+        },
+      )
+      .catch(() => {
+        if (cancelled) return;
+        setCatalog({
+          runId,
+          templates: [],
+          suggestedId: null,
+          matchingIds: [],
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [runId]);
 
   async function syncToHubspot(dealId?: string) {
     setSyncStatus("Syncing…");
@@ -87,11 +152,17 @@ export function RunActionsBar({ runId }: { runId: string }) {
   }
 
   async function draftFromTemplate() {
-    setEmailStatus("Matching a template…");
+    const chosen =
+      selectedTemplateId === AUTO_MATCH ? null : selectedTemplateId;
+    setEmailStatus(
+      chosen ? "Drafting from the selected template…" : "Matching a template…",
+    );
     setDraft(null);
     try {
       const response = await fetch(`/api/runs/${runId}/routed-email`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(chosen ? { templateId: chosen } : {}),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Draft failed");
@@ -108,12 +179,19 @@ export function RunActionsBar({ runId }: { runId: string }) {
           data.provenance.offTemplateCut,
         )}`,
       );
+      // Refresh so the Draft Email tab shows the stored routed variant.
+      router.refresh();
     } catch (error) {
       setEmailStatus(
         `❌ ${error instanceof Error ? error.message : "Draft failed"}`,
       );
     }
   }
+
+  const selectedMeta =
+    selectedTemplateId === AUTO_MATCH
+      ? null
+      : templates.find((t) => t.id === selectedTemplateId) ?? null;
 
   return (
     <div className="card p-4">
@@ -124,13 +202,46 @@ export function RunActionsBar({ runId }: { runId: string }) {
         <button className="btn-ghost" onClick={draftContextualEmail}>
           Draft contextual email
         </button>
-        <button
-          className="btn-ghost"
-          onClick={draftFromTemplate}
-          title="Match this call against the template library and draft from backed notes"
-        >
-          Draft from template
-        </button>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <label className="sr-only" htmlFor={`template-pick-${runId}`}>
+            Email template
+          </label>
+          <select
+            id={`template-pick-${runId}`}
+            className="field !w-auto min-w-[14rem] max-w-full !py-2 !text-sm"
+            value={selectedTemplateId}
+            disabled={templatesBusy || templates.length === 0}
+            onChange={(e) => setSelectedTemplateId(e.target.value)}
+            title="Choose a template, or leave Auto-match to pick by the call’s backed notes"
+          >
+            <option value={AUTO_MATCH}>
+              {suggestedId
+                ? `Auto-match · ${
+                    templates.find((t) => t.id === suggestedId)?.title ??
+                    "best fit"
+                  }`
+                : "Auto-match · best fit for this call"}
+            </option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.title}
+                {matchingIds.has(t.id) ? " · matches this call" : ""}
+              </option>
+            ))}
+          </select>
+          <button
+            className="btn-ghost"
+            onClick={draftFromTemplate}
+            disabled={templatesBusy}
+            title={
+              selectedMeta
+                ? selectedMeta.explainer
+                : "Match this call against the template library and draft from backed notes"
+            }
+          >
+            Draft from template
+          </button>
+        </div>
         <button
           className="btn-ghost"
           onClick={() => syncToHubspot()}
@@ -150,6 +261,13 @@ export function RunActionsBar({ runId }: { runId: string }) {
           Reps
         </a>
       </div>
+      {selectedMeta && (
+        <p className="mt-2 text-[12.5px] text-fg-soft">
+          {selectedMeta.explainer}
+          {!matchingIds.has(selectedMeta.id) &&
+            " · This template’s trigger did not fire on its own; it will still only use backed notes."}
+        </p>
+      )}
       {syncStatus && <p className="mt-2 text-sm text-fg-muted">{syncStatus}</p>}
       {candidates && candidates.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
