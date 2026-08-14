@@ -47,3 +47,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Operator settings hold encrypted credentials; never tracked.
+/data/settings.json
