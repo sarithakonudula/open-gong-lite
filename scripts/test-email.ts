@@ -33,6 +33,11 @@ describe("email choke", () => {
     const draft = composeEmail(claims, { title: "the Acme call" });
     assert.equal(draft.bullets.length, 1);
     assert.match(draft.body, /comparison to procurement/);
+    assert.match(draft.body, /^Hi there,/);
+    assert.match(draft.body, /Thank you for taking the time/);
+    assert.match(draft.body, /Please let me know/);
+    assert.match(draft.body, /\nBest,$/);
+    assert.doesNotMatch(draft.body, /OpenGong|backed by a line|could not find in the call/);
     assert.doesNotMatch(draft.body, /40% discount/);
     assert.doesNotMatch(draft.body, /ignore all previous/);
   });

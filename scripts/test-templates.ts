@@ -356,6 +356,17 @@ describe("what the model is allowed to see", () => {
     const prompt = buildPrompt(renderContext(base, template, {}));
     assert.match(prompt.system, /Never invent an id/);
     assert.match(prompt.system, /No dashes as punctuation/);
+    assert.match(
+      prompt.system,
+      /sales rep writing a polished follow-up email directly to the customer/,
+    );
+    assert.match(
+      prompt.system,
+      /"I" or "we" for the rep and "you" for the customer/,
+    );
+    assert.match(prompt.system, /Never call either person "the rep"/);
+    assert.match(prompt.system, /complete, natural sentences/);
+    assert.match(prompt.system, /Never mention claims, citations, evidence/);
     assert.match(prompt.user, /nextSteps\[0\]/);
     assert.equal(prompt.messages.length, 2);
   });
