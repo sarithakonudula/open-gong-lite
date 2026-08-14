@@ -20,6 +20,8 @@ function row(overrides: Partial<RecordingRow> = {}): RecordingRow {
     status: "shipped",
     source: "upload",
     sourceLabel: "call.mp3",
+    callKind: "sales",
+    isSample: false,
     ...overrides,
   };
 }
