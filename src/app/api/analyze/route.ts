@@ -92,9 +92,13 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const replay = new File([downloaded.bytes], downloaded.filename, {
-          type: downloaded.contentType || "application/octet-stream",
-        });
+        const replay = new File(
+          [Uint8Array.from(downloaded.bytes)],
+          downloaded.filename,
+          {
+            type: downloaded.contentType || "application/octet-stream",
+          },
+        );
         const { transcript, recap, callId, hearPath } =
           await runHearAndMaybeRecap({
             mode: "upload",
