@@ -84,9 +84,9 @@ export function RunActionsBar({ runId }: { runId: string }) {
   }
 
   return (
-    <div className="mt-4 rounded-xl border border-mist/25 bg-paper/40 p-4">
+    <div className="card p-4">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="text-xs uppercase tracking-wide text-mist">
+        <span className="text-xs font-semibold uppercase tracking-wide text-fg-soft">
           Actions
         </span>
         <button className="btn-ghost" onClick={draftContextualEmail}>
@@ -99,19 +99,19 @@ export function RunActionsBar({ runId }: { runId: string }) {
           title={
             hubspotReady
               ? "Write momentum + notes to the matching HubSpot deal"
-              : "Connect HubSpot on /admin first"
+              : "Connect HubSpot in Settings first"
           }
         >
           {hubspotReady ? "Sync to HubSpot" : "HubSpot not connected"}
         </button>
-        <a href="/digest" className="btn-ghost">
-          Digest
+        <a href="/companies" className="btn-ghost">
+          Companies
         </a>
-        <a href="/coach" className="btn-ghost">
-          Coach
+        <a href="/reps" className="btn-ghost">
+          Reps
         </a>
       </div>
-      {syncStatus && <p className="mt-2 text-sm text-fog">{syncStatus}</p>}
+      {syncStatus && <p className="mt-2 text-sm text-fg-muted">{syncStatus}</p>}
       {candidates && candidates.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
           {candidates.map((c) => (
@@ -127,11 +127,11 @@ export function RunActionsBar({ runId }: { runId: string }) {
           ))}
         </div>
       )}
-      {emailStatus && <p className="mt-2 text-sm text-fog">{emailStatus}</p>}
+      {emailStatus && <p className="mt-2 text-sm text-fg-muted">{emailStatus}</p>}
       {draft && (
-        <div className="mt-3 rounded-lg border border-mist/20 bg-paper/60 p-3">
+        <div className="mt-3 rounded-lg border border-edge bg-canvas p-3">
           <p className="text-sm font-medium">{draft.subject}</p>
-          <p className="mt-2 whitespace-pre-wrap text-sm text-fog/90">
+          <p className="mt-2 whitespace-pre-wrap text-sm text-fg-muted">
             {draft.body}
           </p>
         </div>
