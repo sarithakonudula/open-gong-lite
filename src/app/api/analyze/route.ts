@@ -8,7 +8,7 @@ import { saveRunAudio } from "@/lib/store";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 const ALLOWED_AUDIO = new Set([
   "audio/mpeg",
   "audio/mp3",
@@ -112,13 +112,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const form = await request.formData();
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      return badRequest(
+        "Upload too large or incomplete. Max file size is 100MB.",
+      );
+    }
     const file = form.get("file");
     if (!(file instanceof File)) {
       return badRequest("file is required");
     }
     if (file.size <= 0 || file.size > MAX_UPLOAD_BYTES) {
-      return badRequest("file must be between 1 byte and 25MB");
+      return badRequest("file must be between 1 byte and 100MB");
     }
     if (file.type && !ALLOWED_AUDIO.has(file.type)) {
       return badRequest(`Unsupported content type: ${file.type}`);

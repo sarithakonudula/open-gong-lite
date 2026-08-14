@@ -159,6 +159,59 @@ and never reaches the browser. Do two things first — set
 `OPENGONG_AUTH_PASSWORD` so only people you let in can spend your tokens, and
 put a hard spend cap on the key in your provider's console.
 
+## Action layer
+
+Gong records what happened. This layer does what was promised — and it keeps
+the receipts discipline: nothing reaches the CRM, an email, a manager, or a
+coaching drill unless it passed the evidence gate.
+
+| Piece | What it does | Where |
+|-------|--------------|-------|
+| **Admin settings** | LLM endpoint/key/model, prompt guidance, HubSpot token, Slack webhook, risk threshold — editable at runtime, no restart. Secrets masked; stored server-side in `data/settings.json` (admin values win over env vars). | `/admin` |
+| **HubSpot write-back** | One click on a run: auto-creates `ai_momentum_score` / `ai_momentum_direction` / `ai_next_action` / `ai_last_followup` / `ai_risk_level` deal properties, writes them, and logs the full cited notes as a deal note. Risk alerts become HubSpot tasks. | run page → *Sync to HubSpot*, `POST /api/hubspot/sync` |
+| **Momentum score** | Deterministic 0–100 + direction (advancing / steady / stalling / at-risk) from gated claims only — every reason carries a transcript receipt. | digest, CRM properties |
+| **Contextual follow-up email** | LLM drafts from *verified claims + CRM context only* (it never sees the transcript). Output is post-gated: cites an unproven claim → whole draft rejected; leak screen catches injected lines; falls back to the deterministic draft. | run page → *Draft contextual email*, `POST /api/email/contextual` |
+| **Deal-risk warnings** | `POST /api/signals/scan` (hit it from any cron) scans open HubSpot deals — or stored runs, keyless — through the signal rule engine. Alerts ≥ your threshold go to **Slack**; pushable alerts become **HubSpot tasks**. The rep gets warned where they live, not on a page they forgot. | `/api/signals/scan` |
+| **Management digest** | Per-deal rollup for a sales leader: momentum, verified highlights with receipts, open objections, risks, next steps. One click to Slack, or copy as markdown. | `/digest` |
+| **Rep training loop** | Methodology scorecards now persist per run. Per-rep trait trends across calls, with drills that pair the pack's coaching content with the rep's *own gate-passed quotes* — "what you said" vs "what mastery sounds like". Personalized with receipts, never generic. | `/coach` |
+| **Multi-call-type scoring** | A shared recording isn't always a sales call. A deterministic classifier (with cited marker lines) detects **sales / support / customer success** and routes to the right scorecard: 14 sales packs, **Support Excellence (QA)** (issue verification, ownership, troubleshooting rigor, expectation setting, FCR, escalation hygiene, prevention), or **Customer Success (Health & Renewal)** (outcome alignment, adoption with data, value realization, sponsor health, risk sensing, renewal timeline, expansion, success planning). Sales-only metrics stay in their lane: support/CS calls never write `ai_momentum_*` to a deal and show a kind badge in the digest instead. The coaching loop picks all three up automatically. | run page Scorecard tab (auto-detected), `/digest`, `/coach` |
+
+HubSpot setup: create a [private app](https://developers.hubspot.com/docs/api/private-apps)
+with `crm.objects.contacts/companies/deals/notes/tasks` read+write and
+`crm.schemas.deals.write`, paste the token on `/admin` (or set
+`HUBSPOT_ACCESS_TOKEN`). Slack: paste an incoming-webhook URL. Everything
+degrades gracefully — no HubSpot means drafts stay local, no Slack means
+alerts stay on `/signals`, no LLM means deterministic drafts.
+
+Security posture of the layer:
+
+- **Deal writes need a confirmed target.** Name matching only *proposes*
+  candidates; a write happens when there's exactly one open deal, an explicit
+  pick from the run-page picker, or a previously confirmed link stored on the
+  run. Wrong-deal write-back by fuzzy match can't happen.
+- **`/admin` is hard-locked in production** unless `OPENGONG_AUTH_PASSWORD`
+  is set — an open deployment can't have its LLM endpoint repointed.
+  Changing the LLM base URL also clears the saved key, so a stored key can
+  never be replayed against a new host.
+- **Settings secrets are encrypted at rest** (AES-256-GCM keyed off
+  `OPENGONG_SESSION_SECRET`) in `data/settings.json`.
+- **API responses are projections** — share tokens and transcripts never
+  leave the server through `/api/digest`. Set `OPENGONG_SHARE_TTL_DAYS` to
+  expire `/share` links.
+
+Demo the risk loop without waiting a real day:
+
+```bash
+curl -X POST localhost:3000/api/signals/scan \
+  -H 'Content-Type: application/json' -d '{"simulateIdleDays": 14}'
+```
+
+Cron for risk warnings (Railway cron, GitHub Action, or crontab):
+
+```bash
+curl -X POST https://your-app.example/api/signals/scan
+```
+
 ## A second follow-up email, routed from a template
 
 The email at the bottom of a run is always the deterministic one: gate-passed

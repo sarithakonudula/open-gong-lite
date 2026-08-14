@@ -31,8 +31,9 @@ import pricing from "../../templates/pricing-followup.json";
 
 import { config } from "@/lib/config";
 import { EmailError, screenDraft } from "@/lib/harness/email";
-import { chatCompletion, LlmError } from "@/lib/llm-client";
+import { chatText, LlmNotConfiguredError } from "@/lib/llm";
 import { detectOllama, type DetectOptions, type OllamaTier } from "@/lib/llm-detect";
+import { getSettings, resolveLlm } from "@/lib/settings";
 import { deriveFacets, type ClaimFacets, type TemplateSection } from "@/lib/template-facets";
 import {
   isEmailableStatus,
@@ -725,17 +726,49 @@ export type TierOptions = {
 };
 
 /**
+ * What the operator configured, in the shape the ladder reads.
+ *
+ * resolveLlm() is the app's single answer to "which endpoint did the operator
+ * pick": admin settings on /admin first, LLM_* env vars second. It returns
+ * null unless BOTH a base URL and a key are present, and the ladder needs to
+ * tell "nothing configured" apart from "a key but no endpoint" — a key is a
+ * decision either way, and once one exists this file must not go probing
+ * loopback behind the operator's back. So the null branch still looks for a
+ * bare key before handing down to the probe.
+ */
+function configuredTarget(opts: TierOptions): Record<string, string | undefined> {
+  if (opts.env) return opts.env;
+  const resolved = resolveLlm();
+  if (resolved) {
+    return {
+      LLM_API_KEY: resolved.apiKey,
+      LLM_BASE_URL: resolved.baseUrl,
+      LLM_MODEL: resolved.model,
+    };
+  }
+  // resolveLlm() went null, so no source has BOTH halves. A half still counts:
+  // a key with no endpoint is an operator decision, and the ladder has to see
+  // it to stay off loopback.
+  const s = getSettings();
+  return {
+    LLM_API_KEY: s.llmApiKey || config.llmApiKey || undefined,
+    LLM_BASE_URL: s.llmBaseUrl || config.llmBaseUrl || undefined,
+    // Deliberately the RAW model, not config.llmModel: that one carries a
+    // hosted default ("gpt-4o-mini"), and handing a hosted default to the
+    // Ollama probe below would make it ask a local server for a model nobody
+    // pulled instead of picking one that is actually installed.
+    LLM_MODEL: s.llmModel || process.env.LLM_MODEL?.trim() || undefined,
+  };
+}
+
+/**
  * Which endpoint drafts the email: (1) a configured key always wins, and
  * Ollama is never even asked; (2) with no key, one short local probe, and a
  * real answer there is used keyless; (3) with neither, the caller keeps the
  * deterministic baseline email, which is what it does today.
  */
 export async function resolveLlmTier(opts: TierOptions = {}): Promise<LlmTier> {
-  const env = opts.env ?? {
-    LLM_API_KEY: config.llmApiKey,
-    LLM_BASE_URL: config.llmBaseUrl,
-    LLM_MODEL: config.llmModel,
-  };
+  const env = configuredTarget(opts);
   const apiKey = env.LLM_API_KEY?.trim();
   const baseUrl = env.LLM_BASE_URL?.trim();
   if (apiKey) {
@@ -910,19 +943,23 @@ async function callTier(
   prompt: ReturnType<typeof buildPrompt>,
   signal?: AbortSignal,
 ): Promise<Completion> {
-  if (tier.source === "offline") {
-    throw new LlmError("LLM_NOT_CONFIGURED", "no model tier is available");
-  }
-  const out = await chatCompletion({
-    baseUrl: tier.baseUrl,
-    apiKey: tier.apiKey,
-    model: tier.model,
+  if (tier.source === "offline") throw new LlmNotConfiguredError();
+  // One chat call for the whole app (src/lib/llm.ts). The tier rides in as an
+  // explicit target because the local Ollama rung is keyless and resolveLlm()
+  // cannot describe it.
+  const text = await chatText({
+    system: prompt.system,
+    user: prompt.user,
     temperature: 0,
-    messages: prompt.messages,
-    source: tier.source,
+    target: {
+      baseUrl: tier.baseUrl,
+      apiKey: tier.apiKey,
+      model: tier.model,
+      source: tier.source,
+    },
     signal,
   });
-  return { text: out.text, model: out.model || tier.model, source: out.source };
+  return { text, model: tier.model, source: tier.source };
 }
 
 /**
@@ -961,9 +998,10 @@ export async function generateTemplateEmail(
   try {
     completion = await complete(prompt, context);
   } catch (err) {
-    const code = (err as LlmError)?.code;
+    // No tier at all is not a failure to report as one: it is the documented
+    // keyless state, and the caller answers it with the baseline email alone.
     const reason =
-      code === "LLM_KEY_MISSING" || code === "LLM_NOT_CONFIGURED"
+      err instanceof LlmNotConfiguredError || (err as Error)?.name === "LLM_NOT_CONFIGURED"
         ? "no_llm_tier"
         : "llm_call_failed";
     return {

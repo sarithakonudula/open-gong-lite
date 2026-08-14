@@ -22,7 +22,7 @@
 import { z } from "zod";
 import { gateEvidenceQuote } from "@/lib/harness/gates";
 import { EvidenceSchema, type TranscriptLine } from "@/lib/types";
-import { config, hasLlmFallback } from "@/lib/config";
+import { resolveLlm } from "@/lib/settings";
 
 // ── Pack shapes ─────────────────────────────────────────────────────────────
 
@@ -455,19 +455,20 @@ export async function scoreCallWithLlm(
   pack: MethodologyPack,
   transcript: TranscriptLine[],
   opts: { dealValueUsd?: number | null } = {},
-): Promise<MethodologyScorecard> {
-  if (!hasLlmFallback()) {
+): Promise<{ card: MethodologyScorecard; rawVerdict: unknown }> {
+  const llm = resolveLlm();
+  if (!llm) {
     throw new Error("LLM is not configured — use applyMethodologyVerdict with a stored verdict, or the demo verdict");
   }
   const { system, user } = buildMethodologyPrompt(pack, transcript, opts);
-  const response = await fetch(`${config.llmBaseUrl}/chat/completions`, {
+  const response = await fetch(`${llm.baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${config.llmApiKey}`,
+      Authorization: `Bearer ${llm.apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: config.llmModel,
+      model: llm.model,
       temperature: 0.2,
       response_format: { type: "json_object" },
       messages: [
@@ -485,7 +486,11 @@ export async function scoreCallWithLlm(
   };
   const content = data.choices?.[0]?.message?.content;
   if (!content) throw new Error("Empty methodology scoring response");
-  return applyMethodologyVerdict(pack, transcript, JSON.parse(content), opts);
+  const rawVerdict = JSON.parse(content) as unknown;
+  return {
+    card: applyMethodologyVerdict(pack, transcript, rawVerdict, opts),
+    rawVerdict,
+  };
 }
 
 // ── Keyless demo (spends nothing; used by tests and the demo path) ──────────
@@ -2436,6 +2441,423 @@ export const METHODOLOGY_PACKS: MethodologyPack[] = MethodologyPackSchema.array(
           "why_it_matters": "The plan converts intent into forecastable steps — and extending it past signature into value realization is what protects the renewal.",
           "next_move": "Draft the mutual plan through value realization (not just signature) and ask the buyer to edit it.",
           "example_line": "Here's a plan from today to your first measurable result in Q2 — mark up anything that's wrong and let's run it together."
+        }
+      }
+    ]
+  },
+  {
+    "id": "support_excellence",
+    "name": "Support Excellence (QA)",
+    "origin": "Composite of contact-center QA scorecards: issue verification, ownership, FCR drive, expectation setting.",
+    "summary": "Scores a support interaction on the parameters support teams actually track: did the agent verify the real issue, own it, troubleshoot systematically, set expectations, confirm resolution, and prevent the next ticket. First-contact resolution and CSAT drivers, not vibes.",
+    "motion": "Support / helpdesk calls: reported issues, outages, how-do-I questions, escalations.",
+    "traits": [
+      {
+        "id": "issue_discovery",
+        "name": "Issue Discovery & Verification",
+        "weight": 3,
+        "rigor": "core",
+        "definition": "The agent uncovers the actual problem — restates it, confirms scope and impact, and reproduces or verifies it rather than treating the first symptom as the diagnosis.",
+        "classifying_questions": [
+          "Did the agent restate the issue in their own words and get confirmation?",
+          "Did they establish scope (one user or everyone, since when, what changed)?",
+          "Did they verify or reproduce the problem instead of guessing from the description?"
+        ],
+        "met_signals": [
+          "issue restated and confirmed by the customer",
+          "scope and timeline established (who, since when, what changed)"
+        ],
+        "miss_signals": [
+          "agent jumps to a fix before confirming the problem",
+          "symptom treated as diagnosis with no verification"
+        ],
+        "coaching": {
+          "why_it_matters": "Half of repeat tickets are the first ticket, misdiagnosed. Verifying the real issue is the cheapest first-contact-resolution lever there is.",
+          "next_move": "Before proposing anything, restate the issue and its scope back to the customer and get an explicit yes.",
+          "example_line": "So since Tuesday's update, exports fail for your whole team with a timeout — not just your account. Did I get that right?"
+        }
+      },
+      {
+        "id": "empathy_acknowledgment",
+        "name": "Empathy & Acknowledgment",
+        "weight": 2,
+        "rigor": "core",
+        "definition": "The agent acknowledges the customer's frustration and business impact before diving into mechanics — genuine, specific acknowledgment, not a scripted apology.",
+        "classifying_questions": [
+          "Did the agent acknowledge the impact on the customer's work before troubleshooting?",
+          "Was the acknowledgment specific to this customer's situation rather than a stock phrase?"
+        ],
+        "met_signals": [
+          "impact named specifically (deadline missed, team blocked)",
+          "customer's frustration acknowledged before mechanics start"
+        ],
+        "miss_signals": [
+          "straight to troubleshooting with no acknowledgment",
+          "stock apology with no reference to the actual impact"
+        ],
+        "coaching": {
+          "why_it_matters": "CSAT tracks how the customer felt, not just whether the ticket closed. Specific acknowledgment is the difference between resolved and resolved-but-churning.",
+          "next_move": "Name the concrete impact you heard before your first troubleshooting question.",
+          "example_line": "Payroll runs tomorrow and the export is down — I understand why this is urgent. Let's get you unblocked."
+        }
+      },
+      {
+        "id": "ownership",
+        "name": "Ownership & Accountability",
+        "weight": 3,
+        "rigor": "core",
+        "definition": "The agent owns the issue end-to-end: no blame-shifting to other teams, the customer, or the product, and no dead-end handoffs where the customer must re-explain.",
+        "classifying_questions": [
+          "Did the agent commit to owning the issue to resolution?",
+          "Did they avoid blaming other teams, the customer, or 'the system'?",
+          "If a handoff was needed, did they promise a warm transfer with context?"
+        ],
+        "met_signals": [
+          "explicit ownership language ('I'll own this until it's fixed')",
+          "handoffs framed as warm transfers with the agent carrying context"
+        ],
+        "miss_signals": [
+          "'that's a different team' with no bridge",
+          "customer told to re-open or re-explain elsewhere"
+        ],
+        "coaching": {
+          "why_it_matters": "Customers forgive bugs; they don't forgive being bounced. Ownership language is the strongest single predictor of good CSAT on a bad-news call.",
+          "next_move": "Say the ownership sentence out loud, even when another team will do the fixing.",
+          "example_line": "The fix sits with our platform team, but I'm your single point of contact — I'll chase it and update you, you won't have to re-explain anything."
+        }
+      },
+      {
+        "id": "troubleshooting_rigor",
+        "name": "Troubleshooting Rigor",
+        "weight": 3,
+        "rigor": "standard",
+        "definition": "Diagnosis is systematic: isolate variables, test hypotheses in order, narrate what's being checked and why — not random fix-flailing.",
+        "classifying_questions": [
+          "Did the agent isolate variables (account vs browser vs data vs release)?",
+          "Did they narrate what they were checking and why?",
+          "Were fixes attempted in a reasoned order rather than scattershot?"
+        ],
+        "met_signals": [
+          "hypotheses tested in order with narration",
+          "variables isolated before changes are made"
+        ],
+        "miss_signals": [
+          "random sequence of 'try this' with no rationale",
+          "same fix repeated after it already failed"
+        ],
+        "coaching": {
+          "why_it_matters": "Narrated, systematic diagnosis shortens handle time AND builds customer confidence — silence plus random fixes reads as incompetence even when the fix lands.",
+          "next_move": "Say your hypothesis before each check, so the customer follows the logic.",
+          "example_line": "It works in a private window, so it's not your account — that points at a cached token. Let's clear that next."
+        }
+      },
+      {
+        "id": "expectation_setting",
+        "name": "Expectation Setting",
+        "weight": 3,
+        "rigor": "core",
+        "definition": "The customer leaves knowing exactly what happens next: timeline, ticket reference, who does what, and when they'll hear back — even when the answer is 'not fixed yet'.",
+        "classifying_questions": [
+          "Did the agent give a concrete next update time ('by tomorrow 10am', not 'soon')?",
+          "Was a ticket or case reference stated for follow-up?",
+          "Does the customer know what they need to do vs what the agent will do?"
+        ],
+        "met_signals": [
+          "specific update time or SLA committed",
+          "ticket reference given and next owner named"
+        ],
+        "miss_signals": [
+          "'we'll get back to you' with no when",
+          "call ends with the customer unsure who acts next"
+        ],
+        "coaching": {
+          "why_it_matters": "Most escalations aren't about the bug — they're about silence. A concrete 'when you'll hear from me' prevents the second, angrier contact.",
+          "next_move": "End every unresolved issue with a named time you'll update them, and log it where you'll actually see it.",
+          "example_line": "You'll have an update from me by 10am tomorrow under ticket 4821 either way — even if the news is 'still working on it'."
+        }
+      },
+      {
+        "id": "resolution_confirmation",
+        "name": "Resolution & Confirmation",
+        "weight": 3,
+        "rigor": "core",
+        "definition": "The fix is verified with the customer on the call where possible — the agent confirms the issue is actually resolved from the customer's side, driving first-contact resolution.",
+        "classifying_questions": [
+          "Did the agent have the customer verify the fix from their side?",
+          "Was 'anything else' asked after resolution, not as a brush-off?",
+          "If unresolvable now, was a workaround offered to unblock the customer?"
+        ],
+        "met_signals": [
+          "customer confirms working on the call",
+          "workaround provided when the root fix must wait"
+        ],
+        "miss_signals": [
+          "agent declares it fixed without customer verification",
+          "no workaround offered for a blocking issue"
+        ],
+        "coaching": {
+          "why_it_matters": "First-contact resolution is the metric everything else feeds. A fix the customer hasn't verified is a reopened ticket with worse sentiment.",
+          "next_move": "Never close on your own verification — have them run the failing action while you're still on the line.",
+          "example_line": "Run that export one more time while I'm here — I want to see it succeed on your side before we close this out."
+        }
+      },
+      {
+        "id": "escalation_hygiene",
+        "name": "Escalation Hygiene",
+        "weight": 2,
+        "rigor": "standard",
+        "definition": "When escalation is right, it happens promptly and cleanly: correct severity, full context attached, warm handoff, no heroic time-wasting on issues above the agent's access.",
+        "classifying_questions": [
+          "Did the agent recognize the escalation point instead of burning time past it?",
+          "Was severity/priority set and said out loud?",
+          "Did they package context so the next team doesn't start from zero?"
+        ],
+        "met_signals": [
+          "escalation with severity named and context summarized",
+          "customer told who takes over and when"
+        ],
+        "miss_signals": [
+          "an hour of flailing on something requiring engineering access",
+          "escalated as a bare ticket with no reproduction steps"
+        ],
+        "coaching": {
+          "why_it_matters": "Escalating well isn't failure — it's routing. The expensive failure is late escalation with an empty ticket the next team bounces back.",
+          "next_move": "When two hypotheses fail on something with real impact, escalate with your reproduction steps and what you've ruled out.",
+          "example_line": "I'm escalating this to engineering as a sev-2 with the repro steps and the two things we've ruled out — that saves them an hour and gets you answers faster."
+        }
+      },
+      {
+        "id": "wrapup_prevention",
+        "name": "Wrap-up & Prevention",
+        "weight": 2,
+        "rigor": "deep",
+        "definition": "The call closes with a summary of what happened and what's next — and where possible, the agent prevents the next ticket: root-cause explanation, self-serve resource, or a settings change.",
+        "classifying_questions": [
+          "Did the agent summarize issue, actions taken, and next steps at close?",
+          "Did they explain the cause so the customer can avoid recurrence?",
+          "Was a doc, setting, or practice shared that prevents the next contact?"
+        ],
+        "met_signals": [
+          "closing summary covering issue, fix, and follow-ups",
+          "prevention offered (doc link, setting, root-cause explanation)"
+        ],
+        "miss_signals": [
+          "call just ends after the fix",
+          "same-cause repeat tickets with no prevention attempt"
+        ],
+        "coaching": {
+          "why_it_matters": "Ticket deflection starts on this call: thirty seconds of prevention is cheaper than the next thirty-minute repeat contact.",
+          "next_move": "Close with a three-part summary — what broke, what we did, what happens next — plus one prevention tip.",
+          "example_line": "Quick recap: the export timeout came from the oversized date range; we split it and it works. The guide I'm sending shows the range limits so this never bites you again."
+        }
+      }
+    ]
+  },
+  {
+    "id": "customer_success",
+    "name": "Customer Success (Health & Renewal)",
+    "origin": "Composite of CS health frameworks: outcome alignment, adoption review, risk sensing, renewal and expansion management.",
+    "summary": "Scores a CS check-in/QBR on what CS teams actually track: outcomes restated, adoption reviewed with data, value articulated in business terms, stakeholder and churn risk sensed, renewal managed on a timeline, expansion discovered consultatively.",
+    "motion": "CS check-ins, QBRs/EBRs, onboarding reviews, renewal-window calls.",
+    "traits": [
+      {
+        "id": "outcome_alignment",
+        "name": "Outcome Alignment",
+        "weight": 3,
+        "rigor": "core",
+        "definition": "The CSM anchors the conversation to the customer's business outcomes and success criteria — the goals they bought for, restated and re-validated, not assumed from last quarter.",
+        "classifying_questions": [
+          "Did the CSM restate the customer's success criteria or business goals?",
+          "Did they check whether those goals changed since the last conversation?",
+          "Is the agenda anchored to customer outcomes rather than a feature tour?"
+        ],
+        "met_signals": [
+          "success criteria restated and confirmed current",
+          "goal changes surfaced and the plan adjusted"
+        ],
+        "miss_signals": [
+          "call is a feature update with no outcome anchor",
+          "goals assumed unchanged since onboarding"
+        ],
+        "coaching": {
+          "why_it_matters": "Renewals are bought against outcomes, not features. A CSM working toward last quarter's goals is defending last quarter's renewal.",
+          "next_move": "Open by restating their success criteria and explicitly asking what's changed.",
+          "example_line": "When we started, success was cutting missed after-hours calls by half — is that still the number that matters, or has the goal moved?"
+        }
+      },
+      {
+        "id": "adoption_review",
+        "name": "Adoption & Usage Review",
+        "weight": 3,
+        "rigor": "core",
+        "definition": "Usage is reviewed with actual data — active users, feature adoption, trends — and gaps are diagnosed (who isn't using it and why), not just reported.",
+        "classifying_questions": [
+          "Did the CSM bring concrete usage data (numbers, trends), not impressions?",
+          "Were adoption gaps identified with a why (team, workflow, training)?",
+          "Was underused high-value functionality flagged with a plan to activate it?"
+        ],
+        "met_signals": [
+          "specific usage numbers or trends cited",
+          "adoption gap diagnosed to a team or workflow with a fix proposed"
+        ],
+        "miss_signals": [
+          "'how's it going?' with no data on the table",
+          "declining usage unmentioned or unexplained"
+        ],
+        "coaching": {
+          "why_it_matters": "Usage decline is the earliest churn signal you get — surfacing it with data while there's time to fix it is the whole job.",
+          "next_move": "Bring one usage trend and one adoption gap to every call, each with a proposed action.",
+          "example_line": "Logins are steady but the scheduling module dropped forty percent since March — walk me through what changed for the front-desk team?"
+        }
+      },
+      {
+        "id": "value_articulation",
+        "name": "Value Realization",
+        "weight": 3,
+        "rigor": "core",
+        "definition": "Usage is translated into business impact the customer's executives would recognize — time saved, revenue protected, cost avoided — quantified where possible and confirmed by the customer.",
+        "classifying_questions": [
+          "Did the CSM connect product usage to a business result in the customer's terms?",
+          "Was the value quantified (hours, dollars, percentage) rather than asserted?",
+          "Did the customer confirm or correct the value story?"
+        ],
+        "met_signals": [
+          "impact stated in customer business terms with numbers",
+          "customer agrees with or refines the value story"
+        ],
+        "miss_signals": [
+          "value asserted generically ('you're getting great value')",
+          "no attempt to build the renewal's business case during the year"
+        ],
+        "coaching": {
+          "why_it_matters": "The renewal conversation is won months earlier, one confirmed value statement at a time. If the champion can't repeat your ROI story to their CFO, you don't have one.",
+          "next_move": "Turn one usage stat into a business-impact sentence and ask the customer to sanity-check it.",
+          "example_line": "Twelve hundred after-hours calls answered this quarter — at your booking rate that's roughly ninety recovered appointments. Does that math hold from where you sit?"
+        }
+      },
+      {
+        "id": "stakeholder_health",
+        "name": "Stakeholder & Sponsor Health",
+        "weight": 3,
+        "rigor": "standard",
+        "definition": "The CSM tracks the human map: executive sponsor still engaged, champion still present and empowered, relationships spread across more than one thread.",
+        "classifying_questions": [
+          "Did the CSM check on the executive sponsor's engagement?",
+          "Were personnel changes (champion leaving, reorg) surfaced?",
+          "Is there an effort to widen contact beyond a single champion?"
+        ],
+        "met_signals": [
+          "sponsor engagement checked or a sponsor touchpoint planned",
+          "org changes surfaced with a plan to rebuild coverage"
+        ],
+        "miss_signals": [
+          "single-threaded through one contact with no widening attempt",
+          "champion departure discovered at renewal time"
+        ],
+        "coaching": {
+          "why_it_matters": "Accounts rarely churn because the product failed — they churn because the person who bought it left and nobody else cared. Sponsor coverage is churn insurance.",
+          "next_move": "Ask about org changes on every call and book one new-stakeholder touchpoint per quarter.",
+          "example_line": "If Rahul moved on tomorrow, who else in the practice would fight for this renewal? Let's get them into the next review."
+        }
+      },
+      {
+        "id": "risk_sensing",
+        "name": "Risk Sensing",
+        "weight": 3,
+        "rigor": "core",
+        "definition": "Churn signals are actively probed, not passively awaited: sentiment shifts, budget pressure, competitor evaluations, unresolved support pain, declining engagement — named and answered.",
+        "classifying_questions": [
+          "Did the CSM probe for dissatisfaction or blockers rather than fishing for praise?",
+          "Were risk signals (budget cuts, competitor mention, support frustration) acknowledged and pursued?",
+          "Did a named risk get a concrete response plan?"
+        ],
+        "met_signals": [
+          "direct question inviting honest negative feedback",
+          "risk named, sized, and answered with an action"
+        ],
+        "miss_signals": [
+          "happy-ears call where only positives are explored",
+          "competitor or budget mention glossed over"
+        ],
+        "coaching": {
+          "why_it_matters": "Customers rehearse their churn reasons for months. The CSM who asks for bad news early gets to answer it; the one who doesn't hears it in the non-renewal email.",
+          "next_move": "Ask the uncomfortable question every call: what's not working, what would make them consider alternatives.",
+          "example_line": "If your CFO asked why keep this line item next year, what's the weakest part of the answer today?"
+        }
+      },
+      {
+        "id": "renewal_management",
+        "name": "Renewal & Timeline Management",
+        "weight": 3,
+        "rigor": "standard",
+        "definition": "The renewal is managed as a project with a date: timeline named, procurement/legal lead times understood, decision process and approvers known well before the window closes.",
+        "classifying_questions": [
+          "Was the renewal date or window explicitly discussed?",
+          "Does the CSM know the approval chain and procurement lead time?",
+          "Are renewal blockers being worked ahead of the window, not inside it?"
+        ],
+        "met_signals": [
+          "renewal date named with a worked-back timeline",
+          "approver and procurement path identified"
+        ],
+        "miss_signals": [
+          "renewal date unmentioned inside two quarters of expiry",
+          "assumption of auto-renewal with no confirmation"
+        ],
+        "coaching": {
+          "why_it_matters": "Late renewals become discounted renewals — every week inside procurement's lead time is negotiating leverage handed to the buyer.",
+          "next_move": "Name the renewal date and work backwards out loud: approvals, legal, procurement, and the date the value story must be ready.",
+          "example_line": "You renew March 1 and procurement needs six weeks — so our business case lands with your leadership by mid-January. Let's lock that review now."
+        }
+      },
+      {
+        "id": "expansion_discovery",
+        "name": "Expansion Discovery",
+        "weight": 2,
+        "rigor": "deep",
+        "definition": "Growth is discovered consultatively: new teams, use cases, or volumes surfaced from the customer's plans — expansion proposed because it serves a stated goal, never as a quota-driven pitch.",
+        "classifying_questions": [
+          "Did the CSM explore new teams, locations, or use cases from the customer's own plans?",
+          "Was any expansion framed around a customer goal rather than a product push?",
+          "Were growth signals (hiring, new offices, new workflows) picked up and pursued?"
+        ],
+        "met_signals": [
+          "expansion tied to a stated customer plan or goal",
+          "growth signal noticed and explored"
+        ],
+        "miss_signals": [
+          "upsell pitched with no connection to customer goals",
+          "obvious growth signal (new location, hiring) ignored"
+        ],
+        "coaching": {
+          "why_it_matters": "Net revenue retention is built on expansion that feels like service. The signal is always in the customer's plans — if you're pitching, you missed it.",
+          "next_move": "Ask about the customer's next-quarter plans before ever mentioning a SKU.",
+          "example_line": "You mentioned the second clinic opening in June — want to walk through what their phone setup would need so day one isn't a scramble?"
+        }
+      },
+      {
+        "id": "success_planning",
+        "name": "Success Planning & Next Steps",
+        "weight": 2,
+        "rigor": "standard",
+        "definition": "The call ends in a living success plan: concrete actions with owners and dates on both sides, connected to the outcomes — not 'let's touch base next quarter'.",
+        "classifying_questions": [
+          "Did the call produce specific actions with owners and dates?",
+          "Do the actions ladder up to the customer's stated outcomes?",
+          "Was the next meaningful touchpoint booked, not vaguely promised?"
+        ],
+        "met_signals": [
+          "actions with owners and dates on both sides",
+          "next touchpoint scheduled with a purpose"
+        ],
+        "miss_signals": [
+          "call ends with 'talk soon' and nothing owned",
+          "action items disconnected from any outcome"
+        ],
+        "coaching": {
+          "why_it_matters": "A CS motion without a written plan is a series of pleasant chats ending in a surprise churn. The plan is what makes value inevitable instead of incidental.",
+          "next_move": "Close every call by reading back the actions, owners, and dates — and book the next session before hanging up.",
+          "example_line": "So: I send the adoption report Friday, your team enables texting by the 15th, and we review results on the 22nd at 2 — booking that now."
         }
       }
     ]

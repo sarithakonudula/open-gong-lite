@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
-import { config, hasLlmFallback } from "@/lib/config";
+import { config } from "@/lib/config";
 import { demoExtractDealNotes } from "@/lib/demo-extract";
+import { hasLlmConfigured } from "@/lib/settings";
 import {
   coverageToRunStatus,
   validateDealNotes,
@@ -96,7 +97,7 @@ async function produceCandidate(
     };
   }
 
-  if (hasLlmFallback()) {
+  if (hasLlmConfigured()) {
     return {
       raw: await extractDealNotesWithLlm(
         input.transcript,

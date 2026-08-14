@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hasLlmFallback } from "@/lib/config";
 import {
   getMethodologyPack,
   scoreCallWithLlm,
 } from "@/lib/methodology";
-import { getRun } from "@/lib/store";
+import { hasLlmConfigured } from "@/lib/settings";
+import { getRun, saveRun } from "@/lib/store";
 
 export const runtime = "nodejs";
 
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest, context: Ctx) {
     return NextResponse.json({ error: "Invalid run id" }, { status: 400 });
   }
 
-  if (!hasLlmFallback()) {
+  if (!hasLlmConfigured()) {
     return NextResponse.json(
       { error: "LLM is not configured" },
       { status: 400 },
@@ -67,7 +67,20 @@ export async function POST(request: NextRequest, context: Ctx) {
   }
 
   try {
-    const card = await scoreCallWithLlm(pack, run.transcript, { dealValueUsd });
+    const { card, rawVerdict } = await scoreCallWithLlm(pack, run.transcript, {
+      dealValueUsd,
+    });
+    // Persist the raw verdict so the coaching loop can trend this rep's
+    // traits across calls (re-gated on read, never trusted as-is).
+    await saveRun({
+      ...run,
+      methodology: {
+        packId,
+        dealValueUsd,
+        scoredAt: new Date().toISOString(),
+        verdict: rawVerdict,
+      },
+    });
     return NextResponse.json({ card });
   } catch {
     return NextResponse.json({ error: "Scoring failed" }, { status: 502 });

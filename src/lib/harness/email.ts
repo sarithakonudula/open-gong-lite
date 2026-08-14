@@ -126,3 +126,134 @@ export function chokeFollowUp(opts: {
     status: receipt.status || "verified",
   };
 }
+
+// ── Contextual follow-up (LLM + CRM context, same choke) ────────────────────
+//
+// The model NEVER sees the transcript or any non-emailable claim — only
+// verified/segment-corrected claims plus CRM facts. Output is post-gated:
+// every cited claim id must be emailable, and a leak screen rejects any draft
+// whose text contains an unproven or injected claim. On any failure callers
+// fall back to the deterministic composeEmail.
+
+export type CrmEmailContext = {
+  company?: string;
+  contactFirstName?: string;
+  dealStage?: string;
+  /** Short CRM facts, e.g. "Viewed /pricing 3x this week". */
+  recentActivity?: string[];
+};
+
+export type ContextualDraft = {
+  subject: string;
+  body: string;
+  usedClaimIds: string[];
+  source: "llm_crm";
+};
+
+type ChatFn = (args: { system: string; user: string }) => Promise<string>;
+
+function normalizeForLeakScan(text: string): string {
+  return text.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** Throws EmailError when a non-emailable claim's text/quote appears in the draft. */
+export function screenContextualLeak(
+  draft: { subject: string; body: string },
+  claims: Claim[],
+): void {
+  const haystack = normalizeForLeakScan(`${draft.subject}\n${draft.body}`);
+  for (const claim of claims) {
+    if (isEmailableStatus(claim.status)) continue;
+    for (const fragment of [claim.text, claim.evidence.quote]) {
+      const needle = normalizeForLeakScan(fragment);
+      if (needle.length >= 12 && haystack.includes(needle)) {
+        throw new EmailError(
+          "EMAIL_LEAK_BLOCKED",
+          `draft contains a ${claim.status ?? "ungated"} claim — whole draft rejected`,
+        );
+      }
+    }
+  }
+}
+
+export async function composeContextualEmail(opts: {
+  claims: Claim[];
+  title: string;
+  context?: CrmEmailContext;
+  chat: ChatFn;
+  guidance?: string;
+}): Promise<ContextualDraft> {
+  assertClaimsOnly(opts.claims);
+  const usable = emailableClaims(opts.claims);
+  if (usable.length === 0) {
+    throw new EmailError(
+      "EMAIL_NO_VERIFIED_CLAIMS",
+      "no claims passed the receipts gate — nothing to draft from",
+    );
+  }
+
+  const allowed = new Map(
+    usable.map((c) => [c.id || c.evidence.lineId, c] as const),
+  );
+  const claimBlock = [...allowed.entries()]
+    .map(([id, c]) => `- [${id}] ${c.text}`)
+    .join("\n");
+  const ctx = opts.context ?? {};
+  const contextBlock = [
+    ctx.company ? `Company: ${ctx.company}` : null,
+    ctx.contactFirstName ? `Contact first name: ${ctx.contactFirstName}` : null,
+    ctx.dealStage ? `Deal stage: ${ctx.dealStage}` : null,
+    ...(ctx.recentActivity ?? []).map((a) => `Recent: ${a}`),
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const system = `You draft a short follow-up email for a sales rep after a call.
+Return ONLY valid JSON: {"subject": string, "body": string, "usedClaimIds": string[]}
+Rules:
+- You may ONLY state facts from the VERIFIED CLAIMS and CRM CONTEXT below.
+- List every claim id you used in usedClaimIds. Use at least one.
+- Never invent numbers, dates, discounts, or commitments.
+- Warm, concrete, under 160 words. Reference CRM context naturally when it helps.
+${opts.guidance ? `Admin guidance:\n${opts.guidance}` : ""}`;
+
+  const user = `Call: ${opts.title}
+${contextBlock ? `CRM CONTEXT:\n${contextBlock}\n` : ""}VERIFIED CLAIMS:\n${claimBlock}`;
+
+  const raw = await opts.chat({ system, user });
+  let parsed: { subject?: unknown; body?: unknown; usedClaimIds?: unknown };
+  try {
+    const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+    parsed = JSON.parse(cleaned) as typeof parsed;
+  } catch {
+    throw new EmailError("EMAIL_DRAFT_INVALID", "LLM draft was not valid JSON");
+  }
+
+  const subject = typeof parsed.subject === "string" ? parsed.subject.trim() : "";
+  const body = typeof parsed.body === "string" ? parsed.body.trim() : "";
+  const usedClaimIds = Array.isArray(parsed.usedClaimIds)
+    ? parsed.usedClaimIds.map(String)
+    : [];
+  if (!subject || !body || usedClaimIds.length === 0) {
+    throw new EmailError(
+      "EMAIL_DRAFT_INVALID",
+      "LLM draft is missing subject, body, or claim citations",
+    );
+  }
+  for (const id of usedClaimIds) {
+    if (!allowed.has(id)) {
+      throw new EmailError(
+        "EMAIL_DRAFT_REJECTED",
+        `draft cites claim ${JSON.stringify(id)} which is not a verified claim — whole draft rejected`,
+      );
+    }
+  }
+  screenContextualLeak({ subject, body }, opts.claims);
+
+  return {
+    subject: subject.slice(0, 160),
+    body,
+    usedClaimIds,
+    source: "llm_crm",
+  };
+}
