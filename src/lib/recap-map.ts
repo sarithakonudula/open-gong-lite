@@ -3,6 +3,13 @@ import type { RecapCall } from "@/lib/pyai";
 import { Claim, DealNotes, Evidence, TranscriptLine } from "@/lib/types";
 
 /**
+ * lineId for a claim no transcript line supports. It never exists in the
+ * transcript, so the downstream gate returns missing_line and demotes the
+ * claim — and the UI cannot show a real, unrelated line as its receipt.
+ */
+const UNSUPPORTED_LINE = "__unsupported__";
+
+/**
  * Attach a receipt using the *claim text* as the quote. Never copy a transcript
  * line into evidence.quote — that made the gate self-pass. If the claim is not
  * in the call, the quote still fails the gate and the claim is demoted.
@@ -15,7 +22,6 @@ export function locateEvidence(
     throw new Error("Cannot attach receipts to an empty transcript");
   }
   const quote = text.trim().slice(0, 240) || "unquoted claim";
-  const first = transcript[0]!;
 
   for (const line of transcript) {
     const gate = gateEvidenceQuote(quote, line.id, transcript);
@@ -30,7 +36,7 @@ export function locateEvidence(
     }
   }
 
-  return { lineId: first.id, quote };
+  return { lineId: UNSUPPORTED_LINE, quote };
 }
 
 function asStringList(value: unknown): string[] {
@@ -151,6 +157,10 @@ export function mapRecapToDealNotes(
     "alternatives",
   ]);
 
+  // Absence honesty: when Recap yields nothing for a section, say so in
+  // words. A next step the buyer never agreed to must not be invented from a
+  // transcript line (right quote, fabricated commitment); the absence claim
+  // carries no receipt either, so the gate demotes it too.
   const summaryClaims = uniqueSummary.length
     ? uniqueSummary.map((t) => claim(t, transcript))
     : absent("A call summary", transcript);

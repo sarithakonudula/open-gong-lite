@@ -61,7 +61,7 @@ export function LoginClient() {
 
   if (!authRequired) {
     return (
-      <p className="text-mist">Auth is off — redirecting…</p>
+      <p className="text-mist">Auth is off, redirecting…</p>
     );
   }
 

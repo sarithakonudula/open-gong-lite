@@ -5,14 +5,15 @@ import {
   type AlertSeverity,
   type DealAlert,
 } from "@/lib/deal-signals";
+import { SIGNAL_EVIDENCE_LABEL, SIGNAL_SEVERITY_LABEL } from "@/lib/labels";
 
 export const dynamic = "force-static";
 
 const SEVERITY_STYLE: Record<AlertSeverity, { label: string; badge: string }> = {
-  hot: { label: "Hot", badge: "border-heat/60 text-heat" },
-  high: { label: "High", badge: "border-heat/40 text-heat/90" },
-  watch: { label: "Watch", badge: "border-mist/50 text-fog" },
-  info: { label: "Info", badge: "border-mist/30 text-mist" },
+  hot: { label: SIGNAL_SEVERITY_LABEL.hot!, badge: "border-heat/60 text-heat" },
+  high: { label: SIGNAL_SEVERITY_LABEL.high!, badge: "border-heat/40 text-heat/90" },
+  watch: { label: SIGNAL_SEVERITY_LABEL.watch!, badge: "border-mist/50 text-fog" },
+  info: { label: SIGNAL_SEVERITY_LABEL.info!, badge: "border-mist/30 text-mist" },
 };
 
 function AlertCard({ alert }: { alert: DealAlert }) {
@@ -43,18 +44,19 @@ function AlertCard({ alert }: { alert: DealAlert }) {
         </div>
       ) : (
         <p className="mt-3 text-xs uppercase tracking-wide text-mist">
-          no call evidence — signal only
+          {SIGNAL_EVIDENCE_LABEL.signal_only}
         </p>
       )}
       <p className="mt-3 text-sm text-fog">
-        <span className="font-medium text-foreground">Play:</span> {alert.play}
+        <span className="font-medium text-foreground">What to do:</span>{" "}
+        {alert.play}
       </p>
       {alert.resolvesWhen && (
         <p className="mt-2 text-xs text-mist">{alert.resolvesWhen}</p>
       )}
       {alert.push && (
         <p className="mt-2 text-xs uppercase tracking-wide text-signal">
-          → pushed to CRM as a task
+          → sent to the CRM as a task
         </p>
       )}
     </li>
@@ -87,18 +89,20 @@ export default async function SignalsPage() {
           Deal signals
         </h1>
         <p className="mt-5 text-lg leading-relaxed text-fog/90">
-          De-anonymized page visits, support tickets, renewal windows, and
-          overdue commitments — turned into alerts that cite the exact line
-          from the call that makes them matter. Demo data: the Brightsmile
-          deal, one week after discovery.
+          Page visits, support tickets, renewal dates, and promises nobody
+          kept, turned into things worth doing today. Each one carries the line
+          from the call that makes it matter, or says plainly that no line
+          backs it. Sample data: the Brightsmile deal, one week after the first
+          call.
         </p>
 
         {feed ? (
           <>
             <p className="mt-8 text-sm uppercase tracking-wide text-mist">
-              {feed.company} · {feed.alerts.length} alerts
+              {feed.company} · {feed.alerts.length}{" "}
+              {feed.alerts.length === 1 ? "signal" : "signals"}
               {feed.suppressed.length > 0 &&
-                ` · ${feed.suppressed.length} below the noise floor for this deal size`}
+                ` · ${feed.suppressed.length} too small to raise on a deal this size`}
             </p>
             <ul className="mt-4 space-y-4">
               {feed.alerts.map((a) => (
