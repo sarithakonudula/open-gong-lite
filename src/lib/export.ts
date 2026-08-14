@@ -67,7 +67,9 @@ export function notesToMarkdown(run: RunRecord): string {
   const notes = run.notes;
   if (!notes) return `# ${run.sourceLabel}\n\n_No notes came out of this call._\n`;
 
-  const emailBacked = isEmailableStatus(notes.followUpEmail.status);
+  const emailBacked =
+    notes.followUpEmail.status == null ||
+    isEmailableStatus(notes.followUpEmail.status);
   const sections: string[] = [
     `# ${callTitle(notes.title, run.sourceLabel)}`,
     "",

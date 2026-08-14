@@ -422,12 +422,19 @@ describe("the screen still owns every asserting line", () => {
     });
     assert.equal(failed.ok, false);
     assert.equal(failed.ok === false && failed.reason, "llm_call_failed");
+  });
 
+  it("fills the routed template deterministically when there is no LLM tier", async () => {
     const keyless = await generateTemplateEmail(base, TEMPLATE_FILES, {
       tier: { source: "offline" },
     });
-    assert.equal(keyless.ok, false);
-    assert.equal(keyless.ok === false && keyless.reason, "no_llm_tier");
+    assert.equal(keyless.ok, true);
+    if (!keyless.ok) return;
+    assert.equal(keyless.template_id, "post-demo-followup");
+    assert.equal(keyless.email.provenance.source, "deterministic");
+    assert.match(keyless.email.body, /downtime concern was addressed/i);
+    assert.match(keyless.email.body, /SOC 2 report by Friday/);
+    assert.match(keyless.email.body, /What we covered:/);
   });
 
   it("still parses a fenced JSON answer, because models fence things", () => {
@@ -515,14 +522,19 @@ describe("the tier ladder", () => {
     );
   });
 
-  it("keeps today's behavior exactly when there is no key and no Ollama", async () => {
+  it("still ships a deterministic template fill when there is no key and no Ollama", async () => {
     const offline: LlmTier = { source: "offline" };
-    assert.equal(await generateRoutedFollowUp(base, { tier: offline }), null);
-    assert.equal(
-      await generateRoutedFollowUp(notes({ pricing: [] }), { tier: offline }),
-      null,
-      "no tier, no second variant, so the page renders as it does today",
-    );
+    const routed = await generateRoutedFollowUp(base, { tier: offline });
+    assert.ok(routed);
+    assert.equal(routed!.template.id, "post-demo-followup");
+    assert.equal(routed!.provenance.source, "deterministic");
+    assert.match(routed!.body, /downtime concern was addressed/i);
+
+    const quiet = await generateRoutedFollowUp(notes({ pricing: [] }), {
+      tier: offline,
+    });
+    assert.ok(quiet, "a call with backed claims still gets a template when offline");
+    assert.equal(quiet!.provenance.source, "deterministic");
   });
 
   it("returns null rather than throwing when the model misbehaves", async () => {

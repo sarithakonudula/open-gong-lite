@@ -413,8 +413,11 @@ export function buildAnalysisView(run: RunRecord): AnalysisView {
 
   const email = notes?.followUpEmail;
   // The one surface the run-level verdict closes. Notes above it are unaffected.
+  // Legacy runs may omit status; treat missing status as displayable.
   const emailHeld =
-    !email || !isEmailableStatus(email.status) || run.status === "failed";
+    !email ||
+    (email.status != null && !isEmailableStatus(email.status)) ||
+    run.status === "failed";
 
   // The score describes the page. Counting lines the page holds back would
   // claim backing for notes nobody can see.

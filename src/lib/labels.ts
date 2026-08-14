@@ -156,6 +156,7 @@ export function routedPanelTitle(short: string): string {
 const MODEL_SOURCE_LABEL: Record<string, string> = {
   configured: "the model this deployment is configured with",
   "ollama-local": "a model running on this machine",
+  deterministic: "the template filled from backed notes only (no model)",
 };
 
 export function modelSourceLabel(source: string): string {

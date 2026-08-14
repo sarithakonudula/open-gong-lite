@@ -11,11 +11,13 @@ import { extractDealNotesWithLlm } from "@/lib/llm-extract";
 import type { RecapCall } from "@/lib/pyai";
 import { mapRecapToDealNotes } from "@/lib/recap-map";
 import { newShareToken, saveRun } from "@/lib/store";
-import { generateRoutedFollowUp } from "@/lib/template-email";
+import {
+  backedClaims,
+  generateRoutedFollowUp,
+} from "@/lib/template-email";
 import {
   AttemptRecord,
   DealNotes,
-  isEmailableStatus,
   NotesSource,
   RunNotes,
   RunRecord,
@@ -31,13 +33,13 @@ const ROUTED_DRAFT_TIMEOUT_MS = 20_000;
  *
  * 1. It reads the gated notes, so it only ever sees claims the gate passed.
  * 2. Its draft goes back through the same screen the baseline goes through.
- * 3. Every failure, including no model tier at all, returns null, and null
- *    leaves the run byte for byte what it is today.
+ * 3. When no model tier is available, a deterministic template fill still
+ *    ships so the routed panel is not blank; LLM polish is additive.
  */
 async function withRoutedFollowUp(notes: RunNotes): Promise<RunNotes> {
   // Nothing was backed, so nothing left the page. A second variant of an
   // email that was withheld would be the one way back in.
-  if (!isEmailableStatus(notes.followUpEmail.status)) return notes;
+  if (!backedClaims(notes).length) return notes;
   try {
     const routed = await generateRoutedFollowUp(notes, {
       signal: AbortSignal.timeout(ROUTED_DRAFT_TIMEOUT_MS),
