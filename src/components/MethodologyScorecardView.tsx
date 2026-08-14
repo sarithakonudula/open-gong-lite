@@ -26,8 +26,6 @@ const DEPTH_BADGE: Record<Depth, { label: string; className: string }> = {
   },
 };
 
-type ScorecardSection = "criteria" | "coaching" | "not_scored";
-
 function TraitAccordion({
   row,
   coaching = false,
@@ -186,8 +184,11 @@ export function MethodologyScorecardView({
   const [cardsByPack, setCardsByPack] = useState<
     Record<string, MethodologyScorecard>
   >(() => (initialCard ? { [initialCard.pack.id]: initialCard } : {}));
-  const [activeSection, setActiveSection] =
-    useState<ScorecardSection>("criteria");
+  const [activeTraitId, setActiveTraitId] = useState<string | null>(
+    initialCard?.traits.find((row) => row.inScope)?.trait.id ??
+      initialCard?.traits[0]?.trait.id ??
+      null,
+  );
   const [dealValue, setDealValue] = useState(
     initialCard?.dealValueUsd != null ? String(initialCard.dealValueUsd) : "",
   );
@@ -207,6 +208,11 @@ export function MethodologyScorecardView({
         [initialCard.pack.id]: initialCard,
       }));
       setPackId(initialCard.pack.id);
+      setActiveTraitId(
+        initialCard.traits.find((row) => row.inScope)?.trait.id ??
+          initialCard.traits[0]?.trait.id ??
+          null,
+      );
     }
   }
 
@@ -251,7 +257,11 @@ export function MethodologyScorecardView({
         [data.card!.pack.id]: data.card!,
       }));
       setPackId(data.card.pack.id);
-      setActiveSection("criteria");
+      setActiveTraitId(
+        data.card.traits.find((row) => row.inScope)?.trait.id ??
+          data.card.traits[0]?.trait.id ??
+          null,
+      );
     } catch {
       setError("Scoring failed.");
     } finally {
@@ -263,24 +273,13 @@ export function MethodologyScorecardView({
     () => card?.traits.filter((t) => t.inScope) ?? [],
     [card],
   );
-  const outOfScope = useMemo(
-    () => card?.traits.filter((t) => !t.inScope) ?? [],
-    [card],
-  );
-  const gaps = useMemo(
+  const activeTrait = useMemo(
     () =>
-      inScope.filter(
-        (r) =>
-          r.verdict &&
-          (r.verdict.effectiveDepth === "missing" ||
-            r.verdict.effectiveDepth === "surface" ||
-            r.verdict.unverified),
-      ),
-    [inScope],
-  );
-  const sortedGaps = useMemo(
-    () => gaps.slice().sort((a, b) => b.trait.weight - a.trait.weight),
-    [gaps],
+      card?.traits.find((row) => row.trait.id === activeTraitId) ??
+      card?.traits.find((row) => row.inScope) ??
+      card?.traits[0] ??
+      null,
+    [activeTraitId, card],
   );
 
   return (
@@ -336,31 +335,6 @@ export function MethodologyScorecardView({
         </header>
 
         <section className="overflow-hidden rounded-2xl border border-edge bg-canvas">
-          <div className="overflow-x-auto border-b border-edge bg-surface">
-            <div className="flex min-w-max">
-              {packs.map((pack) => {
-                const active = packId === pack.id;
-                return (
-                  <button
-                    key={pack.id}
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      setPackId(pack.id);
-                      setActiveSection("criteria");
-                    }}
-                    className={`min-w-36 border-b-2 px-6 py-4 text-sm font-semibold transition ${
-                      active
-                        ? "border-brand bg-signal/10 text-brand"
-                        : "border-transparent text-fg-muted hover:bg-canvas hover:text-fg"
-                    }`}
-                  >
-                    {pack.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
           <div className="space-y-3 p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-fg-soft">
             Score this methodology
@@ -371,6 +345,24 @@ export function MethodologyScorecardView({
             ) : null}
           </p>
           <div className="flex flex-wrap items-end gap-3">
+            <label className="min-w-56 flex-1 text-sm text-fg-soft">
+              Methodology
+              <select
+                className="field mt-1"
+                value={packId}
+                onChange={(event) => {
+                  setPackId(event.target.value);
+                  setActiveTraitId(null);
+                }}
+                disabled={busy}
+              >
+                {packs.map((pack) => (
+                  <option key={pack.id} value={pack.id}>
+                    {pack.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="w-40 text-sm text-fg-soft">
               Deal value (USD)
               <input
@@ -442,84 +434,57 @@ export function MethodologyScorecardView({
 
             <section className="space-y-5">
               <div className="overflow-x-auto border-b border-edge">
-                <div className="flex min-w-max gap-7">
-                  {(
-                    [
-                      ["criteria", `Criteria (${inScope.length})`],
-                      ["coaching", `Coaching (${gaps.length})`],
-                      ["not_scored", `Not scored (${outOfScope.length})`],
-                    ] as Array<[ScorecardSection, string]>
-                  ).map(([id, label]) => (
+                <div
+                  className="flex min-w-max gap-7"
+                  role="tablist"
+                  aria-label={`${card.pack.name} scorecard sections`}
+                >
+                  {card.traits.map((row) => (
                     <button
-                      key={id}
+                      key={row.trait.id}
                       type="button"
-                      onClick={() => setActiveSection(id)}
+                      role="tab"
+                      aria-selected={activeTrait?.trait.id === row.trait.id}
+                      onClick={() => setActiveTraitId(row.trait.id)}
                       className={`border-b-2 pb-3 text-sm font-semibold transition ${
-                        activeSection === id
+                        activeTrait?.trait.id === row.trait.id
                           ? "border-brand text-brand"
                           : "border-transparent text-fg-muted hover:text-fg"
                       }`}
                     >
-                      {label}
+                      {row.trait.name}
+                      {!row.inScope && (
+                        <span className="ml-2 text-[10px] font-medium uppercase tracking-wide text-fg-soft">
+                          Not scored
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {activeSection === "criteria" && (
-                <div className="space-y-3">
-                  {inScope.map((row, index) => (
-                    <TraitAccordion
-                      key={row.trait.id}
-                      row={row}
-                      defaultOpen={index === 0}
-                      onSource={onSource}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {activeSection === "coaching" && (
-                <div className="space-y-3">
-                  {sortedGaps.length === 0 ? (
-                    <p className="rounded-2xl border border-edge bg-surface p-5 text-sm text-fg-muted">
-                      No coaching gaps were identified for this scorecard.
+              {activeTrait && (
+                <div
+                  role="tabpanel"
+                  aria-label={activeTrait.trait.name}
+                  className="space-y-3"
+                >
+                  <p className="text-sm leading-relaxed text-fg-muted">
+                    {activeTrait.trait.definition}
+                  </p>
+                  {!activeTrait.inScope && (
+                    <p className="rounded-xl border border-edge bg-canvas px-4 py-3 text-sm text-fg-soft">
+                      This section is shown for context but does not affect the
+                      score at this deal size.
                     </p>
-                  ) : (
-                    sortedGaps.map((row, index) => (
-                      <TraitAccordion
-                        key={row.trait.id}
-                        row={row}
-                        coaching
-                        defaultOpen={index === 0}
-                        onSource={onSource}
-                      />
-                    ))
                   )}
-                </div>
-              )}
-
-              {activeSection === "not_scored" && (
-                <div className="space-y-3">
-                  {outOfScope.length === 0 ? (
-                    <p className="rounded-2xl border border-edge bg-surface p-5 text-sm text-fg-muted">
-                      Every criterion in this methodology is in scope.
-                    </p>
-                  ) : (
-                    <>
-                      <p className="text-sm text-fg-soft">
-                        These criteria are visible for context but do not affect
-                        the score at this deal size.
-                      </p>
-                      {outOfScope.map((row) => (
-                        <TraitAccordion
-                          key={row.trait.id}
-                          row={row}
-                          onSource={onSource}
-                        />
-                      ))}
-                    </>
-                  )}
+                  <TraitAccordion
+                    key={activeTrait.trait.id}
+                    row={activeTrait}
+                    coaching
+                    defaultOpen
+                    onSource={onSource}
+                  />
                 </div>
               )}
             </section>
