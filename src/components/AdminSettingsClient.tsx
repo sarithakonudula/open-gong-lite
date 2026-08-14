@@ -167,7 +167,7 @@ export function AdminSettingsClient() {
   const set = (key: keyof Masked) => (value: string) =>
     setSettings((s) => ({ ...s, [key]: value }));
 
-  async function save() {
+  async function save(): Promise<boolean> {
     setSaving(true);
     setMessage(null);
     try {
@@ -180,8 +180,10 @@ export function AdminSettingsClient() {
       if (!response.ok) throw new Error(data.error || "Save failed");
       setSettings(data.settings);
       setMessage("Saved — takes effect immediately, no restart.");
+      return true;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Save failed");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -189,6 +191,16 @@ export function AdminSettingsClient() {
 
   async function runTest(kind: "llm" | "hubspot" | "slack") {
     setTests((t) => ({ ...t, [kind]: "…" }));
+    // Connectivity probes read saved settings — persist the form first so
+    // typed-but-unsaved keys (especially LLM) are what get tested.
+    const saved = await save();
+    if (!saved) {
+      setTests((t) => ({
+        ...t,
+        [kind]: "❌ Could not save settings — fix the form, then try again",
+      }));
+      return;
+    }
     try {
       const response = await fetch("/api/admin/test", {
         method: "POST",
@@ -340,10 +352,30 @@ export function AdminSettingsClient() {
             value={settings.coachingGuidance}
             onChange={set("coachingGuidance")}
           />
-          <button className="btn-ghost" onClick={() => runTest("llm")}>
-            Test LLM
-          </button>
-          {tests.llm && <span className="ml-3 text-sm text-fg-muted">{tests.llm}</span>}
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => void save()}
+              disabled={saving}
+            >
+              {saving ? "Saving…" : "Save settings"}
+            </button>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => void runTest("llm")}
+              disabled={saving}
+            >
+              Test LLM
+            </button>
+            {tests.llm && (
+              <span className="text-sm text-fg-muted">{tests.llm}</span>
+            )}
+          </div>
+          <p className="text-xs text-fg-soft">
+            Test LLM saves what you typed first, then probes the scoring chain.
+          </p>
         </div>
       </section>
 
@@ -425,7 +457,12 @@ export function AdminSettingsClient() {
             value={settings.hubspotToken}
             onChange={set("hubspotToken")}
           />
-          <button className="btn-ghost" onClick={() => runTest("hubspot")}>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() => void runTest("hubspot")}
+            disabled={saving}
+          >
             Test HubSpot
           </button>
           {tests.hubspot && (
@@ -463,7 +500,12 @@ export function AdminSettingsClient() {
               <option value="watch">watch + high + hot</option>
             </select>
           </label>
-          <button className="btn-ghost" onClick={() => runTest("slack")}>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() => void runTest("slack")}
+            disabled={saving}
+          >
             Test Slack
           </button>
           {tests.slack && (
@@ -473,7 +515,12 @@ export function AdminSettingsClient() {
       </section>
 
       <div className="flex items-center gap-4">
-        <button className="btn-primary" onClick={save} disabled={saving}>
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => void save()}
+          disabled={saving}
+        >
           {saving ? "Saving…" : "Save settings"}
         </button>
         {message && <span className="text-sm text-fg-muted">{message}</span>}
