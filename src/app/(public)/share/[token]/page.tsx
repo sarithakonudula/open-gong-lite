@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RecordingWorkspace } from "@/components/recording/RecordingWorkspace";
+import { ElectronLogo } from "@/components/shell/ElectronLogo";
 import { buildSampleCompanyIndex, companyForRun } from "@/lib/company";
 import { config } from "@/lib/config";
 import { listSamples } from "@/lib/samples";
@@ -25,13 +26,8 @@ export default async function SharePage({ params }: Props) {
     <main className="min-h-svh bg-canvas">
       <div className="border-b border-edge bg-surface px-6 py-3.5 md:px-10">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white">
-              O
-            </span>
-            <span className="text-[15px] font-semibold tracking-tight text-fg">
-              OpenGong Lite
-            </span>
+          <Link href="/">
+            <ElectronLogo markClassName="h-7 w-7" textClassName="text-[16px]" />
           </Link>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-soft">
             Shared deal notes
