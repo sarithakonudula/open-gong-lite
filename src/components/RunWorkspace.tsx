@@ -18,6 +18,8 @@ export function RunWorkspace({
   signalFeed,
   llmAvailable,
   packs,
+  defaultPackId,
+  detectedKind,
 }: {
   run: RunRecord;
   initialTab: RunTab;
@@ -25,6 +27,8 @@ export function RunWorkspace({
   signalFeed: DealSignalFeed | null;
   llmAvailable: boolean;
   packs: Array<{ id: string; name: string }>;
+  defaultPackId?: string;
+  detectedKind?: string;
 }) {
   const [tab, setTab] = useState<RunTab>(initialTab);
   const router = useRouter();
@@ -79,6 +83,8 @@ export function RunWorkspace({
         <MethodologyScorecardView
           run={run}
           initialCard={initialCard}
+          defaultPackId={defaultPackId}
+          detectedKind={detectedKind}
           llmAvailable={llmAvailable}
           packs={packs}
         />

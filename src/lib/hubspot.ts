@@ -429,8 +429,9 @@ export type SyncResult = {
   dealName: string;
   noteId: string | null;
   createdProperties: string[];
-  momentumScore: number;
-  momentumDirection: string;
+  /** Null when momentum was skipped (support / customer-success calls). */
+  momentumScore: number | null;
+  momentumDirection: string | null;
   url: string | null;
 };
 
@@ -439,7 +440,8 @@ export async function syncRunToHubspot(
   opts: {
     company: string;
     dealId?: string;
-    momentum: MomentumResult;
+    /** Omit for non-sales calls: the note is written, ai_* props are not. */
+    momentum?: MomentumResult;
     momentumBlock: string;
   },
 ): Promise<SyncResult> {
@@ -450,11 +452,14 @@ export async function syncRunToHubspot(
       `No HubSpot company/deal found matching ${JSON.stringify(opts.company)}`,
     );
   }
-  const createdProperties = await ensureAiDealProperties();
-  await updateDealProperties(
-    ctx.deal.id,
-    momentumToDealProperties(opts.momentum, new Date().toISOString()),
-  );
+  let createdProperties: string[] = [];
+  if (opts.momentum) {
+    createdProperties = await ensureAiDealProperties();
+    await updateDealProperties(
+      ctx.deal.id,
+      momentumToDealProperties(opts.momentum, new Date().toISOString()),
+    );
+  }
   const noteId = await createNoteForDeal(
     ctx.deal.id,
     noteBodyForRun(run, opts.momentumBlock),
@@ -464,8 +469,8 @@ export async function syncRunToHubspot(
     dealName: ctx.deal.name,
     noteId,
     createdProperties,
-    momentumScore: opts.momentum.score,
-    momentumDirection: opts.momentum.direction,
+    momentumScore: opts.momentum?.score ?? null,
+    momentumDirection: opts.momentum?.direction ?? null,
     url: ctx.url,
   };
 }

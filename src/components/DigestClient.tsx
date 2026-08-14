@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 type DigestEntry = {
   company: string;
   callCount: number;
+  callKind: "sales" | "support" | "customer_success";
   momentum: { score: number; direction: string } | null;
   highlights: Array<{ text: string; lineId: string }>;
   nextSteps: string[];
@@ -110,6 +111,11 @@ export function DigestClient() {
                   className={`rounded-full border px-2.5 py-0.5 text-xs uppercase tracking-wide ${DIRECTION_STYLE[e.momentum.direction] ?? "border-mist/40 text-mist"}`}
                 >
                   {e.momentum.direction.replace("_", " ")} · {e.momentum.score}/100
+                </span>
+              )}
+              {!e.momentum && e.callKind !== "sales" && (
+                <span className="rounded-full border border-mist/50 px-2.5 py-0.5 text-xs uppercase tracking-wide text-fog">
+                  {e.callKind === "support" ? "🛟 support" : "🌱 customer success"}
                 </span>
               )}
               <span className="text-xs text-mist">
