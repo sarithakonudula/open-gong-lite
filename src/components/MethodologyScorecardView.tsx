@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { MethodologyScorecard, Depth } from "@/lib/methodology";
+import type {
+  MethodologyScorecard,
+  Depth,
+  ScoredTrait,
+} from "@/lib/methodology";
 import {
   contextFlagLabel,
   DEPTH_LABEL,
@@ -21,6 +25,118 @@ const DEPTH_BADGE: Record<Depth, { label: string; className: string }> = {
     className: "badge-corrected",
   },
 };
+
+type ScorecardSection = "criteria" | "coaching" | "not_scored";
+
+function TraitAccordion({
+  row,
+  coaching = false,
+  defaultOpen = false,
+  onSource,
+}: {
+  row: ScoredTrait;
+  coaching?: boolean;
+  defaultOpen?: boolean;
+  onSource?: (lineId: string) => void;
+}) {
+  const depth = row.verdict?.effectiveDepth ?? "not_applicable";
+  const badge = DEPTH_BADGE[depth];
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <details
+      className="group overflow-hidden rounded-2xl border border-edge bg-surface open:border-brand/35 open:shadow-[0_14px_35px_rgba(25,61,110,0.08)]"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 marker:hidden hover:bg-canvas/70">
+        <div className="min-w-0">
+          <div className="mb-1.5 flex flex-wrap items-center gap-2">
+            <span className={badge.className}>{badge.label}</span>
+            {row.verdict?.unverified && (
+              <span className="badge-unproven">{DEPTH_UNBACKED_LABEL}</span>
+            )}
+          </div>
+          <p className="truncate text-[15px] font-semibold text-fg">
+            {row.trait.name}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="text-xs uppercase tracking-[0.12em] text-fg-soft">
+            weight {row.trait.weight}
+            {row.points != null ? ` · ${row.points}/3` : ""}
+          </span>
+          <span
+            aria-hidden="true"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-edge text-lg text-fg-muted transition group-open:rotate-180 group-open:border-brand/30 group-open:text-brand"
+          >
+            ⌄
+          </span>
+        </div>
+      </summary>
+
+      <div className="space-y-4 border-t border-edge bg-canvas/40 px-5 py-5">
+        {row.verdict?.gap && (
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-soft">
+              Assessment
+            </p>
+            <p className="mt-1.5 text-sm leading-relaxed text-fg-muted">
+              {row.verdict.gap}
+            </p>
+          </div>
+        )}
+
+        {coaching && (
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-xl border border-edge bg-surface p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">
+                Next move
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-fg">
+                {row.trait.coaching.next_move}
+              </p>
+            </div>
+            <div className="rounded-xl border border-edge bg-surface p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">
+                Try saying
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-fg">
+                “{row.trait.coaching.example_line}”
+              </p>
+            </div>
+          </div>
+        )}
+
+        {row.verdict?.gatedEvidence.length ? (
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-soft">
+              Sources
+            </p>
+            <div className="mt-2 space-y-2">
+              {row.verdict.gatedEvidence.map((ev, index) => (
+                <button
+                  key={`${ev.lineId}-${index}`}
+                  type="button"
+                  className={`block w-full rounded-xl border border-edge bg-surface px-3 py-2.5 text-left text-sm leading-relaxed transition hover:border-brand/35 hover:text-brand ${
+                    ev.status === "uncorroborated" ? "text-danger" : "text-fg-muted"
+                  }`}
+                  onClick={() => onSource?.(ev.lineId)}
+                >
+                  “{ev.quote}”
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-fg-soft">
+            No source was captured for this criterion.
+          </p>
+        )}
+      </div>
+    </details>
+  );
+}
 
 function reportMarkdown(card: MethodologyScorecard): string {
   const lines: string[] = [];
@@ -64,23 +180,34 @@ export function MethodologyScorecardView({
   /** Jump to the transcript moment for a source quote. */
   onSource?: (lineId: string) => void;
 }) {
-  const [card, setCard] = useState<MethodologyScorecard | null>(initialCard);
   const [packId, setPackId] = useState(
     initialCard?.pack.id ?? defaultPackId ?? "meddic",
   );
+  const [cardsByPack, setCardsByPack] = useState<
+    Record<string, MethodologyScorecard>
+  >(() => (initialCard ? { [initialCard.pack.id]: initialCard } : {}));
+  const [activeSection, setActiveSection] =
+    useState<ScorecardSection>("criteria");
   const [dealValue, setDealValue] = useState(
     initialCard?.dealValueUsd != null ? String(initialCard.dealValueUsd) : "",
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const card = cardsByPack[packId] ?? null;
 
   // Sync from the server-provided card without an effect (adjust-during-render
   // pattern from react.dev/learn/you-might-not-need-an-effect).
   const [prevInitialCard, setPrevInitialCard] = useState(initialCard);
   if (initialCard !== prevInitialCard) {
     setPrevInitialCard(initialCard);
-    setCard(initialCard);
+    if (initialCard) {
+      setCardsByPack((current) => ({
+        ...current,
+        [initialCard.pack.id]: initialCard,
+      }));
+      setPackId(initialCard.pack.id);
+    }
   }
 
   async function copyReport() {
@@ -119,7 +246,12 @@ export function MethodologyScorecardView({
         setError(data.error || "Scoring failed.");
         return;
       }
-      setCard(data.card);
+      setCardsByPack((current) => ({
+        ...current,
+        [data.card!.pack.id]: data.card!,
+      }));
+      setPackId(data.card.pack.id);
+      setActiveSection("criteria");
     } catch {
       setError("Scoring failed.");
     } finally {
@@ -145,6 +277,10 @@ export function MethodologyScorecardView({
             r.verdict.unverified),
       ),
     [inScope],
+  );
+  const sortedGaps = useMemo(
+    () => gaps.slice().sort((a, b) => b.trait.weight - a.trait.weight),
+    [gaps],
   );
 
   return (
@@ -172,10 +308,11 @@ export function MethodologyScorecardView({
               </div>
               <div className="rounded-2xl border border-edge bg-surface px-4 py-3">
                 <p className="text-2xl font-semibold text-fg">
-                  {card.evidenceStats.corroborated} of {card.evidenceStats.total}
+                  {inScope.filter((row) => (row.points ?? 0) > 0).length} of{" "}
+                  {inScope.length}
                 </p>
                 <p className="text-xs uppercase tracking-[0.14em] text-fg-soft">
-                  backed by the call
+                  criteria explored
                 </p>
               </div>
               <div className="rounded-2xl border border-edge bg-surface px-4 py-3">
@@ -198,9 +335,35 @@ export function MethodologyScorecardView({
           )}
         </header>
 
-        <section className="space-y-3 rounded-2xl border border-edge bg-canvas p-4">
+        <section className="overflow-hidden rounded-2xl border border-edge bg-canvas">
+          <div className="overflow-x-auto border-b border-edge bg-surface">
+            <div className="flex min-w-max">
+              {packs.map((pack) => {
+                const active = packId === pack.id;
+                return (
+                  <button
+                    key={pack.id}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      setPackId(pack.id);
+                      setActiveSection("criteria");
+                    }}
+                    className={`min-w-36 border-b-2 px-6 py-4 text-sm font-semibold transition ${
+                      active
+                        ? "border-brand bg-signal/10 text-brand"
+                        : "border-transparent text-fg-muted hover:bg-canvas hover:text-fg"
+                    }`}
+                  >
+                    {pack.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="space-y-3 p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-fg-soft">
-            Live score
+            Score this methodology
             {detectedKind ? (
               <span className="ml-2 normal-case tracking-normal text-brand">
                 detected: {detectedKind} call
@@ -208,21 +371,6 @@ export function MethodologyScorecardView({
             ) : null}
           </p>
           <div className="flex flex-wrap items-end gap-3">
-            <label className="min-w-[10rem] flex-1 text-sm text-fg-soft">
-              Pack
-              <select
-                className="field mt-1"
-                value={packId}
-                onChange={(e) => setPackId(e.target.value)}
-                disabled={busy}
-              >
-                {packs.map((pack) => (
-                  <option key={pack.id} value={pack.id}>
-                    {pack.name}
-                  </option>
-                ))}
-              </select>
-            </label>
             <label className="w-40 text-sm text-fg-soft">
               Deal value (USD)
               <input
@@ -266,6 +414,7 @@ export function MethodologyScorecardView({
             </p>
           )}
           {error && <p className="text-sm text-danger">{error}</p>}
+          </div>
         </section>
 
         {!card ? (
@@ -291,112 +440,87 @@ export function MethodologyScorecardView({
               </p>
             )}
 
-            <section className="space-y-4">
-              <h3 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
-                Scored traits
-              </h3>
-              <ul className="space-y-5">
-                {inScope.map((row) => {
-                  const depth = row.verdict?.effectiveDepth ?? "not_applicable";
-                  const badge = DEPTH_BADGE[depth];
-                  return (
-                    <li key={row.trait.id} className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={badge.className}>{badge.label}</span>
-                        <span className="text-xs uppercase tracking-[0.14em] text-fg-soft">
-                          weight {row.trait.weight}
-                          {row.points != null ? ` · ${row.points}/3` : ""}
-                        </span>
-                        {row.verdict?.unverified && (
-                          <span className="badge-unproven">
-                            {DEPTH_UNBACKED_LABEL}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[1.05rem] text-fg">{row.trait.name}</p>
-                      {row.verdict?.gap ? (
-                        <p className="text-sm text-fg-muted">{row.verdict.gap}</p>
-                      ) : null}
-                      {row.verdict?.gatedEvidence.map((ev, i) => (
-                        <button
-                          key={`${ev.lineId}-${i}`}
-                          type="button"
-                          className={`receipt-link block text-sm ${
-                            ev.status === "uncorroborated"
-                              ? "text-danger"
-                              : ""
-                          }`}
-                          onClick={() => onSource?.(ev.lineId)}
-                        >
-                          {ev.status === "uncorroborated"
-                            ? "Quote the AI offered"
-                            : "Source"}{" "}
-                          · {ev.lineId}: “{ev.quote}”
-                        </button>
+            <section className="space-y-5">
+              <div className="overflow-x-auto border-b border-edge">
+                <div className="flex min-w-max gap-7">
+                  {(
+                    [
+                      ["criteria", `Criteria (${inScope.length})`],
+                      ["coaching", `Coaching (${gaps.length})`],
+                      ["not_scored", `Not scored (${outOfScope.length})`],
+                    ] as Array<[ScorecardSection, string]>
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setActiveSection(id)}
+                      className={`border-b-2 pb-3 text-sm font-semibold transition ${
+                        activeSection === id
+                          ? "border-brand text-brand"
+                          : "border-transparent text-fg-muted hover:text-fg"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {activeSection === "criteria" && (
+                <div className="space-y-3">
+                  {inScope.map((row, index) => (
+                    <TraitAccordion
+                      key={row.trait.id}
+                      row={row}
+                      defaultOpen={index === 0}
+                      onSource={onSource}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {activeSection === "coaching" && (
+                <div className="space-y-3">
+                  {sortedGaps.length === 0 ? (
+                    <p className="rounded-2xl border border-edge bg-surface p-5 text-sm text-fg-muted">
+                      No coaching gaps were identified for this scorecard.
+                    </p>
+                  ) : (
+                    sortedGaps.map((row, index) => (
+                      <TraitAccordion
+                        key={row.trait.id}
+                        row={row}
+                        coaching
+                        defaultOpen={index === 0}
+                        onSource={onSource}
+                      />
+                    ))
+                  )}
+                </div>
+              )}
+
+              {activeSection === "not_scored" && (
+                <div className="space-y-3">
+                  {outOfScope.length === 0 ? (
+                    <p className="rounded-2xl border border-edge bg-surface p-5 text-sm text-fg-muted">
+                      Every criterion in this methodology is in scope.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-sm text-fg-soft">
+                        These criteria are visible for context but do not affect
+                        the score at this deal size.
+                      </p>
+                      {outOfScope.map((row) => (
+                        <TraitAccordion
+                          key={row.trait.id}
+                          row={row}
+                          onSource={onSource}
+                        />
                       ))}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-
-            {outOfScope.length > 0 && (
-              <section className="space-y-3">
-                <h3 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
-                  Not scored at this deal size
-                </h3>
-                <p className="text-sm text-fg-soft">
-                  Shown so nothing is hidden, but left out of the score. A low
-                  mark here would mislead on a{" "}
-                  {card.band?.label ?? "smaller"} deal.
-                </p>
-                <ul className="space-y-3">
-                  {outOfScope.map((row) => {
-                    const depth = row.verdict?.effectiveDepth ?? "not_applicable";
-                    const badge = DEPTH_BADGE[depth];
-                    return (
-                      <li key={row.trait.id} className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={badge.className}>{badge.label}</span>
-                          <span className="text-fg">{row.trait.name}</span>
-                          <span className="text-xs text-fg-soft">{row.trait.rigor}</span>
-                        </div>
-                        {row.verdict?.gap ? (
-                          <p className="text-sm text-fg-muted">{row.verdict.gap}</p>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            )}
-
-            <section className="space-y-4">
-              <h3 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
-                Coaching
-              </h3>
-              {gaps.length === 0 ? (
-                <p className="text-fg-soft">
-                  Everything scored here was at least explored, and every line
-                  of it is backed by the call.
-                </p>
-              ) : (
-                <ul className="space-y-5">
-                  {gaps
-                    .slice()
-                    .sort((a, b) => b.trait.weight - a.trait.weight)
-                    .map((row) => (
-                      <li key={row.trait.id} className="space-y-2">
-                        <p className="text-fg">{row.trait.name}</p>
-                        <p className="text-sm text-fg-muted">
-                          Next move: {row.trait.coaching.next_move}
-                        </p>
-                        <p className="text-sm text-fg-soft">
-                          Try saying: “{row.trait.coaching.example_line}”
-                        </p>
-                      </li>
-                    ))}
-                </ul>
+                    </>
+                  )}
+                </div>
               )}
             </section>
           </div>
