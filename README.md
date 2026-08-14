@@ -117,6 +117,29 @@ with `crm.objects.contacts/companies/deals/notes/tasks` read+write and
 degrades gracefully — no HubSpot means drafts stay local, no Slack means
 alerts stay on `/signals`, no LLM means deterministic drafts.
 
+Security posture of the layer:
+
+- **Deal writes need a confirmed target.** Name matching only *proposes*
+  candidates; a write happens when there's exactly one open deal, an explicit
+  pick from the run-page picker, or a previously confirmed link stored on the
+  run. Wrong-deal write-back by fuzzy match can't happen.
+- **`/admin` is hard-locked in production** unless `OPENGONG_AUTH_PASSWORD`
+  is set — an open deployment can't have its LLM endpoint repointed.
+  Changing the LLM base URL also clears the saved key, so a stored key can
+  never be replayed against a new host.
+- **Settings secrets are encrypted at rest** (AES-256-GCM keyed off
+  `OPENGONG_SESSION_SECRET`) in `data/settings.json`.
+- **API responses are projections** — share tokens and transcripts never
+  leave the server through `/api/digest`. Set `OPENGONG_SHARE_TTL_DAYS` to
+  expire `/share` links.
+
+Demo the risk loop without waiting a real day:
+
+```bash
+curl -X POST localhost:3000/api/signals/scan \
+  -H 'Content-Type: application/json' -d '{"simulateIdleDays": 14}'
+```
+
 Cron for risk warnings (Railway cron, GitHub Action, or crontab):
 
 ```bash

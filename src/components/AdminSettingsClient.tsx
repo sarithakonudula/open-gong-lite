@@ -80,15 +80,20 @@ function StatusDot({ on, label }: { on: boolean; label: string }) {
 export function AdminSettingsClient() {
   const [settings, setSettings] = useState<Masked>(EMPTY);
   const [loaded, setLoaded] = useState(false);
+  const [locked, setLocked] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [tests, setTests] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetch("/api/admin/settings")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.settings) setSettings(data.settings);
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) {
+          setLocked(data.error || "Admin is locked.");
+        } else if (data.settings) {
+          setSettings(data.settings);
+        }
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
@@ -139,6 +144,14 @@ export function AdminSettingsClient() {
     return <p className="text-sm text-mist">Loading settings…</p>;
   }
 
+  if (locked) {
+    return (
+      <p className="rounded-lg border border-heat/40 bg-heat/5 px-4 py-3 text-sm text-heat/90">
+        {locked}
+      </p>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap gap-2">
@@ -158,6 +171,7 @@ export function AdminSettingsClient() {
         <div className="mt-4 space-y-4">
           <Field
             label="Base URL"
+            hint="changing this clears the saved key — re-enter it"
             placeholder="https://api.groq.com/openai/v1"
             value={settings.llmBaseUrl}
             onChange={set("llmBaseUrl")}

@@ -345,6 +345,36 @@ export async function createTaskForDeal(
   return body?.id ?? null;
 }
 
+// ── Deal candidates (proposal only — writes require a confirmed id) ─────────
+
+export type DealCandidate = {
+  id: string;
+  name: string;
+  stage: string | null;
+  amount: number | null;
+  isClosed: boolean;
+};
+
+/**
+ * Open deals for a company name match. Callers must NOT write to a candidate
+ * unless it is the only one or a human picked it — name matching is fuzzy.
+ */
+export async function openDealCandidatesForCompany(
+  companyName: string,
+): Promise<DealCandidate[]> {
+  const company = await searchCompanyByName(companyName);
+  if (!company) return [];
+  const deals = await dealsForCompany(company.id);
+  const open = deals.filter((d) => !d.isClosed);
+  return (open.length > 0 ? open : deals).map((d) => ({
+    id: d.id,
+    name: d.name,
+    stage: d.stage,
+    amount: d.amount,
+    isClosed: d.isClosed,
+  }));
+}
+
 // ── Context pull for the follow-up email ────────────────────────────────────
 
 export type DealContext = {

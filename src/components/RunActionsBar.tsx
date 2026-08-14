@@ -3,9 +3,17 @@
 import { useEffect, useState } from "react";
 
 /** Action layer for one run: CRM write-back + contextual follow-up draft. */
+type DealCandidate = {
+  id: string;
+  name: string;
+  stage: string | null;
+  amount: number | null;
+};
+
 export function RunActionsBar({ runId }: { runId: string }) {
   const [hubspotReady, setHubspotReady] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<DealCandidate[] | null>(null);
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ subject: string; body: string } | null>(
     null,
@@ -18,19 +26,29 @@ export function RunActionsBar({ runId }: { runId: string }) {
       .catch(() => null);
   }, []);
 
-  async function syncToHubspot() {
+  async function syncToHubspot(dealId?: string) {
     setSyncStatus("Syncing…");
+    setCandidates(null);
     try {
       const response = await fetch("/api/hubspot/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ runId }),
+        body: JSON.stringify(dealId ? { runId, dealId } : { runId }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Sync failed");
+      if (data.needsSelection) {
+        setCandidates(data.candidates ?? []);
+        setSyncStatus(
+          data.candidates?.length
+            ? `${data.candidates.length} deals match "${data.company}" — pick the right one:`
+            : `No HubSpot deal found for "${data.company}".`,
+        );
+        return;
+      }
       const r = data.result;
       setSyncStatus(
-        `✅ ${r.dealName}: momentum ${r.momentumScore}/100 (${r.momentumDirection}) + note written`,
+        `✅ ${r.dealName}: momentum ${r.momentumScore}/100 (${r.momentumDirection}) + note written · linked for next time`,
       );
     } catch (error) {
       setSyncStatus(
@@ -74,7 +92,7 @@ export function RunActionsBar({ runId }: { runId: string }) {
         </button>
         <button
           className="btn-ghost"
-          onClick={syncToHubspot}
+          onClick={() => syncToHubspot()}
           disabled={!hubspotReady}
           title={
             hubspotReady
@@ -92,6 +110,21 @@ export function RunActionsBar({ runId }: { runId: string }) {
         </a>
       </div>
       {syncStatus && <p className="mt-2 text-sm text-fog">{syncStatus}</p>}
+      {candidates && candidates.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {candidates.map((c) => (
+            <button
+              key={c.id}
+              className="btn-ghost"
+              onClick={() => syncToHubspot(c.id)}
+            >
+              {c.name}
+              {c.amount ? ` · $${c.amount}` : ""}
+              {c.stage ? ` · ${c.stage}` : ""}
+            </button>
+          ))}
+        </div>
+      )}
       {emailStatus && <p className="mt-2 text-sm text-fog">{emailStatus}</p>}
       {draft && (
         <div className="mt-3 rounded-lg border border-mist/20 bg-paper/60 p-3">

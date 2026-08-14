@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { demoSignalFeedForRun } from "@/lib/deal-signals";
-import { buildDigest } from "@/lib/digest";
+import { buildDigest, toPublicDigest } from "@/lib/digest";
 import { sendSlack } from "@/lib/notify";
 import { listSamples } from "@/lib/samples";
 import { resolveSlackWebhook } from "@/lib/settings";
@@ -41,9 +41,9 @@ async function generateDigest() {
   });
 }
 
-/** GET — the management digest as JSON + markdown. */
+/** GET — the management digest as JSON + markdown (public projection only). */
 export async function GET() {
-  return NextResponse.json({ digest: await generateDigest() });
+  return NextResponse.json({ digest: toPublicDigest(await generateDigest()) });
 }
 
 /** POST { send: true } — build and push the digest to Slack. */
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     // body optional
   }
   const digest = await generateDigest();
-  if (!send) return NextResponse.json({ digest });
+  if (!send) return NextResponse.json({ digest: toPublicDigest(digest) });
   if (!resolveSlackWebhook()) {
     return NextResponse.json(
       { error: "Slack webhook is not configured — add it on /admin" },
@@ -63,5 +63,5 @@ export async function POST(request: NextRequest) {
     );
   }
   const sent = await sendSlack(digest.markdown.slice(0, 3800));
-  return NextResponse.json({ digest, sent });
+  return NextResponse.json({ digest: toPublicDigest(digest), sent });
 }

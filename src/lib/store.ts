@@ -58,6 +58,18 @@ export function newShareToken(): string {
   return randomBytes(12).toString("hex");
 }
 
+/** Pure TTL check; ttlDays <= 0 means links never expire. */
+export function isShareExpired(
+  createdAt: string,
+  ttlDays: number,
+  nowMs: number = Date.now(),
+): boolean {
+  if (ttlDays <= 0) return false;
+  const created = Date.parse(createdAt);
+  if (!Number.isFinite(created)) return true;
+  return nowMs - created > ttlDays * 86_400_000;
+}
+
 export async function saveRun(run: RunRecord): Promise<RunRecord> {
   await ensureStore();
   const parsed = RunRecordSchema.parse({
