@@ -203,6 +203,15 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
           <a href="/how" className="btn-ghost">
             How the checking works
           </a>
+          <a href="/digest" className="btn-ghost">
+            Digest
+          </a>
+          <a href="/coach" className="btn-ghost">
+            Coach
+          </a>
+          <a href="/admin" className="btn-ghost">
+            Admin
+          </a>
           <a href="#ingest" className="btn-ghost">
             Upload or paste a link
           </a>
