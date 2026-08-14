@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveCallLink } from "@/lib/call-link";
 import { config } from "@/lib/config";
 import { runDealNotesLoop } from "@/lib/harness/loop";
 import { ensurePyaiKey } from "@/lib/pyai-key";
@@ -26,39 +27,6 @@ function badRequest(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
 
-function isBlockedHost(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/\.$/, "");
-  if (
-    host === "localhost" ||
-    host.endsWith(".localhost") ||
-    host === "0.0.0.0" ||
-    host === "metadata.google.internal"
-  ) {
-    return true;
-  }
-  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (ipv4) {
-    const [a, b] = ipv4.slice(1).map(Number);
-    if (a === 10 || a === 127 || a === 0) return true;
-    if (a === 169 && b === 254) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-  }
-  if (host === "::1" || host.startsWith("[") || host.includes(":")) return true;
-  return false;
-}
-
-function isHttpsAudioUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "https:") return false;
-    if (parsed.username || parsed.password) return false;
-    if (isBlockedHost(parsed.hostname)) return false;
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -79,25 +47,37 @@ export async function POST(request: NextRequest) {
       };
       const url = body.url?.trim();
       if (!url) return badRequest("url is required");
-      if (!isHttpsAudioUrl(url)) {
+
+      // Accept whatever the recorder handed out — Fathom/Fireflies/Loom/Zoom
+      // shares, Google Drive files, direct media. The resolver classifies the
+      // link, strips contact/speaker names from the slug into a title, and
+      // finds the media URL; failures come back as actionable messages.
+      const resolved = await resolveCallLink(url);
+      if (!resolved) {
         return badRequest(
-          "Only public https audio URLs are supported (no localhost or private IPs)",
+          "Only public https links are supported (no localhost or private IPs)",
         );
       }
+      if (!resolved.mediaUrl) {
+        return badRequest(resolved.error ?? "Couldn't resolve this link to a recording");
+      }
+      const linkTitle = resolved.parsed.title;
 
       const { transcript, recap, callId, hearPath } = await runHearAndMaybeRecap(
         {
           mode: "url",
-          audioUrl: url,
-          customerName: body.customerName,
+          audioUrl: resolved.mediaUrl,
+          customerName: body.customerName || linkTitle || undefined,
         },
       );
 
       const run = await runDealNotesLoop({
         source: "url",
-        sourceLabel: url.slice(0, 120),
+        // The clean title (names, not tokens) is the label; raw URL only as
+        // a last resort.
+        sourceLabel: (linkTitle ?? `${resolved.parsed.provider}: ${url}`).slice(0, 120),
         transcript,
-        titleHint: body.customerName || "Call from URL",
+        titleHint: body.customerName || linkTitle || "Call from URL",
         recap,
         pyaiCallId: callId,
       });

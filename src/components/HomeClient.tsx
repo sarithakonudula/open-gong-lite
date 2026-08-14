@@ -415,11 +415,16 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
           </div>
 
           <div className="rounded-[1.4rem] border border-white/10 bg-ink-soft/55 p-5">
-            <h3 className="text-lg font-semibold">Paste a media URL</h3>
+            <h3 className="text-lg font-semibold">Paste a recording link</h3>
+            <p className="mt-1 text-xs text-mist">
+              Direct media URLs, Fathom shares, Fireflies views, Google Drive
+              file links, Loom. Private pages get a clear next step, and
+              names in the link become the call title.
+            </p>
             <input
               className="field mt-4"
               type="url"
-              placeholder="https://…/call.mp3"
+              placeholder="https://fathom.video/share/… or https://…/call.mp3"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
             />
