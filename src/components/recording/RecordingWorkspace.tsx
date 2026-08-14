@@ -7,16 +7,24 @@ import { DealSignalsView } from "@/components/DealSignalsView";
 import { MethodologyScorecardView } from "@/components/MethodologyScorecardView";
 import { RunActionsBar } from "@/components/RunActionsBar";
 import { AudioPlayerBar } from "@/components/recording/AudioPlayerBar";
-import { claimStatus, collectClaims } from "@/components/recording/claims";
+import { collectClaims } from "@/components/recording/claims";
 import { DraftEmailPanel } from "@/components/recording/DraftEmailPanel";
 import { InsightsRail } from "@/components/recording/InsightsRail";
 import { TranscriptPanel } from "@/components/recording/TranscriptPanel";
+import {
+  buildAnalysisView,
+  isSentinelEvidence,
+  type SourceView,
+} from "@/lib/analysis-view";
 import type { DealSignalFeed } from "@/lib/deal-signals";
 import { formatDateShort, formatDuration } from "@/lib/format";
 import {
   attemptReasonLine,
-  backedFraction,
+  callTimeLabel,
   COVERAGE_BAND_LABEL,
+  NO_NOTES_LINE,
+  RUN_DETAILS_INTRO,
+  RUN_DETAILS_SUMMARY,
   RUN_STATUS_LABEL,
 } from "@/lib/labels";
 import type { MethodologyScorecard } from "@/lib/methodology";
@@ -57,12 +65,34 @@ export function RecordingWorkspace({
 
   const canPlayAudio = Boolean(run.audioContentType) && !shareMode;
   const notes = run.notes;
-  const coverage = notes?.coverage;
-  const allClaims = useMemo(() => collectClaims(notes), [notes]);
-  const quarantined = allClaims.filter(
-    (c) => claimStatus(c) === "blocked_injection",
-  );
+  const view = useMemo(() => buildAnalysisView(run), [run]);
   const sentiment = notes ? callSentiment(notes) : null;
+
+  const lineById = useMemo(
+    () => new Map(run.transcript.map((line) => [line.id, line])),
+    [run.transcript],
+  );
+
+  // Routed-email bullets carry claim ids; resolve them to a reader-facing
+  // source (timestamp + quote) or nothing at all when the evidence is a
+  // sentinel — internal addressing never reaches the page.
+  const sourceForClaim = useMemo(() => {
+    const claims = collectClaims(notes);
+    return (claimId: string): SourceView | null => {
+      const claim = claims.find(
+        (c) => (c.id || c.evidence.lineId) === claimId,
+      );
+      if (!claim || isSentinelEvidence(claim.evidence)) return null;
+      const line = lineById.get(claim.evidence.lineId);
+      if (!line) return null;
+      return {
+        lineId: line.id,
+        quote: claim.evidence.quote,
+        timeLabel: callTimeLabel(line.startMs),
+        speaker: null,
+      };
+    };
+  }, [notes, lineById]);
 
   const durationMs = useMemo(() => {
     for (let i = run.transcript.length - 1; i >= 0; i--) {
@@ -120,16 +150,7 @@ export function RecordingWorkspace({
     }`;
   }
 
-  const gateFailures = run.attempts
-    .filter((a) => !a.ok)
-    .flatMap((a) =>
-      a.failures.map((f) => ({
-        attempt: a.attempt,
-        code: f.code,
-        message: f.message,
-        path: f.path,
-      })),
-    );
+  const coverage = notes?.coverage;
 
   return (
     <div className="mx-auto w-full max-w-7xl px-6 py-8 md:px-10">
@@ -145,7 +166,7 @@ export function RecordingWorkspace({
       <header className="mt-3">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <h1 className="text-2xl font-semibold tracking-tight text-fg md:text-3xl">
-            {notes?.title || run.sourceLabel}
+            {view.title}
           </h1>
           <span className="text-fg-soft">·</span>
           <span className="text-[15px] font-medium text-fg-muted">{company}</span>
@@ -168,25 +189,37 @@ export function RecordingWorkspace({
           )}
         </div>
 
-        {coverage && (
+        {view.fraction && (
           <p className="mt-2 text-sm text-fg-muted">
-            <span className="font-medium text-positive">
-              ✓ {backedFraction(coverage)}
-            </span>
-            {coverage.stats.segment_corrected > 0 && (
-              <> · {coverage.stats.segment_corrected} citation
-                {coverage.stats.segment_corrected === 1 ? "" : "s"} corrected</>
+            <span className="font-medium text-positive">✓ {view.fraction}</span>
+            {view.correctedCount > 0 && (
+              <>
+                {" · "}
+                {view.correctedCount} citation
+                {view.correctedCount === 1 ? "" : "s"} corrected
+              </>
             )}
-            {" · "}
-            <span className="text-danger">
-              ⚠ {coverage.stats.uncorroborated} not found in the call
-            </span>
-            {" · "}
-            <span className="text-danger">
-              ⛔ {coverage.stats.blocked_injection} blocked
-            </span>
+            {view.notFoundCount > 0 && (
+              <>
+                {" · "}
+                <span className="text-danger">
+                  ⚠ {view.notFoundCount} could not be verified
+                </span>
+              </>
+            )}
+            {view.blockedCount > 0 && (
+              <>
+                {" · "}
+                <span className="text-danger">
+                  ⛔ {view.blockedCount} blocked
+                </span>
+              </>
+            )}
             . Nothing is deleted — every note stays on this page, marked.
           </p>
+        )}
+        {view.noNotes && (
+          <p className="mt-2 text-sm text-fg-muted">{NO_NOTES_LINE}</p>
         )}
 
         {!shareMode && (
@@ -210,10 +243,10 @@ export function RecordingWorkspace({
           </div>
         )}
 
-        {quarantined.length > 0 && (
+        {view.blockedCount > 0 && (
           <div className="mt-3 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm">
             <p className="font-semibold text-danger">
-              {quarantined.length} note{quarantined.length === 1 ? "" : "s"} blocked
+              {view.blockedCount} note{view.blockedCount === 1 ? "" : "s"} blocked
             </p>
             <p className="mt-1 text-fg-muted">
               Someone spoke an instruction to the AI on this call. Anything
@@ -234,16 +267,6 @@ export function RecordingWorkspace({
               {run.error ||
                 "Notes the AI could not point to are still on this page. They are marked, and they never appear as facts."}
             </p>
-            {gateFailures.length > 0 && (
-              <ul className="mt-2 space-y-1 text-[13px] text-fg-muted">
-                {gateFailures.slice(0, 6).map((f, i) => (
-                  <li key={`${f.attempt}-${f.code}-${i}`}>
-                    Try #{f.attempt} · {f.code}
-                    {f.path ? ` @ ${f.path}` : ""}: {f.message}
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
         )}
 
@@ -311,26 +334,25 @@ export function RecordingWorkspace({
             {tab === "transcript" ? (
               <>
                 <TranscriptPanel
-                  transcript={run.transcript}
-                  allClaims={allClaims}
+                  lines={view.transcript}
                   activeLineId={activeLineId}
                   canPlayAudio={canPlayAudio}
                   onJump={jumpToLine}
                 />
-                {run.attempts.length > 0 && (
+                {run.attempts.length > 0 && !shareMode && (
                   <details className="mt-6 border-t border-edge pt-4">
                     <summary className="cursor-pointer text-[12px] font-semibold uppercase tracking-[0.14em] text-fg-soft">
-                      What the checker did
+                      {RUN_DETAILS_SUMMARY}
                     </summary>
+                    <p className="mt-2 text-[12.5px] text-fg-soft">
+                      {RUN_DETAILS_INTRO}
+                    </p>
                     <ul className="mt-2 space-y-1.5 text-[13px] text-fg-muted">
                       {run.attempts.map((attempt) => (
                         <li key={attempt.attempt}>
                           Try #{attempt.attempt} ·{" "}
                           {attempt.ok ? "accepted" : "sent back"} ·{" "}
                           {attemptReasonLine(attempt.reason)}
-                          {!attempt.ok && attempt.failures[0]
-                            ? `: ${attempt.failures[0].message}`
-                            : ""}
                         </li>
                       ))}
                     </ul>
@@ -339,8 +361,9 @@ export function RecordingWorkspace({
               </>
             ) : tab === "email" ? (
               <DraftEmailPanel
-                notes={notes}
-                allClaims={allClaims}
+                email={view.email}
+                routed={notes?.routedFollowUp}
+                sourceForClaim={sourceForClaim}
                 onSource={jumpToLine}
               />
             ) : tab === "scorecard" ? (
@@ -368,11 +391,7 @@ export function RecordingWorkspace({
               ⊕ Call Insights
             </p>
             <div className="max-h-[80vh] overflow-y-auto pr-1">
-              <InsightsRail
-                notes={notes}
-                transcript={run.transcript}
-                onSource={jumpToLine}
-              />
+              <InsightsRail notes={notes} view={view} onSource={jumpToLine} />
             </div>
           </div>
         </aside>

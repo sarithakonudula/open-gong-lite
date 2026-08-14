@@ -1,23 +1,19 @@
 "use client";
 
-import type { Claim, TranscriptLine } from "@/lib/types";
-import { formatDuration } from "@/lib/format";
-import { claimStatus } from "@/components/recording/claims";
+import type { TranscriptLineView } from "@/lib/analysis-view";
 
 export function TranscriptPanel({
-  transcript,
-  allClaims,
+  lines,
   activeLineId,
   canPlayAudio,
   onJump,
 }: {
-  transcript: TranscriptLine[];
-  allClaims: Claim[];
+  lines: TranscriptLineView[];
   activeLineId: string | null;
   canPlayAudio: boolean;
   onJump: (lineId: string) => void;
 }) {
-  if (transcript.length === 0) {
+  if (lines.length === 0) {
     return (
       <p className="px-1 py-6 text-sm text-fg-muted">
         No transcript came out of this call.
@@ -29,41 +25,37 @@ export function TranscriptPanel({
     <div className="space-y-1">
       <p className="px-1 pb-2 text-[13px] text-fg-muted">
         {canPlayAudio
-          ? "Click any line (or any Source in the insights) to jump here and play that second."
-          : "Click any Source in the insights and this jumps to the sentence it came from."}
+          ? "Click any line (or any source in the insights) to jump here and play that second."
+          : "Click any source in the insights and this jumps to the sentence it came from."}
       </p>
-      {transcript.map((line) => {
-        const active = activeLineId === line.id;
-        const tainted = allClaims.some(
-          (c) =>
-            c.evidence.lineId === line.id &&
-            claimStatus(c) === "blocked_injection",
-        );
+      {lines.map((line) => {
+        const active = activeLineId === line.lineId;
         return (
           <button
-            key={line.id}
-            id={`line-${line.id}`}
+            key={line.lineId}
+            id={`line-${line.lineId}`}
             type="button"
-            onClick={() => onJump(line.id)}
+            onClick={() => onJump(line.lineId)}
             className={`w-full rounded-xl px-3 py-2.5 text-left transition ${
               active ? "line-active" : "hover:bg-canvas"
             }`}
           >
             <div className="mb-0.5 flex items-center gap-2 text-xs text-fg-soft">
-              <span className="font-semibold text-fg-muted">{line.speaker}</span>
-              <span>{line.id}</span>
-              {line.startMs != null && (
-                <span className="tabular-nums">
-                  {formatDuration(line.startMs) ?? "0:00"}
+              {line.speaker && (
+                <span className="font-semibold text-fg-muted">
+                  {line.speaker}
                 </span>
               )}
-              {tainted && (
+              {line.timeLabel && (
+                <span className="tabular-nums">{line.timeLabel}</span>
+              )}
+              {line.blocked && (
                 <span className="badge-blocked">instruction to the AI</span>
               )}
             </div>
             <p
               className={`text-sm leading-relaxed ${
-                tainted
+                line.blocked
                   ? "text-fg-soft line-through decoration-danger/60"
                   : "text-fg"
               }`}
