@@ -228,7 +228,8 @@ export function mapRecapToDealNotes(
     ...asStringList(record.important_moments),
   ].filter(Boolean);
 
-  const uniqueSummary = [...new Set(summaryBits)].slice(0, 4);
+  // Purpose + takeaways: keep enough Recap bullets for a Fathom-style recap.
+  const uniqueSummary = [...new Set(summaryBits)].slice(0, 6);
   if (!uniqueSummary.length && typeof record.summary === "string") {
     uniqueSummary.push(record.summary);
   }

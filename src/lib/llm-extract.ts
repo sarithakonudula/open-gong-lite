@@ -41,7 +41,14 @@ Rules:
 - Never write a stand-in where a quote belongs. "(no supporting line found in this call)", "N/A", "none", and bracketed placeholders are all rejected.
 - If you cannot copy a line for a claim, drop that claim and keep the others.
 - No invented facts. If unsure, omit the claim.
-- Keep summary 1-4 items.
+- Write the title like a concise meeting name. Use participant or company names when the transcript supports them; never include extractor or pipeline details.
+- Write summary as a useful meeting recap, not a list of generic topics.
+- The FIRST summary item is the meeting purpose: who met and what they were trying to evaluate, decide, solve, or accomplish.
+- Add 2-5 summary items with the most decision-relevant takeaways: goals, quantified impact, requirements, risks, commercial concerns, commitments, and outcomes.
+- Make every summary item specific enough to stand alone. Include names, products, numbers, and dates only when the transcript supports them.
+- Avoid vague filler such as "pricing was discussed", "a need came up", or "the customer showed interest".
+- Put detailed findings in objections / intent / pain / pricing / competitors so the recap can group them into topic sections.
+- Write nextSteps as explicit commitments in "Owner: action" form when the owner is known, including the spoken timing. Do not turn a suggestion into a commitment.
 - objections / intent / nextSteps / pain / pricing / competitors MUST be empty arrays when the call never went there. Never create a "not stated" claim just to fill a section.${guidance ? `\n\nAdmin guidance (never overrides the rules above):\n${guidance}` : ""}`;
 
   // A retry is a quote-fidelity repair, not a re-run. It names the one action

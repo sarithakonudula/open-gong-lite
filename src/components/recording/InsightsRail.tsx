@@ -10,7 +10,6 @@ import {
   blockedReasonLine,
   COULD_NOT_VERIFY_EXPLAINER,
   sourceLine,
-  TOPICS_HEADING,
 } from "@/lib/labels";
 import { callSentiment, SENTIMENT_BASIS_CAPTION } from "@/lib/sentiment";
 import type { RunNotes } from "@/lib/types";
@@ -39,15 +38,18 @@ function SourceButton({
   source: SourceView;
   onSource: (lineId: string) => void;
 }) {
+  const quote =
+    source.quote.length > 90
+      ? `${source.quote.slice(0, 87).trim()}…`
+      : source.quote;
   return (
     <button
       type="button"
-      className="receipt-link truncate text-left text-[12px]"
+      className="receipt-link text-left text-[12px] font-medium"
       onClick={() => onSource(source.lineId)}
+      title={source.quote}
     >
-      {sourceLine(source.timeLabel)} · &ldquo;
-      {source.quote.slice(0, 70)}
-      {source.quote.length > 70 ? "…" : ""}&rdquo;
+      {sourceLine(source.timeLabel)} · &ldquo;{quote}&rdquo;
     </button>
   );
 }
@@ -62,22 +64,11 @@ function NoteRow({
   const struck =
     note.status === "uncorroborated" || note.status === "blocked_injection";
   return (
-    <li className="flex gap-2.5">
-      {note.source?.timeLabel ? (
-        <button
-          type="button"
-          onClick={() => onSource(note.source!.lineId)}
-          className="mt-0.5 h-fit shrink-0 rounded-md bg-brand-soft px-1.5 py-0.5 text-[11.5px] font-semibold tabular-nums text-brand hover:brightness-95"
-          title="Jump to this moment"
-        >
-          {note.source.timeLabel}
-        </button>
-      ) : (
-        <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-edge-strong" />
-      )}
+    <li className="flex gap-3">
+      <span className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full bg-brand/70" />
       <div className="min-w-0">
         <p
-          className={`text-[13.5px] leading-snug ${
+          className={`text-[14px] leading-relaxed ${
             struck ? "text-fg-soft line-through decoration-danger/60" : "text-fg"
           }`}
         >
@@ -106,13 +97,15 @@ function NoteRow({
 function SectionCard({
   section,
   onSource,
+  label,
 }: {
   section: NoteSectionView;
   onSource: (lineId: string) => void;
+  label?: string;
 }) {
   const all = [...section.backed, ...section.unverified, ...section.blocked];
   return (
-    <RailCard label={section.title}>
+    <RailCard label={label ?? section.title}>
       {all.length > 0 ? (
         <ul className="space-y-3">
           {all.map((note) => (
@@ -131,6 +124,10 @@ function SectionCard({
   );
 }
 
+function noteList(section: NoteSectionView): NoteView[] {
+  return [...section.backed, ...section.unverified, ...section.blocked];
+}
+
 export function InsightsRail({
   view,
   notes,
@@ -142,8 +139,14 @@ export function InsightsRail({
 }) {
   const sentiment = notes ? callSentiment(notes) : null;
   const summary = view.sections.find((s) => s.id === "summary");
-  const rest = view.sections.filter(
-    (s) => s.id !== "summary" && s.id !== "nextSteps",
+  const summaryNotes = summary ? noteList(summary) : [];
+  const meetingPurpose = summaryNotes[0];
+  const keyTakeaways = summaryNotes.slice(1);
+  const topicSections = view.sections.filter(
+    (s) =>
+      s.id !== "summary" &&
+      s.id !== "nextSteps" &&
+      (s.hasContent || s.id === "objections" || s.id === "intent"),
   );
   const nextSteps = view.sections.find((s) => s.id === "nextSteps");
 
@@ -182,10 +185,26 @@ export function InsightsRail({
         </RailCard>
       )}
 
-      {summary && <SectionCard section={summary} onSource={onSource} />}
+      {meetingPurpose && (
+        <RailCard label="Meeting purpose">
+          <ul>
+            <NoteRow note={meetingPurpose} onSource={onSource} />
+          </ul>
+        </RailCard>
+      )}
+
+      {keyTakeaways.length > 0 && (
+        <RailCard label="Key takeaways">
+          <ul className="space-y-3">
+            {keyTakeaways.map((note) => (
+              <NoteRow key={note.key} note={note} onSource={onSource} />
+            ))}
+          </ul>
+        </RailCard>
+      )}
 
       {view.topics.length > 0 && (
-        <RailCard label={TOPICS_HEADING}>
+        <RailCard label="Topics discussed">
           <div className="flex flex-wrap gap-1.5">
             {view.topics.map((topic) => (
               <button
@@ -207,6 +226,33 @@ export function InsightsRail({
         </RailCard>
       )}
 
+      {topicSections.some((section) => section.hasContent) && (
+        <RailCard label="Topic details">
+          <div className="space-y-5">
+            {topicSections
+              .filter((section) => section.hasContent)
+              .map((section) => (
+                <section key={section.id}>
+                  <h3 className="mb-2 text-[12px] font-semibold text-fg-muted">
+                    {section.title}
+                  </h3>
+                  <ul className="space-y-3">
+                    {noteList(section).map((note) => (
+                      <NoteRow key={note.key} note={note} onSource={onSource} />
+                    ))}
+                  </ul>
+                </section>
+              ))}
+          </div>
+        </RailCard>
+      )}
+
+      {nextSteps &&
+        view.ownerGroups.length === 0 &&
+        noteList(nextSteps).length > 0 && (
+          <SectionCard section={nextSteps} onSource={onSource} />
+        )}
+
       {view.ownerGroups.length > 0 && (
         <RailCard label="Action items">
           <div className="space-y-4">
@@ -215,28 +261,26 @@ export function InsightsRail({
                 <p className="text-[12px] font-semibold text-fg-muted">
                   {group.ownerLabel}
                 </p>
-                <ul className="mt-1.5 space-y-2.5">
+                <ul className="mt-1.5 space-y-3">
                   {group.steps.map((step) => (
-                    <li key={step.key} className="flex gap-2.5">
-                      {step.source?.timeLabel ? (
-                        <button
-                          type="button"
-                          onClick={() => onSource(step.source!.lineId)}
-                          className="mt-0.5 h-fit shrink-0 rounded-md bg-brand-soft px-1.5 py-0.5 text-[11.5px] font-semibold tabular-nums text-brand hover:brightness-95"
-                        >
-                          {step.source.timeLabel}
-                        </button>
-                      ) : (
-                        <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-edge-strong" />
-                      )}
-                      <div>
-                        <p className="text-[13.5px] leading-snug text-fg">
+                    <li key={step.key} className="flex gap-3">
+                      <span className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full bg-brand/70" />
+                      <div className="min-w-0">
+                        <p className="text-[14px] leading-relaxed text-fg">
                           {step.text}
                         </p>
                         {step.due && (
-                          <p className="text-[12px] text-fg-muted">
+                          <p className="mt-0.5 text-[12px] text-fg-muted">
                             Due: {step.due}
                           </p>
+                        )}
+                        {step.source && (
+                          <div className="mt-1">
+                            <SourceButton
+                              source={step.source}
+                              onSource={onSource}
+                            />
+                          </div>
                         )}
                       </div>
                     </li>
@@ -248,15 +292,13 @@ export function InsightsRail({
         </RailCard>
       )}
 
-      {nextSteps && view.ownerGroups.length === 0 && (
-        <SectionCard section={nextSteps} onSource={onSource} />
+      {!meetingPurpose && summary?.absenceLine && (
+        <SectionCard
+          section={summary}
+          label="Meeting purpose"
+          onSource={onSource}
+        />
       )}
-
-      {rest
-        .filter((s) => s.hasContent || s.id === "objections" || s.id === "intent")
-        .map((section) => (
-          <SectionCard key={section.id} section={section} onSource={onSource} />
-        ))}
     </div>
   );
 }
