@@ -24,7 +24,11 @@ export function UploadClient() {
   async function toggleSampleData() {
     const loading = !sampleLoaded;
     setBusy("sample");
-    setSampleStatus(loading ? "Seeding 20 companies through the gates…" : "Clearing sample data…");
+    setSampleStatus(
+      loading
+        ? "Seeding 42 calls across 24 companies through the gates…"
+        : "Clearing sample data…",
+    );
     try {
       const res = await fetch("/api/sample-data", {
         method: loading ? "POST" : "DELETE",
@@ -103,8 +107,8 @@ export function UploadClient() {
         </span>
         <span className="flex-1 text-sm text-amber-900">
           {sampleLoaded
-            ? "Sample dataset is loaded — 20 companies across deal stages, tagged on every screen."
-            : "Explore with a sample dataset: 20 companies across deal stages, 10 featured calls — every claim runs through the real evidence gates."}
+            ? "Sample dataset is loaded — 42 calls across 24 companies (17 sales, 14 customer success, 11 customer), tagged on every screen."
+            : "Explore with dummy data: 42 calls across 24 companies — 17 sales, 14 customer success, 11 customer. Every claim runs through the real evidence gates."}
         </span>
         <button
           onClick={toggleSampleData}

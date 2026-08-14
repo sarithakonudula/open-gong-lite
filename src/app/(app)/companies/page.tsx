@@ -9,6 +9,7 @@ import {
   normalizeCompanyKey,
 } from "@/lib/company";
 import { demoSignalFeedForRun, DealSignalFeed } from "@/lib/deal-signals";
+import { sampleDatasetFeedForRun } from "@/lib/sample-data";
 import { buildDigestEntries, digestTotals } from "@/lib/digest";
 import { toRecordingRow } from "@/lib/recording-row";
 import { listSamples } from "@/lib/samples";
@@ -31,7 +32,11 @@ export default async function CompaniesPage() {
   for (const run of runs) {
     const key = normalizeCompanyKey(forRun(run));
     if (feedByCompany.has(key)) continue;
-    feedByCompany.set(key, demoSignalFeedForRun(run, index.titleToSlug));
+    feedByCompany.set(
+      key,
+      sampleDatasetFeedForRun(run) ??
+        demoSignalFeedForRun(run, index.titleToSlug),
+    );
   }
 
   const entries = buildDigestEntries(runs, {

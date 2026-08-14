@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { SampleDataControls } from "@/components/SampleDataControls";
 import { formatDateShort, formatDuration } from "@/lib/format";
 import type { RecordingRow } from "@/lib/recording-row";
 
@@ -31,6 +32,7 @@ const CALL_TYPE_CLASS: Record<string, string> = {
 
 type SentimentFilter = "All" | "Positive" | "Neutral" | "At Risk";
 type SortOrder = "newest" | "oldest" | "score";
+type KindFilter = "all" | "sales" | "customer_success" | "support";
 
 function initials(company: string): string {
   return company
@@ -61,6 +63,7 @@ export function RecordingsClient({ rows }: { rows: RecordingRow[] }) {
   const [searchBusy, setSearchBusy] = useState(false);
   const [sentiment, setSentiment] = useState<SentimentFilter>("All");
   const [sort, setSort] = useState<SortOrder>("newest");
+  const [kind, setKind] = useState<KindFilter>("all");
 
   // Text search runs server-side over titles, transcripts, and shipped notes
   // (the same haystack the pipeline verified), then filters the local rows.
@@ -100,6 +103,7 @@ export function RecordingsClient({ rows }: { rows: RecordingRow[] }) {
     let out = rows;
     if (search.trim() && matchedIds) out = out.filter((r) => matchedIds.has(r.id));
     if (sentiment !== "All") out = out.filter((r) => r.dealState === sentiment);
+    if (kind !== "all") out = out.filter((r) => r.callKind === kind);
     out = [...out];
     if (sort === "newest") {
       out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -109,7 +113,18 @@ export function RecordingsClient({ rows }: { rows: RecordingRow[] }) {
       out.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
     }
     return out;
-  }, [rows, search, matchedIds, sentiment, sort]);
+  }, [rows, search, matchedIds, sentiment, sort, kind]);
+
+  const kindCounts = useMemo(
+    () => ({
+      all: rows.length,
+      sales: rows.filter((r) => r.callKind === "sales").length,
+      customer_success: rows.filter((r) => r.callKind === "customer_success").length,
+      support: rows.filter((r) => r.callKind === "support").length,
+    }),
+    [rows],
+  );
+  const hasSample = rows.some((r) => r.isSample);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-10 md:px-10">
@@ -152,6 +167,34 @@ export function RecordingsClient({ rows }: { rows: RecordingRow[] }) {
         ))}
       </div>
 
+      <div className="mt-4 flex flex-wrap gap-2">
+        {(
+          [
+            ["all", "All"],
+            ["sales", "Sales"],
+            ["customer_success", "Customer success"],
+            ["support", "Customer"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setKind(id)}
+            className={`chip cursor-pointer !py-1.5 ${
+              kind === id ? "chip-brand" : "chip-muted"
+            }`}
+          >
+            {label} · {kindCounts[id]}
+          </button>
+        ))}
+      </div>
+
+      {hasSample && (
+        <div className="mt-4">
+          <SampleDataControls compact afterHref="/recordings" />
+        </div>
+      )}
+
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-fg-muted">
           {searchBusy
@@ -187,12 +230,12 @@ export function RecordingsClient({ rows }: { rows: RecordingRow[] }) {
         <div className="card mt-4 px-6 py-12 text-center">
           <p className="text-[15px] font-semibold text-fg">No recordings yet</p>
           <p className="mt-1 text-sm text-fg-muted">
-            Upload a call, paste a recording link, or run a sample — every
+            Upload a call, paste a recording link, or load dummy data — every
             analyzed call lands here.
           </p>
-          <Link href="/" className="btn-primary mt-5 inline-flex text-sm">
-            Go to Upload
-          </Link>
+          <div className="mx-auto mt-5 max-w-2xl text-left">
+            <SampleDataControls compact afterHref="/recordings" />
+          </div>
         </div>
       ) : (
         <div className="card mt-4 overflow-x-auto">
@@ -226,6 +269,11 @@ export function RecordingsClient({ rows }: { rows: RecordingRow[] }) {
                         >
                           {row.title}
                         </Link>
+                        {row.isSample && (
+                          <span className="ml-2 align-middle chip chip-warn !py-0.5 text-[10px] uppercase tracking-wide">
+                            sample
+                          </span>
+                        )}
                         {row.pullQuote && (
                           <p className="mt-0.5 line-clamp-2 text-[13px] text-fg-muted">
                             &ldquo;{row.pullQuote}&rdquo;

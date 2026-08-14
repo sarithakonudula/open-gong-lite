@@ -70,8 +70,8 @@ export function DealSignalsView({ feed }: { feed: DealSignalFeed | null }) {
           Signals turn page visits, support tickets, renewal dates, and
           promises nobody kept into things worth doing today, each carrying the
           line from the call that makes it matter. Point a vendor (Factors,
-          RB2B, your ticketing tool) at POST /api/signals, or open the
-          Brightsmile 1 sample run to see it with sample data.
+          RB2B, your ticketing tool) at POST /api/signals, or load dummy data
+          from Upload and open any sample call&rsquo;s Signals tab.
         </p>
       </div>
     );

@@ -4,6 +4,7 @@ import {
   companyForRun as resolveCompanyForRun,
 } from "@/lib/company";
 import { demoSignalFeedForRun } from "@/lib/deal-signals";
+import { sampleDatasetFeedForRun } from "@/lib/sample-data";
 import { buildDigest, toPublicDigest } from "@/lib/digest";
 import { sendSlack } from "@/lib/notify";
 import { listSamples } from "@/lib/samples";
@@ -30,7 +31,10 @@ async function generateDigest() {
   for (const run of runs) {
     const company = companyForRun(run);
     if (feedByCompany.has(company)) continue;
-    feedByCompany.set(company, demoSignalFeedForRun(run, titleToSlug));
+    feedByCompany.set(
+      company,
+      sampleDatasetFeedForRun(run) ?? demoSignalFeedForRun(run, titleToSlug),
+    );
   }
 
   return buildDigest(runs, {

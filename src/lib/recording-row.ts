@@ -1,18 +1,15 @@
 // One derivation for every list surface: Recordings table, Companies
 // clusters, and notification events all read the same row shape.
 
+import { detectCallKind, KIND_LABEL, type CallKind } from "@/lib/call-kind";
 import {
   buildSampleCompanyIndex,
   companyForRun,
   SampleCompanyIndex,
 } from "@/lib/company";
-import { detectCallKind, KIND_LABEL } from "@/lib/call-kind";
 import { computeMomentum } from "@/lib/momentum";
-import {
-  applyMethodologyVerdict,
-  demoScorecardForRun,
-  getMethodologyPack,
-} from "@/lib/methodology";
+import { scorecardForRun } from "@/lib/methodology";
+import { SAMPLE_SLUG_PREFIX } from "@/lib/sample-data";
 import { callSentiment, DealStateLabel } from "@/lib/sentiment";
 import { deriveTopics, TopicTag } from "@/lib/topics";
 import {
@@ -40,6 +37,8 @@ export type RecordingRow = {
   status: RunStatus;
   source: RunRecord["source"];
   sourceLabel: string;
+  callKind: CallKind;
+  isSample: boolean;
 };
 
 export function buildRowContext(samples: SampleCall[]): SampleCompanyIndex {
@@ -51,29 +50,11 @@ function scorecardScore(
   run: RunRecord,
   index?: SampleCompanyIndex,
 ): number | null {
-  if (run.methodology?.verdict) {
-    try {
-      const pack = getMethodologyPack(run.methodology.packId);
-      if (pack) {
-        const card = applyMethodologyVerdict(
-          pack,
-          run.transcript,
-          run.methodology.verdict,
-          { dealValueUsd: run.methodology.dealValueUsd ?? undefined },
-        );
-        if (card) return card.score;
-      }
-    } catch {
-      // Stored verdict didn't re-gate — fall through to momentum.
-    }
-  }
   try {
-    const demo = demoScorecardForRun(run, index?.titleToSlug);
-    if (demo) return demo.score;
+    return scorecardForRun(run, index?.titleToSlug)?.score ?? null;
   } catch {
-    // No demo verdict for this run.
+    return null;
   }
-  return null;
 }
 
 export function callScore(
@@ -133,5 +114,9 @@ export function toRecordingRow(
     status: run.status,
     source: run.source,
     sourceLabel: run.sourceLabel,
+    callKind: detectCallKind(run.transcript).kind,
+    isSample:
+      run.source === "sample" ||
+      Boolean(run.sampleSlug?.startsWith(SAMPLE_SLUG_PREFIX)),
   };
 }

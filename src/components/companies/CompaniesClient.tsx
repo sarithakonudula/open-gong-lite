@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { DealSummaryCard } from "@/components/companies/DealSummaryCard";
+import { SampleDataControls } from "@/components/SampleDataControls";
 import { formatDateShort } from "@/lib/format";
 import type { DealStateLabel } from "@/lib/sentiment";
 import { dealStateChipClass } from "@/lib/sentiment";
@@ -126,16 +127,22 @@ export function CompaniesClient({
         </div>
       </div>
 
+      {clusters.length > 0 && (
+        <div className="mt-6">
+          <SampleDataControls compact afterHref="/companies" />
+        </div>
+      )}
+
       {clusters.length === 0 ? (
         <div className="card mt-8 px-6 py-12 text-center">
           <p className="text-[15px] font-semibold text-fg">No companies yet</p>
           <p className="mt-1 text-sm text-fg-muted">
             Analyze a call and its company lands here with a deal-level
-            summary, momentum, and risks.
+            summary, momentum, and risks — or load dummy data to explore.
           </p>
-          <Link href="/" className="btn-primary mt-5 inline-flex text-sm">
-            Go to Upload
-          </Link>
+          <div className="mx-auto mt-5 max-w-2xl text-left">
+            <SampleDataControls compact afterHref="/companies" />
+          </div>
         </div>
       ) : (
         <div className="card mt-8 overflow-x-auto">

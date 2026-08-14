@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { DealSummaryCard } from "@/components/companies/DealSummaryCard";
 import { DealSignalsView } from "@/components/DealSignalsView";
 import { MethodologyScorecardView } from "@/components/MethodologyScorecardView";
 import { RunActionsBar } from "@/components/RunActionsBar";
@@ -31,11 +32,12 @@ import type { MethodologyScorecard } from "@/lib/methodology";
 import { callSentiment, dealStateChipClass } from "@/lib/sentiment";
 import type { RunRecord } from "@/lib/types";
 
-export type RecordingTab = "transcript" | "email" | "scorecard" | "signals";
+export type RecordingTab = "transcript" | "email" | "scorecard" | "signals" | "deal";
 
 export function RecordingWorkspace({
   run,
   company,
+  companyKey,
   initialTab,
   initialCard,
   signalFeed,
@@ -47,6 +49,8 @@ export function RecordingWorkspace({
 }: {
   run: RunRecord;
   company: string;
+  /** Normalized company key — Deal Insights fetches the cluster summary. */
+  companyKey?: string;
   initialTab: RecordingTab;
   initialCard: MethodologyScorecard | null;
   signalFeed: DealSignalFeed | null;
@@ -282,13 +286,13 @@ export function RecordingWorkspace({
 
       <div
         className={`mt-6 grid gap-8 ${
-          tab === "scorecard"
+          tab === "scorecard" || tab === "deal"
             ? "lg:grid-cols-1"
             : "lg:grid-cols-[1.1fr_0.9fr]"
         }`}
       >
         <div className="min-w-0">
-          <div className="flex gap-6 border-b border-edge">
+          <div className="flex flex-wrap gap-6 border-b border-edge">
             <button
               type="button"
               className={tabClass("transcript")}
@@ -305,6 +309,13 @@ export function RecordingWorkspace({
             </button>
             {!shareMode && (
               <>
+                <button
+                  type="button"
+                  className={tabClass("deal")}
+                  onClick={() => selectTab("deal")}
+                >
+                  Deal Insights
+                </button>
                 <button
                   type="button"
                   className={tabClass("scorecard")}
@@ -375,6 +386,24 @@ export function RecordingWorkspace({
                   onSource={jumpToLine}
                 />
               </div>
+            ) : tab === "deal" ? (
+              <div className="rounded-2xl border border-edge bg-surface px-5 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-soft">
+                  Deal insights · {company}
+                </p>
+                <p className="mt-1 text-sm text-fg-muted">
+                  The story across every analyzed call with this company, built
+                  only from gate-passed claims. Opens when you click this tab.
+                </p>
+                {companyKey ? (
+                  <DealSummaryCard companyKey={companyKey} />
+                ) : (
+                  <p className="mt-4 text-sm text-fg-muted">
+                    No company key on this run — analyze it with a company name
+                    to unlock deal insights.
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="overflow-hidden rounded-2xl border border-edge bg-surface">
                 <DealSignalsView feed={signalFeed} />
@@ -383,7 +412,7 @@ export function RecordingWorkspace({
           </div>
         </div>
 
-        {tab !== "scorecard" && (
+        {tab !== "scorecard" && tab !== "deal" && (
           <aside className="min-w-0">
             <div className="lg:sticky lg:top-6">
               <p className="pb-3 text-[15px] font-semibold text-fg">

@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { SampleDataControls } from "@/components/SampleDataControls";
 import type { SampleCall } from "@/lib/types";
 
 export function UploadClient({ samples }: { samples: SampleCall[] }) {
@@ -162,6 +163,8 @@ export function UploadClient({ samples }: { samples: SampleCall[] }) {
           instantly organized for action.
         </p>
       </div>
+
+      <SampleDataControls />
 
       <div className="mt-10 grid gap-6 lg:grid-cols-2">
         <Link

@@ -63,6 +63,8 @@ export type AnalyzeInput = {
   curatedNotes?: DealNotes | null;
   recap?: RecapCall | null;
   pyaiCallId?: string;
+  /** Bulk sample seed skips the optional routed-email LLM pass. */
+  skipRoutedFollowUp?: boolean;
 };
 
 function deadlinePassed(startedAt: number, deadlineMs: number): boolean {
@@ -331,7 +333,9 @@ export async function runDealNotesLoop(
       shippedNotes =
         runStatus === "failed"
           ? (heldNotes ?? graded)
-          : await withRoutedFollowUp(graded);
+          : input.skipRoutedFollowUp
+            ? graded
+            : await withRoutedFollowUp(graded);
       const record: AttemptRecord = {
         attempt,
         at: new Date().toISOString(),
