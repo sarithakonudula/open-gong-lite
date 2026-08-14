@@ -127,6 +127,21 @@ export function rigorLine(band: { label: string; rigor: string } | null): string
 }
 
 /**
+ * Context the score should be read against. These come back from the model as
+ * free-form tags, so the known ones get words and anything new falls back to
+ * itself with the underscores taken out.
+ */
+const CONTEXT_FLAG_LABEL: Record<string, string> = {
+  single_threaded: "only one person in the room",
+  premature_solutioning: "pitched before asking",
+  short_call: "short call",
+};
+
+export function contextFlagLabel(flag: string): string {
+  return CONTEXT_FLAG_LABEL[flag] ?? flag.replaceAll("_", " ");
+}
+
+/**
  * Deal-signal vocabulary. A signal either carries a line from the call or
  * says out loud that it does not; there is no third, quieter state.
  */

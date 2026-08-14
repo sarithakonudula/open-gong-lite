@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MethodologyScorecard, Depth } from "@/lib/methodology";
 import {
+  contextFlagLabel,
   DEPTH_LABEL,
   DEPTH_UNBACKED_LABEL,
   rigorLine,
@@ -29,7 +30,7 @@ function reportMarkdown(card: MethodologyScorecard): string {
     `Score: ${card.score} out of 100 · call type: ${card.callType} · ${rigorLine(card.band)} · ${scorecardBackedFraction(card.evidenceStats)}`,
   );
   if (card.contextFlags.length > 0) {
-    lines.push(`Context flags: ${card.contextFlags.join(", ")}`);
+    lines.push(`Read this against: ${card.contextFlags.map(contextFlagLabel).join(", ")}`);
   }
   if (card.overallNote) {
     lines.push("");
@@ -289,7 +290,7 @@ export function MethodologyScorecardView({
               <div className="flex flex-wrap gap-2">
                 {card.contextFlags.map((flag) => (
                   <span key={flag} className="badge-corrected">
-                    {flag.replaceAll("_", " ")}
+                    {contextFlagLabel(flag)}
                   </span>
                 ))}
               </div>
