@@ -72,6 +72,37 @@ export const FollowUpEmailSchema = z.object({
 });
 export type FollowUpEmail = z.infer<typeof FollowUpEmailSchema>;
 
+/**
+ * The second, template routed email variant.
+ *
+ * It is stored on the run, never accepted from a model: DealNotesSchema below
+ * is the contract the extractor answers, and zod strips anything it does not
+ * name, so a model that tries to supply its own routed variant has it dropped
+ * before the gate ever runs. The only way this field gets set is the harness
+ * setting it, after the gate, from claims the gate passed.
+ */
+export const RoutedFollowUpEmailSchema = z.object({
+  subject: z.string().min(1),
+  body: z.string().min(1),
+  bullets: z
+    .array(z.object({ text: z.string(), claimId: z.string().min(1) }))
+    .min(1),
+  template: z.object({
+    id: z.string().min(1),
+    version: z.string().min(1),
+    title: z.string().min(1),
+    short: z.string().min(1),
+    explainer: z.string().min(1),
+  }),
+  provenance: z.object({
+    model: z.string().min(1),
+    source: z.string().min(1),
+    cut: z.number().int().nonnegative(),
+    offTemplateCut: z.number().int().nonnegative(),
+  }),
+});
+export type RoutedFollowUpEmail = z.infer<typeof RoutedFollowUpEmailSchema>;
+
 export const DealNotesSchema = z.object({
   title: z.string().min(1),
   summary: z.array(ClaimSchema).min(1),
@@ -85,6 +116,16 @@ export const DealNotesSchema = z.object({
   coverage: CoverageSchema.optional(),
 });
 export type DealNotes = z.infer<typeof DealNotesSchema>;
+
+/**
+ * What a run stores: the gated notes, plus the routed variant when one was
+ * generated. Additive and optional, so every run written before this existed
+ * still parses and still renders the same page.
+ */
+export const RunNotesSchema = DealNotesSchema.extend({
+  routedFollowUp: RoutedFollowUpEmailSchema.optional(),
+});
+export type RunNotes = z.infer<typeof RunNotesSchema>;
 
 export const GateFailureSchema = z.object({
   code: z.string(),
@@ -116,7 +157,7 @@ export const RunRecordSchema = z.object({
     .optional(),
   shareToken: z.string(),
   transcript: z.array(TranscriptLineSchema).default([]),
-  notes: DealNotesSchema.nullable().default(null),
+  notes: RunNotesSchema.nullable().default(null),
   attempts: z.array(AttemptRecordSchema).default([]),
   error: z.string().nullable().default(null),
   audioContentType: z.string().nullable().optional(),
