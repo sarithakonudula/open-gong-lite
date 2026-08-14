@@ -19,9 +19,9 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OpenGong Lite: deal notes with receipts",
+  title: "OpenGong Lite: sales call notes that cite the call",
   description:
-    "Upload a sales call. Get summary, objections, intent, next steps, and a follow-up email. Every claim is pinned to the transcript.",
+    "Upload a sales call. Get summary, objections, intent, next steps, and a follow-up email. Every note carries a citation to the moment it came from, and the app checks every citation before it ships.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
-import type { SampleCall } from "@/lib/types";
+import type { RunStatus, SampleCall } from "@/lib/types";
+import { RUN_STATUS_LABEL } from "@/lib/labels";
 
 type StatusPayload = {
   pyai?: {
@@ -19,7 +20,7 @@ type StatusPayload = {
 type RunSummary = {
   id: string;
   createdAt: string;
-  status: string;
+  status: RunStatus;
   source: string;
   sourceLabel: string;
   title: string;
@@ -176,19 +177,20 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
           OpenGong Lite
         </h1>
         <p className="animate-rise-delay-2 mt-6 max-w-xl text-lg leading-relaxed text-fog/90 md:text-xl">
-          Deal intelligence from any call: summary, objections, intent, next
-          steps, follow-up email. Each claim is pinned to a transcript receipt.
+          Like Perplexity cites its sources, but for sales calls. Every line of
+          the notes carries a citation to the moment in the recording, and the
+          app checks every citation before it ships.
         </p>
 
         <div className="animate-rise-delay-2 mt-10 flex flex-wrap gap-3">
           <a href="#try" className="btn-primary">
-            See deal intelligence →
+            See the notes →
           </a>
           <a href="/live" className="btn-ghost">
             Live call
           </a>
           <a href="/how" className="btn-ghost">
-            How gates work
+            How the checking works
           </a>
           <a href="#ingest" className="btn-ghost">
             Upload or paste a link
@@ -203,7 +205,8 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
               ? `not ready: ${status.pyai.error}`
               : "checking…"}
           {" · "}
-          Hear jobs + Recap pack `{status?.recapPackId || "sales_outbound"}`
+          transcription and notes (developers: Hear jobs, Recap pack{" "}
+          <code>{status?.recapPackId || "sales_outbound"}</code>)
           {status?.llmFallback ? " · LLM fallback on" : ""}
         </p>
       </section>
@@ -212,12 +215,13 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <h2 className="font-[family-name:var(--font-display)] text-3xl tracking-tight md:text-4xl">
-              Run a sample → open deal intelligence
+              Run a sample call
             </h2>
             <p className="mt-2 max-w-2xl text-mist">
-              Click any call. You&apos;ll land on a page with summary, objections,
-              intent, next steps, and clickable receipts. Run the messy sample
-              to watch unproven claims demoted and an injection quarantined.
+              Click any call. You land on a page with summary, objections,
+              intent, next steps, and a citation under every line. Run the
+              messy sample to see a note the AI could not back, and a line
+              someone planted to give the AI orders.
             </p>
           </div>
         </div>
@@ -259,8 +263,8 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
           Search past calls
         </h2>
         <p className="mt-2 max-w-2xl text-mist">
-          Find anything you&apos;ve discussed across stored runs: titles,
-          transcript lines, and shipped claims.
+          Find anything you have discussed across saved calls: titles, lines
+          from the transcript, and the notes that shipped.
         </p>
         <input
           className="field mt-6 max-w-xl"
@@ -270,12 +274,14 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
           onChange={(e) => setSearch(e.target.value)}
         />
         <p className="mt-2 text-xs text-mist">
-          {searchBusy ? "Searching…" : `${runs.length} run${runs.length === 1 ? "" : "s"}`}
+          {searchBusy
+            ? "Searching…"
+            : `${runs.length} call${runs.length === 1 ? "" : "s"}`}
         </p>
         <ul className="mt-6 space-y-3">
           {runs.length === 0 ? (
             <li className="text-sm text-mist">
-              No runs yet. Run a sample above to populate history.
+              No calls yet. Run a sample above and it lands here.
             </li>
           ) : (
             runs.map((run) => (
@@ -288,7 +294,8 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-medium text-paper">{run.title}</p>
                     <p className="text-xs uppercase tracking-[0.14em] text-mist">
-                      {run.status} · {run.source}
+                      {RUN_STATUS_LABEL[run.status] ?? run.status} ·{" "}
+                      {run.source}
                     </p>
                   </div>
                   <p className="mt-1 text-sm text-fog/75">
@@ -307,11 +314,12 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
         className="relative mx-auto w-full max-w-6xl px-5 pb-24 md:px-8"
       >
         <h2 className="font-[family-name:var(--font-display)] text-3xl tracking-tight md:text-4xl">
-          Ingest a real call
+          Bring your own call
         </h2>
         <p className="mt-2 max-w-2xl text-mist">
-          Live path: Hear async jobs (`diarize`) → Recap (`sales_outbound`) →
-          gated receipts. Samples still work offline with no key. Or try the{" "}
+          Upload a recording or paste a link to one. It gets transcribed,
+          turned into notes, and every citation is checked before you see the
+          page. The samples above need no key at all. Or try the{" "}
           <a href="/live" className="text-signal underline-offset-2 hover:underline">
             live call demo
           </a>
@@ -369,12 +377,12 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
           <p>MIT · OpenGong Lite</p>
           <div className="flex flex-wrap gap-4">
             <a href="/how" className="hover:text-signal">
-              How gates work
+              How the checking works
             </a>
             <a href="/live" className="hover:text-signal">
               Live call
             </a>
-            <p>Runs on PyAI · Hear + Recap loop with blocking gates</p>
+            <p>Runs on PyAI · every citation checked before it ships</p>
           </div>
         </div>
       </footer>

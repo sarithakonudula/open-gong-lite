@@ -180,7 +180,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
     clearTimers();
     setPartial(null);
     setBusy(true);
-    setStatus("Call ended. Running harness gates…");
+    setStatus("Call ended. Checking every citation…");
     setError(null);
 
     const transcript = lines.slice(0, Math.max(visibleCount, 1));
@@ -198,7 +198,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
       if (!res.ok || !data.id) {
         throw new Error(data.error || "Finalize failed");
       }
-      setStatus("Notes ready. Opening deal intelligence…");
+      setStatus("Notes ready. Opening them now…");
       router.push(`/runs/${data.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Finalize failed");
@@ -211,7 +211,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
   async function endMicCall() {
     clearTimers();
     setBusy(true);
-    setStatus("Encoding WAV → Hear diarize → gates…");
+    setStatus("Transcribing, splitting speakers, checking citations…");
     setError(null);
 
     const capture = wavCaptureRef.current;
@@ -245,7 +245,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
       if (!res.ok || !data.id) {
         throw new Error(data.error || "Live mic finalize failed");
       }
-      setStatus("Notes ready. Opening deal intelligence…");
+      setStatus("Notes ready. Opening them now…");
       router.push(`/runs/${data.id}`);
     } catch (err) {
       capture?.stream.getTracks().forEach((t) => t.stop());
@@ -294,7 +294,8 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
         </h1>
         <p className="mt-4 max-w-2xl text-fog/90">
           Stream a sample script offline, or record with your mic as WAV PCM.
-          End the call and Hear splits speakers, then the harness fires.
+          End the call and it splits the speakers, writes the notes, and
+          checks every citation.
         </p>
 
         <div className="mt-8 flex flex-wrap gap-2">
@@ -315,7 +316,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
             Record mic
           </button>
           <Link href="/how" className="btn-ghost">
-            How gates work
+            How the checking works
           </Link>
         </div>
 

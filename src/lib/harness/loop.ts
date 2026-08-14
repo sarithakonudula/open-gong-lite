@@ -133,7 +133,8 @@ export async function runDealNotesLoop(
         ...run,
         status: "failed",
         attempts: [...run.attempts, record],
-        error: "Budget governor stopped the loop (deadline).",
+        error:
+          "This call took longer than the time budget allows, so the loop stopped.",
       });
       return run;
     }
@@ -231,7 +232,7 @@ export async function runDealNotesLoop(
         attempts: [...run.attempts, record],
         error:
           runStatus === "failed"
-            ? "No claim passed the receipts gate. Demoted claims stay visible."
+            ? "Nothing here could be backed by a line in the call. The notes stay on this page, marked."
             : null,
       });
       return run;
@@ -260,7 +261,7 @@ export async function runDealNotesLoop(
     notes: shippedNotes,
     error:
       run.error ||
-      "Loop ended without a gated ship. See attempt failures for reasons.",
+      "The notes never came back in a form that could be checked. What each try did is listed below.",
   });
   return run;
 }

@@ -3,26 +3,34 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Claim, ClaimStatus, RunRecord } from "@/lib/types";
 import { isEmailableStatus } from "@/lib/types";
+import {
+  attemptReasonLine,
+  backedFraction,
+  blockedReasonLine,
+  COVERAGE_BAND_LABEL,
+  NOTE_STATUS_LABEL,
+  RUN_STATUS_LABEL,
+} from "@/lib/labels";
 
-const BADGE: Record<ClaimStatus, { label: string; className: string }> = {
-  verified: { label: "verified", className: "badge-verified" },
-  segment_corrected: { label: "corrected", className: "badge-corrected" },
-  uncorroborated: { label: "unproven", className: "badge-unproven" },
-  blocked_injection: { label: "injection blocked", className: "badge-blocked" },
+const BADGE_CLASS: Record<ClaimStatus, string> = {
+  verified: "badge-verified",
+  segment_corrected: "badge-corrected",
+  uncorroborated: "badge-unproven",
+  blocked_injection: "badge-blocked",
 };
 
 function claimStatus(claim: Claim): ClaimStatus {
   return claim.status ?? "verified";
 }
 
-function ClaimList({
+function NoteList({
   title,
   claims,
-  onReceipt,
+  onSource,
 }: {
   title: string;
   claims: Claim[];
-  onReceipt: (lineId: string) => void;
+  onSource: (lineId: string) => void;
 }) {
   if (!claims.length) {
     return (
@@ -30,7 +38,7 @@ function ClaimList({
         <h3 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
           {title}
         </h3>
-        <p className="text-mist text-sm">None captured.</p>
+        <p className="text-mist text-sm">Nothing on this in the call.</p>
       </section>
     );
   }
@@ -43,19 +51,15 @@ function ClaimList({
       <ul className="space-y-4">
         {claims.map((claim, index) => {
           const status = claimStatus(claim);
-          const badge = BADGE[status];
           return (
             <li
               key={claim.id || `${title}-${index}`}
               className={`space-y-2 ${status === "blocked_injection" ? "opacity-80" : ""}`}
             >
               <div className="flex flex-wrap items-center gap-2">
-                <span className={badge.className}>{badge.label}</span>
-                {status === "blocked_injection" && claim.blockedReasons?.[0] && (
-                  <span className="text-xs text-heat">
-                    {claim.blockedReasons[0]}
-                  </span>
-                )}
+                <span className={BADGE_CLASS[status]}>
+                  {NOTE_STATUS_LABEL[status]}
+                </span>
               </div>
               <p
                 className={`text-[1.05rem] leading-relaxed ${
@@ -66,12 +70,25 @@ function ClaimList({
               >
                 {claim.text}
               </p>
+              {status === "blocked_injection" && (
+                <p className="text-sm text-heat">
+                  {blockedReasonLine(claim.blockedReasons)}
+                </p>
+              )}
+              {status === "uncorroborated" && (
+                <p className="text-sm text-heat">
+                  The AI offered the quote below as its source. That sentence
+                  is nowhere in the call, so the note stays here unbacked and
+                  never enters the follow-up email.
+                </p>
+              )}
               <button
                 type="button"
                 className="receipt-link text-sm"
-                onClick={() => onReceipt(claim.evidence.lineId)}
+                onClick={() => onSource(claim.evidence.lineId)}
               >
-                Receipt · {claim.evidence.lineId}: “{claim.evidence.quote}”
+                {status === "uncorroborated" ? "Quote the AI offered" : "Source"}{" "}
+                · {claim.evidence.lineId}: “{claim.evidence.quote}”
               </button>
             </li>
           );
@@ -170,52 +187,48 @@ export function DealNotesView({
     }
   }
 
-  const verifiedPct = coverage
-    ? Math.round(coverage.ratio * 100)
-    : null;
-
   return (
     <div className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
       <div className="space-y-8">
         <header className="space-y-4 animate-rise">
           <p className="text-xs uppercase tracking-[0.22em] text-signal">
-            Deal intelligence
+            Notes from this call
           </p>
           <h1 className="font-[family-name:var(--font-display)] text-4xl leading-[1.05] tracking-tight md:text-5xl">
             {notes?.title || run.sourceLabel}
           </h1>
           <p className="max-w-2xl text-base text-fog/85">
-            Models draft. Gates decide. Unproven claims stay visible. They
-            never pretend to be facts. Click a{" "}
-            <span className="text-signal">Receipt</span>
-            {canPlayAudio ? " to jump and play that second." : " to jump to the line."}
+            Every note below carries a citation to the moment it came from.
+            Click a <span className="text-signal">Source</span>
+            {canPlayAudio
+              ? " to see that sentence in the call and hear that second."
+              : " to see that sentence in the call."}{" "}
+            A note the AI cannot point to stays on this page, marked, and never
+            reaches the follow-up email.
           </p>
           {coverage && (
             <p className="text-sm text-fog/90">
-              <span className="text-signal">
-                ✓ {coverage.stats.verified} verified
-              </span>
-              {" · "}
-              {coverage.stats.segment_corrected} corrected
+              <span className="text-signal">✓ {backedFraction(coverage)}</span>
+              {coverage.stats.segment_corrected > 0 && (
+                <>
+                  {" · "}
+                  {coverage.stats.segment_corrected} of those had the citation
+                  corrected
+                </>
+              )}
               {" · "}
               <span className="text-heat">
-                ⚠ {coverage.stats.uncorroborated} unproven
+                ⚠ {coverage.stats.uncorroborated} not found in the call
               </span>
               {" · "}
               <span className="text-heat">
                 ⛔ {coverage.stats.blocked_injection} blocked
               </span>
-              {verifiedPct != null && (
-                <>
-                  {" · "}
-                  <span className="text-paper">{verifiedPct}% verified</span>
-                </>
-              )}
-              . Dropped claims stay visible.
+              . Nothing is deleted. Every note stays on this page.
             </p>
           )}
           <div className="flex flex-wrap items-center gap-3 text-sm text-mist">
-            <span className={statusTone}>Status: {run.status}</span>
+            <span className={statusTone}>{RUN_STATUS_LABEL[run.status]}</span>
             <span>·</span>
             <span>{run.sourceLabel}</span>
             {!shareMode && (
@@ -250,12 +263,14 @@ export function DealNotesView({
           {quarantined.length > 0 && (
             <div className="rounded-2xl border border-heat/40 bg-heat/10 px-4 py-3 text-sm">
               <p className="font-medium text-heat">
-                {quarantined.length} prompt-injection line
-                {quarantined.length === 1 ? "" : "s"} quarantined
+                {quarantined.length} note{quarantined.length === 1 ? "" : "s"}{" "}
+                blocked
               </p>
               <p className="mt-1 text-fog/85">
-                Spoken into the call, caught, struck through, and barred from
-                the follow-up email.
+                Someone spoke an instruction to the AI on this call. Anything
+                standing on that moment is struck through below and barred from
+                the follow-up email. When a call talks to your AI, that is an
+                attack on your notes, and an attack never counts as a source.
               </p>
             </div>
           )}
@@ -263,18 +278,18 @@ export function DealNotesView({
           {run.status !== "shipped" && (
             <div className="rounded-2xl border border-heat/40 bg-heat/10 px-4 py-3 text-sm text-paper">
               <p className="font-medium text-heat">
-                Harness did not clean-ship this run ({run.status}
-                {coverage ? ` · ${coverage.band}` : ""})
+                {RUN_STATUS_LABEL[run.status]}
+                {coverage ? `: ${COVERAGE_BAND_LABEL[coverage.band]}` : ""}
               </p>
               <p className="mt-1 text-fog/85">
                 {run.error ||
-                  "Demoted claims stay on this page. Unproven lines never silently appear as facts."}
+                  "Notes the AI could not point to are still on this page. They are marked, and they never appear as facts."}
               </p>
               {gateFailures.length > 0 && (
                 <ul className="mt-3 space-y-1 text-fog/80">
                   {gateFailures.slice(0, 6).map((f, i) => (
                     <li key={`${f.attempt}-${f.code}-${i}`}>
-                      Attempt #{f.attempt} · {f.code}
+                      Try #{f.attempt} · {f.code}
                       {f.path ? ` @ ${f.path}` : ""}: {f.message}
                     </li>
                   ))}
@@ -304,44 +319,44 @@ export function DealNotesView({
 
         {notes ? (
           <div className="space-y-10 animate-rise-delay">
-            <ClaimList
+            <NoteList
               title="1 · Summary"
               claims={notes.summary}
-              onReceipt={jumpToLine}
+              onSource={jumpToLine}
             />
-            <ClaimList
+            <NoteList
               title="2 · Objections"
               claims={notes.objections}
-              onReceipt={jumpToLine}
+              onSource={jumpToLine}
             />
-            <ClaimList
+            <NoteList
               title="3 · Intent"
               claims={notes.intent}
-              onReceipt={jumpToLine}
+              onSource={jumpToLine}
             />
-            <ClaimList
+            <NoteList
               title="4 · Next steps"
               claims={notes.nextSteps}
-              onReceipt={jumpToLine}
+              onSource={jumpToLine}
             />
             {((notes.pain || []).length > 0 ||
               (notes.pricing || []).length > 0 ||
               (notes.competitors || []).length > 0) && (
               <>
-                <ClaimList
+                <NoteList
                   title="Pain"
                   claims={notes.pain || []}
-                  onReceipt={jumpToLine}
+                  onSource={jumpToLine}
                 />
-                <ClaimList
+                <NoteList
                   title="Pricing"
                   claims={notes.pricing || []}
-                  onReceipt={jumpToLine}
+                  onSource={jumpToLine}
                 />
-                <ClaimList
+                <NoteList
                   title="Competitors"
                   claims={notes.competitors || []}
-                  onReceipt={jumpToLine}
+                  onSource={jumpToLine}
                 />
               </>
             )}
@@ -351,8 +366,8 @@ export function DealNotesView({
               </h3>
               {!isEmailableStatus(notes.followUpEmail.status) && (
                 <p className="text-sm text-heat">
-                  Draft withheld or rebuilt. Only verified claims may leave
-                  this page.
+                  No draft went out. A note has to be backed by a line in the
+                  call before it can leave this page, and none here were.
                 </p>
               )}
               <p className="text-sm text-mist">
@@ -366,28 +381,29 @@ export function DealNotesView({
                 className="receipt-link text-sm"
                 onClick={() => jumpToLine(notes.followUpEmail.evidence.lineId)}
               >
-                Receipt · {notes.followUpEmail.evidence.lineId}: “
+                Source · {notes.followUpEmail.evidence.lineId}: “
                 {notes.followUpEmail.evidence.quote}”
               </button>
             </section>
           </div>
         ) : (
           <p className="text-mist animate-rise-delay">
-            {run.error || "Deal intelligence did not ship for this run."}
+            {run.error || "No notes came out of this call."}
           </p>
         )}
 
         {run.attempts.length > 0 && (
           <section className="space-y-3 border-t border-white/10 pt-6 animate-rise-delay-2">
             <h3 className="text-sm uppercase tracking-[0.18em] text-mist">
-              Harness attempts
+              What the checker did
             </h3>
             <ul className="space-y-2 text-sm text-fog/80">
               {run.attempts.map((attempt) => (
                 <li key={attempt.attempt}>
-                  #{attempt.attempt} · {attempt.ok ? "passed" : "blocked"} ·{" "}
-                  {attempt.reason || "n/a"}
-                  {attempt.failures[0]
+                  Try #{attempt.attempt} ·{" "}
+                  {attempt.ok ? "accepted" : "sent back"} ·{" "}
+                  {attemptReasonLine(attempt.reason)}
+                  {!attempt.ok && attempt.failures[0]
                     ? `: ${attempt.failures[0].message}`
                     : ""}
                 </li>
@@ -405,8 +421,8 @@ export function DealNotesView({
             </p>
             <p className="mt-1 text-sm text-fog/80">
               {canPlayAudio
-                ? "Click a receipt to jump to the line and play that second."
-                : "Click a receipt to jump to the exact line."}
+                ? "Click any source and this jumps to the sentence it came from, then plays that second."
+                : "Click any source and this jumps to the sentence it came from."}
             </p>
             {canPlayAudio && (
               <audio
@@ -441,7 +457,9 @@ export function DealNotesView({
                     <span>·</span>
                     <span>{line.speaker}</span>
                     {tainted && (
-                      <span className="badge-blocked">injection</span>
+                      <span className="badge-blocked">
+                        instruction to the AI
+                      </span>
                     )}
                     {line.startMs != null && canPlayAudio && (
                       <span>{(line.startMs / 1000).toFixed(1)}s</span>

@@ -21,7 +21,7 @@ function assertClaimsOnly(claims: unknown): asserts claims is Claim[] {
   if (!Array.isArray(claims)) {
     throw new EmailError(
       "EMAIL_INPUT_INVALID",
-      "email composer accepts an array of claims only — never a transcript",
+      "email composer accepts an array of claims only, never a transcript",
     );
   }
 }
@@ -46,7 +46,7 @@ export function composeEmail(
     "",
     ...bullets.map((b) => `- ${b.text}`),
     "",
-    "Every point above is tied to a verified line in the call notes. Unproven claims were not included.",
+    "Every point above is backed by a line in the call. Anything we could not find in the call was left out.",
     "",
     "OpenGong Lite",
   ].join("\n");
@@ -72,7 +72,7 @@ export function screenDraft(
     if (!allowed.has(claimId)) {
       throw new EmailError(
         "EMAIL_DRAFT_REJECTED",
-        `draft cites claim ${JSON.stringify(claimId)} which is not a verified claim — whole draft rejected`,
+        `the draft cites ${JSON.stringify(claimId)}, which is not a backed note, so the whole draft was rejected`,
       );
     }
     kept.push({ text: String(bullet.text || ""), claimId });
@@ -105,7 +105,7 @@ export function chokeFollowUp(opts: {
   if (usable.length === 0) {
     return {
       subject: `Follow-up withheld: ${opts.title}`.slice(0, 160),
-      body: "No claims passed the receipts gate, so OpenGong Lite did not draft a customer email. Unproven or injected lines never leave this page.",
+      body: "Nothing in these notes could be backed by a line in the call, so OpenGong Lite did not draft an email. A note we cannot back never leaves the page, and neither does a line that tried to give the AI instructions.",
       evidence: {
         lineId: fallbackLine.id,
         quote:

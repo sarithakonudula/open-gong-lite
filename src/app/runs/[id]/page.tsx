@@ -27,7 +27,7 @@ export default async function RunPage({ params }: Props) {
           </Link>
           <div className="flex items-center gap-3">
             <p className="text-xs uppercase tracking-[0.18em] text-mist">
-              Deal intelligence · {run.id.slice(0, 8)}
+              Notes from this call · {run.id.slice(0, 8)}
             </p>
             {showLogout && (
               <LogoutButton className="btn-ghost !px-3 !py-1.5 text-sm" />

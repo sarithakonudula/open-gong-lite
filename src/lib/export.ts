@@ -1,29 +1,35 @@
-import { DealNotes, RunRecord, TranscriptLine } from "@/lib/types";
+import {
+  backedFraction,
+  COVERAGE_BAND_LABEL,
+  NOTE_STATUS_LABEL,
+  RUN_STATUS_LABEL,
+} from "@/lib/labels";
+import { ClaimStatus, DealNotes, RunRecord, TranscriptLine } from "@/lib/types";
 
 function claimMd(
   claim: {
     text: string;
-    status?: string;
+    status?: ClaimStatus;
     evidence: { lineId: string; quote: string };
   },
   transcript: TranscriptLine[],
 ): string {
   const line = transcript.find((l) => l.id === claim.evidence.lineId);
   const loc = line ? `line ${line.index + 1} · ${line.speaker}` : claim.evidence.lineId;
-  const badge = claim.status ? ` [${claim.status}]` : "";
-  return `- ${claim.text}${badge}\n  - Receipt (${loc}): “${claim.evidence.quote}”`;
+  const badge = claim.status ? ` [${NOTE_STATUS_LABEL[claim.status]}]` : "";
+  return `- ${claim.text}${badge}\n  - Source (${loc}): “${claim.evidence.quote}”`;
 }
 
 export function notesToMarkdown(run: RunRecord): string {
   const notes = run.notes;
-  if (!notes) return `# ${run.sourceLabel}\n\n_No notes shipped._\n`;
+  if (!notes) return `# ${run.sourceLabel}\n\n_No notes came out of this call._\n`;
 
   const sections: string[] = [
     `# ${notes.title}`,
     "",
-    `Status: **${run.status}** · Source: ${run.sourceLabel}`,
+    `**${RUN_STATUS_LABEL[run.status]}** · From: ${run.sourceLabel}`,
     notes.coverage
-      ? `Coverage: **${Math.round(notes.coverage.ratio * 100)}% verified** (${notes.coverage.band})`
+      ? `**${backedFraction(notes.coverage)}** (${COVERAGE_BAND_LABEL[notes.coverage.band]})`
       : "",
     "",
     "## Summary",
@@ -32,7 +38,7 @@ export function notesToMarkdown(run: RunRecord): string {
     "## Objections",
     ...(notes.objections.length
       ? notes.objections.map((c) => claimMd(c, run.transcript))
-      : ["_None captured._"]),
+      : ["_Nothing on this in the call._"]),
     "",
     "## Intent",
     ...notes.intent.map((c) => claimMd(c, run.transcript)),
