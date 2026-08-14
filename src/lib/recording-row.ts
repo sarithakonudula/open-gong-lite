@@ -6,6 +6,7 @@ import {
   companyForRun,
   SampleCompanyIndex,
 } from "@/lib/company";
+import { detectCallKind, KIND_LABEL } from "@/lib/call-kind";
 import { computeMomentum } from "@/lib/momentum";
 import {
   applyMethodologyVerdict,
@@ -33,6 +34,7 @@ export type RecordingRow = {
   topics: TopicTag[];
   score: number | null;
   scoreSource: ScoreSource | null;
+  callType: string;
   dealState: DealStateLabel | null;
   sentimentPct: number | null;
   status: RunStatus;
@@ -125,6 +127,7 @@ export function toRecordingRow(
     topics: run.notes ? deriveTopics(run.notes) : [],
     score,
     scoreSource: source,
+    callType: KIND_LABEL[detectCallKind(run.transcript).kind],
     dealState: sentiment?.state ?? null,
     sentimentPct: sentiment?.pct ?? null,
     status: run.status,

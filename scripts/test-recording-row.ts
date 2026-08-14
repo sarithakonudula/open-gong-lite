@@ -104,6 +104,7 @@ describe("toRecordingRow", () => {
     const row = toRecordingRow(run());
     assert.equal(row.scoreSource, "momentum");
     assert.ok(row.score != null && row.score > 50);
+    assert.equal(row.callType, "Sales");
     assert.equal(row.dealState, "Positive");
     assert.equal(row.sentimentPct, row.score);
   });

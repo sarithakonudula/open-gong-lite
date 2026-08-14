@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatDateShort, formatDuration } from "@/lib/format";
 import type { RecordingRow } from "@/lib/recording-row";
-import { dealStateChipClass } from "@/lib/sentiment";
 
 const ASK_PROMPTS = [
   { label: "How can I lead better calls?", query: "next step" },
@@ -22,6 +21,12 @@ const TAG_CLASS: Record<string, string> = {
   demo: "chip-brand",
   "follow up": "chip-muted",
   objection: "chip-warn",
+};
+
+const CALL_TYPE_CLASS: Record<string, string> = {
+  Sales: "chip-positive",
+  Support: "chip-brand",
+  "Customer Success": "chip-neutral",
 };
 
 type SentimentFilter = "All" | "Positive" | "Neutral" | "At Risk";
@@ -104,7 +109,7 @@ export function RecordingsClient({ rows }: { rows: RecordingRow[] }) {
       out.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
     }
     return out;
-  }, [rows, matchedIds, sentiment, sort]);
+  }, [rows, search, matchedIds, sentiment, sort]);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-10 md:px-10">
@@ -198,7 +203,7 @@ export function RecordingsClient({ rows }: { rows: RecordingRow[] }) {
                 <th className="px-5 py-3">Company name</th>
                 <th className="px-5 py-3">Date</th>
                 <th className="px-5 py-3">Score</th>
-                <th className="px-5 py-3">Deal state</th>
+                <th className="px-5 py-3">Call type</th>
               </tr>
             </thead>
             <tbody>
@@ -267,15 +272,11 @@ export function RecordingsClient({ rows }: { rows: RecordingRow[] }) {
                     )}
                   </td>
                   <td className="px-5 py-4">
-                    {row.dealState ? (
-                      <span className={`chip ${dealStateChipClass(row.dealState)}`}>
-                        ● {row.dealState}
-                      </span>
-                    ) : (
-                      <span className="chip chip-muted">
-                        {row.status === "failed" ? "Failed" : "Processing"}
-                      </span>
-                    )}
+                    <span
+                      className={`chip ${CALL_TYPE_CLASS[row.callType] ?? "chip-muted"}`}
+                    >
+                      {row.callType}
+                    </span>
                   </td>
                 </tr>
               ))}

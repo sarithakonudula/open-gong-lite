@@ -138,125 +138,200 @@ export function CompaniesClient({
           </Link>
         </div>
       ) : (
-        <div className="mt-8 space-y-5">
-          {clusters.map((cluster) => (
-            <section key={cluster.company} className="card p-5">
-              <div className="flex flex-wrap items-center gap-3">
-                <span
-                  className={`flex h-11 w-11 items-center justify-center rounded-lg text-[13px] font-bold ${tileColor(cluster.company)}`}
-                >
-                  {initials(cluster.company) || "?"}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-semibold text-fg">
-                    {cluster.company}
-                  </h2>
-                  <p className="text-[13px] text-fg-muted">
-                    {cluster.callCount} call{cluster.callCount === 1 ? "" : "s"} ·
-                    latest {formatDateShort(cluster.latestAt)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  {cluster.momentum ? (
-                    <>
-                      <p className="text-2xl font-bold tabular-nums text-fg">
-                        {cluster.momentum.score}%
-                      </p>
-                      {cluster.dealState && (
-                        <span
-                          className={`chip ${dealStateChipClass(cluster.dealState)}`}
-                        >
-                          ● {cluster.dealState}
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="chip chip-brand">{cluster.callKindLabel}</span>
-                  )}
-                </div>
-              </div>
-
-              <DealSummaryCard companyKey={cluster.companyKey} />
-
-              {(cluster.highlights.length > 0 ||
-                cluster.openObjections.length > 0 ||
-                cluster.nextSteps.length > 0) && (
-                <div className="mt-4 space-y-2 border-t border-edge pt-4">
-                  {cluster.highlights.map((h, i) => (
-                    <p key={`h-${i}`} className="text-sm text-fg">
-                      {h.text}{" "}
-                      <span className="text-[12px] text-fg-soft">[{h.lineId}]</span>
-                    </p>
-                  ))}
-                  {cluster.openObjections.map((o, i) => (
-                    <p key={`o-${i}`} className="text-sm text-warn">
-                      ⚠ Open objection: {o}
-                    </p>
-                  ))}
-                  {cluster.nextSteps.map((n, i) => (
-                    <p key={`n-${i}`} className="text-sm text-fg-muted">
-                      ➡️ {n}
-                    </p>
-                  ))}
-                </div>
-              )}
-
-              {cluster.riskAlerts.length > 0 && (
-                <div className="mt-4 space-y-2 border-t border-edge pt-4">
-                  {cluster.riskAlerts.map((alert, i) => (
-                    <div key={`r-${i}`} className="rounded-lg bg-canvas px-3 py-2.5">
-                      <p className="flex items-center gap-2 text-sm font-medium text-fg">
-                        <span
-                          className={`chip ${SEVERITY_CLASS[alert.severity] ?? "chip-muted"}`}
-                        >
-                          {alert.severity}
-                        </span>
-                        {alert.title}
-                      </p>
-                      <p className="mt-1 text-[13px] text-fg-muted">
-                        What to do: {alert.play}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-4 border-t border-edge pt-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-soft">
-                  Calls in this cluster
-                </p>
-                <ul className="mt-2 divide-y divide-edge">
-                  {cluster.calls.map((call) => (
-                    <li key={call.id}>
-                      <Link
-                        href={`/runs/${call.id}`}
-                        className="flex flex-wrap items-center gap-3 py-2 text-sm hover:bg-canvas/60"
+        <div className="card mt-8 overflow-x-auto">
+          <table className="w-full min-w-[980px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-edge text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-soft">
+                <th className="px-5 py-3">Company</th>
+                <th className="px-5 py-3">Call type</th>
+                <th className="px-5 py-3">Calls / latest</th>
+                <th className="px-5 py-3">Momentum</th>
+                <th className="px-5 py-3">Deal state</th>
+                <th className="px-5 py-3">Key details</th>
+              </tr>
+            </thead>
+            {clusters.map((cluster) => (
+              <tbody key={cluster.companyKey} className="border-b border-edge last:border-b-0">
+                <tr className="align-top hover:bg-canvas/60">
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[12px] font-bold ${tileColor(cluster.company)}`}
                       >
-                        <span className="min-w-0 flex-1 truncate font-medium text-fg">
-                          {call.title}
+                        {initials(cluster.company) || "?"}
+                      </span>
+                      <span className="font-semibold text-fg">{cluster.company}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <span className="chip chip-brand">{cluster.callKindLabel}</span>
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-4">
+                    <span className="font-semibold tabular-nums text-fg">
+                      {cluster.callCount}
+                    </span>
+                    <span className="block text-[12px] text-fg-muted">
+                      Latest {formatDateShort(cluster.latestAt)}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    {cluster.momentum ? (
+                      <>
+                        <span className="font-semibold tabular-nums text-fg">
+                          {cluster.momentum.score}%
                         </span>
-                        <span className="text-fg-muted">
-                          {formatDateShort(call.createdAt)}
+                        <span className="block capitalize text-[12px] text-fg-muted">
+                          {cluster.momentum.direction.replaceAll("_", " ")}
                         </span>
-                        {call.score != null && (
-                          <span className="font-semibold tabular-nums text-fg">
-                            {call.score}%
-                          </span>
+                      </>
+                    ) : (
+                      <span className="text-fg-soft">—</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-4">
+                    {cluster.dealState ? (
+                      <span className={`chip ${dealStateChipClass(cluster.dealState)}`}>
+                        ● {cluster.dealState}
+                      </span>
+                    ) : (
+                      <span className="text-fg-soft">—</span>
+                    )}
+                  </td>
+                  <td className="min-w-64 px-5 py-4 text-[13px] text-fg-muted">
+                    {cluster.nextSteps[0] ??
+                      cluster.highlights[0]?.text ??
+                      cluster.openObjections[0] ??
+                      "Open details to review this company’s calls."}
+                    <span className="mt-1 block text-[12px] text-fg-soft">
+                      {cluster.openObjections.length} open objection
+                      {cluster.openObjections.length === 1 ? "" : "s"} ·{" "}
+                      {cluster.riskAlerts.length} risk alert
+                      {cluster.riskAlerts.length === 1 ? "" : "s"}
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td colSpan={6} className="bg-canvas/30 px-5 py-3">
+                    <details>
+                      <summary className="cursor-pointer text-[13px] font-semibold text-brand">
+                        View deal summary, risks, and calls
+                      </summary>
+                      <div className="pb-2">
+                        <DealSummaryCard companyKey={cluster.companyKey} />
+
+                        {(cluster.highlights.length > 0 ||
+                          cluster.openObjections.length > 0 ||
+                          cluster.nextSteps.length > 0) && (
+                          <div className="mt-4 grid gap-4 border-t border-edge pt-4 md:grid-cols-3">
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-soft">
+                                Highlights
+                              </p>
+                              {cluster.highlights.length > 0 ? (
+                                cluster.highlights.map((highlight, i) => (
+                                  <p key={`h-${i}`} className="mt-2 text-sm text-fg">
+                                    {highlight.text}{" "}
+                                    <span className="text-[12px] text-fg-soft">
+                                      [{highlight.lineId}]
+                                    </span>
+                                  </p>
+                                ))
+                              ) : (
+                                <p className="mt-2 text-sm text-fg-soft">—</p>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-soft">
+                                Open objections
+                              </p>
+                              {cluster.openObjections.length > 0 ? (
+                                cluster.openObjections.map((objection, i) => (
+                                  <p key={`o-${i}`} className="mt-2 text-sm text-warn">
+                                    ⚠ {objection}
+                                  </p>
+                                ))
+                              ) : (
+                                <p className="mt-2 text-sm text-fg-soft">—</p>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-soft">
+                                Next steps
+                              </p>
+                              {cluster.nextSteps.length > 0 ? (
+                                cluster.nextSteps.map((step, i) => (
+                                  <p key={`n-${i}`} className="mt-2 text-sm text-fg-muted">
+                                    ➡️ {step}
+                                  </p>
+                                ))
+                              ) : (
+                                <p className="mt-2 text-sm text-fg-soft">—</p>
+                              )}
+                            </div>
+                          </div>
                         )}
-                        {call.dealState && (
-                          <span
-                            className={`chip ${dealStateChipClass(call.dealState)}`}
-                          >
-                            {call.dealState}
-                          </span>
+
+                        {cluster.riskAlerts.length > 0 && (
+                          <div className="mt-4 grid gap-2 border-t border-edge pt-4 md:grid-cols-2">
+                            {cluster.riskAlerts.map((alert, i) => (
+                              <div key={`r-${i}`} className="rounded-lg bg-canvas px-3 py-2.5">
+                                <p className="flex items-center gap-2 text-sm font-medium text-fg">
+                                  <span
+                                    className={`chip ${SEVERITY_CLASS[alert.severity] ?? "chip-muted"}`}
+                                  >
+                                    {alert.severity}
+                                  </span>
+                                  {alert.title}
+                                </p>
+                                <p className="mt-1 text-[13px] text-fg-muted">
+                                  What to do: {alert.play}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
                         )}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </section>
-          ))}
+
+                        <div className="mt-4 border-t border-edge pt-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-soft">
+                            Calls in this company
+                          </p>
+                          <ul className="mt-2 divide-y divide-edge">
+                            {cluster.calls.map((call) => (
+                              <li key={call.id}>
+                                <Link
+                                  href={`/runs/${call.id}`}
+                                  className="flex flex-wrap items-center gap-3 py-2 text-sm hover:bg-canvas/60"
+                                >
+                                  <span className="min-w-0 flex-1 truncate font-medium text-fg">
+                                    {call.title}
+                                  </span>
+                                  <span className="text-fg-muted">
+                                    {formatDateShort(call.createdAt)}
+                                  </span>
+                                  {call.score != null && (
+                                    <span className="font-semibold tabular-nums text-fg">
+                                      {call.score}%
+                                    </span>
+                                  )}
+                                  {call.dealState && (
+                                    <span
+                                      className={`chip ${dealStateChipClass(call.dealState)}`}
+                                    >
+                                      {call.dealState}
+                                    </span>
+                                  )}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </details>
+                  </td>
+                </tr>
+              </tbody>
+            ))}
+          </table>
         </div>
       )}
     </div>
