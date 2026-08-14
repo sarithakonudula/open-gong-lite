@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { detectLanguage } from "@/lib/language";
 import {
   getMethodologyPack,
   scoreCallWithLlm,
 } from "@/lib/methodology";
-import { hasLlmConfigured } from "@/lib/settings";
+import { getSettings, hasLlmConfigured, isLanguageAllowed } from "@/lib/settings";
 import { getRun, saveRun } from "@/lib/store";
 
 export const runtime = "nodejs";
@@ -64,6 +65,21 @@ export async function POST(request: NextRequest, context: Ctx) {
       { error: "Run has no transcript" },
       { status: 400 },
     );
+  }
+
+  // Admin language filter: when on, calls detected outside the allowed set
+  // are refused LLM scoring — the transcript stays viewable, no tokens spent.
+  const settings = getSettings();
+  if (settings.languageFilterEnabled) {
+    const detected = detectLanguage(run.transcript);
+    if (!isLanguageAllowed(detected.code, settings)) {
+      return NextResponse.json(
+        {
+          error: `Language filter: detected "${detected.code}" is not in the allowed set (${settings.allowedLanguages.join(", ")}). Adjust it on /admin.`,
+        },
+        { status: 400 },
+      );
+    }
   }
 
   try {

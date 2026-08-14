@@ -2,10 +2,22 @@
 
 import { useEffect, useState } from "react";
 
+type LlmProvider = {
+  id: string;
+  label: string;
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  enabled: boolean;
+};
+
 type Masked = {
   llmBaseUrl: string;
   llmApiKey: string;
   llmModel: string;
+  llmProviders: LlmProvider[];
+  languageFilterEnabled: boolean;
+  allowedLanguages: string[];
   extractionGuidance: string;
   emailGuidance: string;
   coachingGuidance: string;
@@ -21,6 +33,9 @@ const EMPTY: Masked = {
   llmBaseUrl: "",
   llmApiKey: "",
   llmModel: "",
+  llmProviders: [],
+  languageFilterEnabled: false,
+  allowedLanguages: ["en"],
   extractionGuidance: "",
   emailGuidance: "",
   coachingGuidance: "",
@@ -30,6 +45,13 @@ const EMPTY: Masked = {
   hasLlm: false,
   hasHubspot: false,
   hasSlack: false,
+};
+
+type LanguageOption = { code: string; label: string; available: boolean };
+type PyaiOptions = {
+  hearModels: string[];
+  languages: LanguageOption[];
+  source: "pyai" | "fallback";
 };
 
 function Field(props: {
@@ -79,6 +101,7 @@ function StatusDot({ on, label }: { on: boolean; label: string }) {
 
 export function AdminSettingsClient() {
   const [settings, setSettings] = useState<Masked>(EMPTY);
+  const [pyaiOptions, setPyaiOptions] = useState<PyaiOptions | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [locked, setLocked] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -97,7 +120,49 @@ export function AdminSettingsClient() {
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
+    fetch("/api/admin/pyai-options")
+      .then((r) => r.json())
+      .then((data) => setPyaiOptions(data.options ?? null))
+      .catch(() => null);
   }, []);
+
+  const setProvider =
+    (id: string) => (patch: Partial<LlmProvider>) =>
+      setSettings((s) => ({
+        ...s,
+        llmProviders: s.llmProviders.map((p) =>
+          p.id === id ? { ...p, ...patch } : p,
+        ),
+      }));
+
+  function addProvider() {
+    const id = `p${Math.random().toString(36).slice(2, 8)}`;
+    setSettings((s) => ({
+      ...s,
+      llmProviders: [
+        ...s.llmProviders,
+        { id, label: "", baseUrl: "", apiKey: "", model: "", enabled: true },
+      ],
+    }));
+  }
+
+  function removeProvider(id: string) {
+    setSettings((s) => ({
+      ...s,
+      llmProviders: s.llmProviders.filter((p) => p.id !== id),
+    }));
+  }
+
+  function toggleLanguage(code: string) {
+    setSettings((s) => {
+      const has = s.allowedLanguages.includes(code);
+      const next = has
+        ? s.allowedLanguages.filter((c) => c !== code)
+        : [...s.allowedLanguages, code];
+      // The filter needs at least one language to mean anything.
+      return { ...s, allowedLanguages: next.length > 0 ? next : s.allowedLanguages };
+    });
+  }
 
   const set = (key: keyof Masked) => (value: string) =>
     setSettings((s) => ({ ...s, [key]: value }));
@@ -162,11 +227,78 @@ export function AdminSettingsClient() {
 
       <section className="rounded-xl border border-mist/25 bg-paper/40 p-5">
         <h2 className="font-[family-name:var(--font-display)] text-lg tracking-tight">
-          LLM
+          Scoring LLM chain
         </h2>
         <p className="mt-1 text-sm text-mist">
-          Any OpenAI-compatible endpoint. Saved values win over LLM_* env vars
-          and apply without a restart.
+          Checked providers feed the scoring system in order — the first is
+          primary, the rest are failover. Unchecked entries are stored but
+          never called. All extraction, methodology scoring, emails, and
+          coaching go through this chain.
+        </p>
+        <div className="mt-4 space-y-3">
+          {settings.llmProviders.map((p) => (
+            <div
+              key={p.id}
+              className="space-y-2 rounded-lg border border-mist/20 bg-paper/60 p-3"
+            >
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={p.enabled}
+                    onChange={(e) =>
+                      setProvider(p.id)({ enabled: e.target.checked })
+                    }
+                  />
+                  use for scoring
+                </label>
+                <input
+                  className="min-w-[8rem] flex-1 rounded-lg border border-mist/30 bg-paper/60 px-3 py-1.5 text-sm"
+                  placeholder="Label (e.g. Groq primary)"
+                  value={p.label}
+                  onChange={(e) => setProvider(p.id)({ label: e.target.value })}
+                />
+                <button
+                  className="text-xs text-heat/80 hover:text-heat"
+                  onClick={() => removeProvider(p.id)}
+                >
+                  remove
+                </button>
+              </div>
+              <div className="grid gap-2 md:grid-cols-3">
+                <input
+                  className="rounded-lg border border-mist/30 bg-paper/60 px-3 py-1.5 text-sm"
+                  placeholder="Base URL (https://…/v1)"
+                  value={p.baseUrl}
+                  onChange={(e) => setProvider(p.id)({ baseUrl: e.target.value })}
+                />
+                <input
+                  className="rounded-lg border border-mist/30 bg-paper/60 px-3 py-1.5 text-sm"
+                  type="password"
+                  placeholder="API key"
+                  value={p.apiKey}
+                  onChange={(e) => setProvider(p.id)({ apiKey: e.target.value })}
+                />
+                <input
+                  className="rounded-lg border border-mist/30 bg-paper/60 px-3 py-1.5 text-sm"
+                  placeholder="Model id"
+                  value={p.model}
+                  onChange={(e) => setProvider(p.id)({ model: e.target.value })}
+                />
+              </div>
+            </div>
+          ))}
+          <button className="btn-ghost" onClick={addProvider}>
+            + Add provider
+          </button>
+        </div>
+
+        <h3 className="mt-6 text-sm font-medium">
+          Default endpoint (chain fallback)
+        </h3>
+        <p className="mt-1 text-xs text-mist">
+          Used when no checked provider answers. Saved values win over LLM_*
+          env vars and apply without a restart.
         </p>
         <div className="mt-4 space-y-4">
           <Field
@@ -212,6 +344,68 @@ export function AdminSettingsClient() {
             Test LLM
           </button>
           {tests.llm && <span className="ml-3 text-sm text-fog">{tests.llm}</span>}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-mist/25 bg-paper/40 p-5">
+        <h2 className="font-[family-name:var(--font-display)] text-lg tracking-tight">
+          Language filter
+        </h2>
+        <p className="mt-1 text-sm text-mist">
+          Options come from what PyAI reports as available
+          {pyaiOptions ? (
+            <span>
+              {" "}
+              ({pyaiOptions.source === "pyai" ? "live from PyAI" : "provider default — English-only transcription today"}
+              ; Hear models: {pyaiOptions.hearModels.join(", ")})
+            </span>
+          ) : null}
+          . When the filter is on, calls detected outside the allowed set are
+          refused LLM scoring, and the first allowed language is sent to PyAI
+          Recap.
+        </p>
+        <div className="mt-4 space-y-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={settings.languageFilterEnabled}
+              onChange={(e) =>
+                setSettings((s) => ({
+                  ...s,
+                  languageFilterEnabled: e.target.checked,
+                }))
+              }
+            />
+            Enable language filter
+          </label>
+          <div className="flex flex-wrap gap-3">
+            {(pyaiOptions?.languages ?? [{ code: "en", label: "English", available: true }]).map(
+              (lang) => (
+                <label
+                  key={lang.code}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm ${lang.available ? "border-mist/30" : "border-mist/15 text-mist"}`}
+                  title={
+                    lang.available
+                      ? undefined
+                      : "Not offered by PyAI yet"
+                  }
+                >
+                  <input
+                    type="checkbox"
+                    disabled={!lang.available || !settings.languageFilterEnabled}
+                    checked={settings.allowedLanguages.includes(lang.code)}
+                    onChange={() => toggleLanguage(lang.code)}
+                  />
+                  {lang.label}
+                  {!lang.available && (
+                    <span className="text-[10px] uppercase tracking-wide">
+                      unavailable
+                    </span>
+                  )}
+                </label>
+              ),
+            )}
+          </div>
         </div>
       </section>
 
