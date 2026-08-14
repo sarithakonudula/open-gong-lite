@@ -25,8 +25,7 @@ import {
   MIN_NORMALIZED_QUOTE,
 } from "@/lib/harness/gates";
 import { EvidenceSchema, type TranscriptLine } from "@/lib/types";
-import { chatJson } from "@/lib/llm";
-import { hasLlmConfigured } from "@/lib/settings";
+import { chatJson, hasLlmAvailable } from "@/lib/llm";
 
 // ── Pack shapes ─────────────────────────────────────────────────────────────
 
@@ -461,7 +460,7 @@ export async function scoreCallWithLlm(
   transcript: TranscriptLine[],
   opts: { dealValueUsd?: number | null } = {},
 ): Promise<{ card: MethodologyScorecard; rawVerdict: unknown }> {
-  if (!hasLlmConfigured()) {
+  if (!(await hasLlmAvailable())) {
     throw new Error("LLM is not configured — use applyMethodologyVerdict with a stored verdict, or the demo verdict");
   }
   const { system, user } = buildMethodologyPrompt(pack, transcript, opts);

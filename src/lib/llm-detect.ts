@@ -59,6 +59,31 @@ export function pickModel(names: string[]): string | null {
 }
 
 /**
+ * Honor LLM_MODEL only when that tag (or its family) is actually installed.
+ * A hosted default left in .env (e.g. gpt-4o-mini) must not win over a real
+ * local pull — otherwise the probe "succeeds" and every chat call 404s.
+ */
+export function resolveInstalledModel(
+  names: string[],
+  preferred?: string | null,
+): string | null {
+  const wanted = preferred?.trim();
+  if (wanted) {
+    const lower = wanted.toLowerCase();
+    const hit = names.find((name) => {
+      const n = name.toLowerCase();
+      return (
+        n === lower ||
+        n.startsWith(`${lower}:`) ||
+        lower.startsWith(`${n.split(":")[0]}:`)
+      );
+    });
+    if (hit) return hit;
+  }
+  return pickModel(names);
+}
+
+/**
  * One GET against Ollama's own tag list, one short timeout, and a promise that
  * never rejects. Every failure mode (no server on that port, refused
  * connection, timeout, non-200, unparseable body, an install with zero models)
@@ -86,8 +111,8 @@ export async function detectOllama(
     });
     if (!res || !res.ok) return null;
     const payload = await res.json();
-    const configured = env.LLM_MODEL?.trim();
-    const model = configured || pickModel(tagNames(payload));
+    const names = tagNames(payload);
+    const model = resolveInstalledModel(names, env.LLM_MODEL);
     if (!model) return null;
     return { baseUrl: `${baseUrl}/v1`, model, source: "ollama-local" };
   } catch {

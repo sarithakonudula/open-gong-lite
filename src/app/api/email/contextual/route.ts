@@ -10,9 +10,9 @@ import {
   hubspotConfigured,
   resolveDealForCompany,
 } from "@/lib/hubspot";
-import { chatText } from "@/lib/llm";
+import { chatText, hasLlmAvailable } from "@/lib/llm";
 import { loadSample } from "@/lib/samples";
-import { getSettings, hasLlmConfigured } from "@/lib/settings";
+import { getSettings } from "@/lib/settings";
 import { getRun } from "@/lib/store";
 import { Claim } from "@/lib/types";
 
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
   let source: "llm_crm" | "deterministic" = "deterministic";
   let fallbackReason: string | null = null;
 
-  if (hasLlmConfigured()) {
+  if (await hasLlmAvailable()) {
     try {
       const contextual = await composeContextualEmail({
         claims,

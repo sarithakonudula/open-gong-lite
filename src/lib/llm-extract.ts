@@ -1,14 +1,14 @@
-import { chatJson } from "@/lib/llm";
+import { chatJson, hasLlmAvailable } from "@/lib/llm";
 import { MIN_NORMALIZED_QUOTE } from "@/lib/harness/gates";
 import { repairPrompt } from "@/lib/harness/repair";
-import { getSettings, hasLlmConfigured } from "@/lib/settings";
+import { getSettings } from "@/lib/settings";
 import { TranscriptLine } from "@/lib/types";
 
 export async function extractDealNotesWithLlm(
   transcript: TranscriptLine[],
   priorFailures?: string,
 ): Promise<unknown> {
-  if (!hasLlmConfigured()) {
+  if (!(await hasLlmAvailable())) {
     throw new Error("LLM fallback is not configured");
   }
   const guidance = getSettings().extractionGuidance;

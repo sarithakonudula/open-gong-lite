@@ -23,14 +23,14 @@ process.env.OPENGONG_DATA_DIR = dataDir;
 process.env.OPENGONG_MAX_ATTEMPTS = "3";
 
 async function harness() {
-  const [loop, settings, view] = await Promise.all([
+  const [loop, llm, view] = await Promise.all([
     import("../src/lib/harness/loop"),
-    import("../src/lib/settings"),
+    import("../src/lib/llm"),
     import("../src/lib/analysis-view"),
   ]);
   return {
     runDealNotesLoop: loop.runDealNotesLoop,
-    hasLlmConfigured: settings.hasLlmConfigured,
+    hasLlmAvailable: llm.hasLlmAvailable,
     isCategoryNote: view.isCategoryNote,
   };
 }
@@ -102,9 +102,9 @@ function allNotes(run: RunRecord) {
 
 describe("the keyword pass never overwrites a model's reading of the call", () => {
   it("keeps the demoted summarizer notes and never falls to template lines", async (t) => {
-    const { runDealNotesLoop, hasLlmConfigured, isCategoryNote } =
+    const { runDealNotesLoop, hasLlmAvailable, isCategoryNote } =
       await harness();
-    if (hasLlmConfigured()) {
+    if (await hasLlmAvailable()) {
       t.skip("a configured model would take the retry, so this case cannot run here");
       return;
     }

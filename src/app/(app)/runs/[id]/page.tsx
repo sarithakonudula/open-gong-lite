@@ -5,7 +5,7 @@ import {
 } from "@/components/recording/RecordingWorkspace";
 import { detectCallKind, KIND_DEFAULT_PACK, KIND_LABEL } from "@/lib/call-kind";
 import { buildSampleCompanyIndex, companyForRun } from "@/lib/company";
-import { hasLlmConfigured } from "@/lib/settings";
+import { hasLlmAvailable } from "@/lib/llm";
 import { demoSignalFeedForRun } from "@/lib/deal-signals";
 import { demoScorecardForRun, listMethodologyPacks } from "@/lib/methodology";
 import { listSamples } from "@/lib/samples";
@@ -37,6 +37,7 @@ export default async function RunPage({ params, searchParams }: Props) {
   const initialCard = demoScorecardForRun(run, index.titleToSlug);
   const signalFeed = demoSignalFeedForRun(run, index.titleToSlug);
   const packs = listMethodologyPacks().map((p) => ({ id: p.id, name: p.name }));
+  const llmAvailable = await hasLlmAvailable();
 
   return (
     <RecordingWorkspace
@@ -45,7 +46,7 @@ export default async function RunPage({ params, searchParams }: Props) {
       initialTab={resolveTab(tab)}
       initialCard={initialCard}
       signalFeed={signalFeed}
-      llmAvailable={hasLlmConfigured()}
+      llmAvailable={llmAvailable}
       packs={packs}
       defaultPackId={KIND_DEFAULT_PACK[callKind.kind]}
       detectedKind={`${KIND_LABEL[callKind.kind]}${callKind.confidence === "low" ? " (default)" : ""}`}
