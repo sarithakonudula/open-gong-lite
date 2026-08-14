@@ -386,9 +386,10 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
           Bring your own call
         </h2>
         <p className="mt-2 max-w-2xl text-mist">
-          Upload a recording or paste a direct media link (not Google Drive).
-          Large webm/mp4 meetings are compressed to speech MP3 before Hear.
-          Samples need no key. Or try the{" "}
+          Upload a recording or paste a public share / media link (including
+          Google Drive file links set to anyone with the link). Large webm/mp4
+          meetings are compressed to speech MP3 before Hear. Samples need no
+          key. Or try the{" "}
           <a href="/live" className="text-signal underline-offset-2 hover:underline">
             live call demo
           </a>

@@ -187,13 +187,6 @@ export function extractMediaUrlFromHtml(html: string): string | null {
   return null;
 }
 
-export type ResolvedCallLink = {
-  parsed: ParsedCallLink;
-  mediaUrl: string | null;
-  /** Actionable message when mediaUrl is null. */
-  error: string | null;
-};
-
 const PROVIDER_HELP: Partial<Record<CallLinkProvider, string>> = {
   fathom:
     "Couldn't reach the media behind this Fathom share link — the page may require login. Download the recording from Fathom and upload the file, or paste a direct media URL.",
@@ -202,6 +195,8 @@ const PROVIDER_HELP: Partial<Record<CallLinkProvider, string>> = {
   loom: "Couldn't reach the media behind this Loom link — the video may be private. Download it from Loom and upload the file.",
   zoom: "Zoom cloud recordings need the passcode-protected page — download the recording and upload the file instead.",
   gong: "Gong call pages require login — export the media from Gong and upload the file.",
+  gdrive_file:
+    "Couldn't download this Google Drive file. Set sharing to \"Anyone with the link\", paste the file link (drive.google.com/file/d/…), or download the audio and upload it.",
   direct:
     "This URL didn't serve audio and its page had no playable media. Paste a direct link to an audio file, or upload it.",
 };
@@ -209,9 +204,267 @@ const PROVIDER_HELP: Partial<Record<CallLinkProvider, string>> = {
 type FetchLike = (
   url: string,
   init?: RequestInit,
-) => Promise<{ ok: boolean; status: number; headers: { get(n: string): string | null }; text(): Promise<string> }>;
+) => Promise<{
+  ok: boolean;
+  status: number;
+  url?: string;
+  headers: { get(n: string): string | null };
+  text(): Promise<string>;
+  arrayBuffer?: () => Promise<ArrayBuffer>;
+}>;
 
 const MAX_PAGE_BYTES = 2_000_000;
+const DEFAULT_DRIVE_MAX_BYTES = 100 * 1024 * 1024;
+const GDRIVE_FILE_ID_RE = /^[\w-]{10,}$/;
+const GDRIVE_DOWNLOAD_HOSTS = new Set([
+  "drive.google.com",
+  "docs.google.com",
+  "drive.usercontent.google.com",
+]);
+
+export type ResolvedCallLink = {
+  parsed: ParsedCallLink;
+  mediaUrl: string | null;
+  /**
+   * Google Drive `uc?export=download` often returns HTML interstitials that
+   * Hear rejects as `invalid audio`. When set, the API must download bytes
+   * server-side and upload them instead of passing mediaUrl to Hear.
+   */
+  localFetch: "gdrive" | null;
+  /** Actionable message when mediaUrl is null and localFetch is unset. */
+  error: string | null;
+};
+
+export type DriveDownloadResult =
+  | {
+      ok: true;
+      bytes: Buffer;
+      filename: string;
+      contentType: string;
+    }
+  | { ok: false; error: string };
+
+/** Pull the virus-scan / large-file confirm token from a Drive HTML page. */
+export function extractDriveConfirmToken(html: string): string | null {
+  const patterns = [
+    /confirm=([0-9A-Za-z_-]+)/,
+    /name=["']confirm["']\s+value=["']([^"']+)["']/i,
+    /value=["']([^"']+)["']\s+name=["']confirm["']/i,
+  ];
+  for (const pattern of patterns) {
+    const token = html.match(pattern)?.[1];
+    if (token && token !== "t" && token.toLowerCase() !== "download") {
+      return token;
+    }
+  }
+  return null;
+}
+
+export function filenameFromContentDisposition(
+  header: string | null,
+  fallback: string,
+): string {
+  if (!header) return fallback;
+  const star = header.match(/filename\*\s*=\s*UTF-8''([^;]+)/i)?.[1];
+  if (star) {
+    try {
+      return decodeURIComponent(star.trim().replace(/["']/g, "")) || fallback;
+    } catch {
+      // fall through
+    }
+  }
+  const plain = header.match(/filename\s*=\s*"([^"]+)"/i)?.[1]
+    ?? header.match(/filename\s*=\s*([^;]+)/i)?.[1];
+  if (plain) return plain.trim().replace(/^["']|["']$/g, "") || fallback;
+  return fallback;
+}
+
+function looksLikeHtml(bytes: Buffer, contentType: string): boolean {
+  if (/text\/html|application\/xhtml/i.test(contentType)) return true;
+  const head = bytes.subarray(0, 256).toString("utf8").trimStart().toLowerCase();
+  return head.startsWith("<!doctype html") || head.startsWith("<html");
+}
+
+function sniffAudioContentType(bytes: Buffer, contentType: string, filename: string): string {
+  if (/^(audio|video)\//i.test(contentType) && !/text\/html/i.test(contentType)) {
+    return contentType.split(";")[0]!.trim();
+  }
+  if (bytes.length >= 12) {
+    if (bytes[0] === 0xff && (bytes[1]! & 0xe0) === 0xe0) return "audio/mpeg";
+    if (bytes.toString("ascii", 0, 3) === "ID3") return "audio/mpeg";
+    if (bytes.toString("ascii", 0, 4) === "RIFF") return "audio/wav";
+    if (bytes.toString("ascii", 0, 4) === "OggS") return "audio/ogg";
+    if (bytes.toString("ascii", 4, 8) === "ftyp") return "video/mp4";
+    if (
+      bytes[0] === 0x1a &&
+      bytes[1] === 0x45 &&
+      bytes[2] === 0xdf &&
+      bytes[3] === 0xa3
+    ) {
+      return "video/webm";
+    }
+  }
+  const lower = filename.toLowerCase();
+  if (lower.endsWith(".mp3")) return "audio/mpeg";
+  if (lower.endsWith(".wav")) return "audio/wav";
+  if (lower.endsWith(".m4a")) return "audio/mp4";
+  if (lower.endsWith(".webm")) return "video/webm";
+  if (lower.endsWith(".mp4")) return "video/mp4";
+  if (lower.endsWith(".ogg") || lower.endsWith(".oga")) return "audio/ogg";
+  return contentType.split(";")[0]?.trim() || "application/octet-stream";
+}
+
+function ensureMediaExtension(filename: string, contentType: string): string {
+  if (/\.(mp3|mp4|wav|m4a|webm|ogg|oga)$/i.test(filename)) return filename;
+  if (/mpeg|mp3/i.test(contentType)) return `${filename}.mp3`;
+  if (/wav/i.test(contentType)) return `${filename}.wav`;
+  if (/webm/i.test(contentType)) return `${filename}.webm`;
+  if (/mp4|m4a/i.test(contentType)) return `${filename}.m4a`;
+  if (/ogg/i.test(contentType)) return `${filename}.ogg`;
+  return filename;
+}
+
+function isAllowedDriveDownloadUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === "https:" &&
+      GDRIVE_DOWNLOAD_HOSTS.has(parsed.hostname.toLowerCase())
+    );
+  } catch {
+    return false;
+  }
+}
+
+function driveAccessDeniedMessage(html: string | null): string | null {
+  if (!html) return null;
+  if (
+    /you need access|request access|sign in|accounts\.google|sorry, the file you have requested does not exist/i.test(
+      html,
+    )
+  ) {
+    return 'This Google Drive file isn\'t publicly downloadable. Open the file → Share → General access → "Anyone with the link", then paste the file link again — or download the audio and upload it.';
+  }
+  return null;
+}
+
+/**
+ * Download a public Google Drive file as bytes. Never hands the naive
+ * `uc?export=download` URL to Hear (that page is often HTML → invalid audio).
+ */
+export async function downloadGoogleDriveFile(
+  fileId: string,
+  opts: {
+    fetchImpl?: FetchLike;
+    maxBytes?: number;
+  } = {},
+): Promise<DriveDownloadResult> {
+  if (!GDRIVE_FILE_ID_RE.test(fileId)) {
+    return { ok: false, error: "Invalid Google Drive file id." };
+  }
+
+  const fetchImpl = opts.fetchImpl ?? (fetch as unknown as FetchLike);
+  const maxBytes = opts.maxBytes ?? DEFAULT_DRIVE_MAX_BYTES;
+  const fallbackName = `gdrive-${fileId.slice(0, 8)}`;
+
+  const candidates = [
+    `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}&confirm=t`,
+    `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`,
+  ];
+
+  let lastHtml: string | null = null;
+
+  async function readOnce(url: string): Promise<DriveDownloadResult | "html"> {
+    if (!isAllowedDriveDownloadUrl(url)) {
+      return { ok: false, error: "Unexpected Google Drive redirect host." };
+    }
+    const response = await fetchImpl(url, {
+      redirect: "follow",
+      headers: {
+        Accept: "*/*",
+        "User-Agent": "OpenGongLite/1.0 (call analysis; +https://github.com)",
+      },
+    } as RequestInit);
+
+    const finalUrl = response.url || url;
+    if (finalUrl && !isAllowedDriveDownloadUrl(finalUrl)) {
+      return { ok: false, error: "Unexpected Google Drive redirect host." };
+    }
+
+    if (!response.arrayBuffer) {
+      return {
+        ok: false,
+        error: "Google Drive download requires a binary-capable fetch.",
+      };
+    }
+
+    const buf = Buffer.from(await response.arrayBuffer());
+    if (buf.length > maxBytes) {
+      return {
+        ok: false,
+        error: `Google Drive file is larger than ${(maxBytes / (1024 * 1024)).toFixed(0)}MB. Download it and upload a compressed audio clip instead.`,
+      };
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    if (!response.ok || looksLikeHtml(buf, contentType)) {
+      lastHtml = buf.toString("utf8").slice(0, MAX_PAGE_BYTES);
+      return "html";
+    }
+
+    const filename = ensureMediaExtension(
+      filenameFromContentDisposition(
+        response.headers.get("content-disposition"),
+        fallbackName,
+      ),
+      sniffAudioContentType(buf, contentType, fallbackName),
+    );
+    const sniffed = sniffAudioContentType(buf, contentType, filename);
+    if (buf.length < 64) {
+      return {
+        ok: false,
+        error:
+          PROVIDER_HELP.gdrive_file ??
+          "Google Drive returned an empty file.",
+      };
+    }
+
+    return {
+      ok: true,
+      bytes: buf,
+      filename,
+      contentType: sniffed,
+    };
+  }
+
+  try {
+    for (const url of candidates) {
+      const first = await readOnce(url);
+      if (first !== "html") return first;
+
+      const confirm = lastHtml ? extractDriveConfirmToken(lastHtml) : null;
+      if (confirm) {
+        const confirmed = `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}&confirm=${encodeURIComponent(confirm)}`;
+        const second = await readOnce(confirmed);
+        if (second !== "html") return second;
+      }
+    }
+  } catch {
+    return {
+      ok: false,
+      error:
+        "Couldn't reach Google Drive for this link. Check the URL, or download the file and upload it.",
+    };
+  }
+
+  return {
+    ok: false,
+    error:
+      driveAccessDeniedMessage(lastHtml) ??
+      PROVIDER_HELP.gdrive_file ??
+      "Couldn't download this Google Drive file.",
+  };
+}
 
 /**
  * Best-effort resolution to something PyAI Hear can fetch. Never throws:
@@ -228,13 +481,20 @@ export async function resolveCallLink(
     return {
       parsed,
       mediaUrl: null,
+      localFetch: null,
       error:
         "This is a Google Drive FOLDER link — a specific file is needed. Open the folder, right-click the recording → Share → copy its file link (drive.google.com/file/d/…), make sure it's viewable by anyone with the link, and paste that.",
     };
   }
 
+  // Drive file links: do not return uc?export=download as mediaUrl — Hear
+  // fetches that URL itself and gets HTML → diarize "invalid audio".
+  if (parsed.provider === "gdrive_file") {
+    return { parsed, mediaUrl: null, localFetch: "gdrive", error: null };
+  }
+
   if (parsed.directUrl) {
-    return { parsed, mediaUrl: parsed.directUrl, error: null };
+    return { parsed, mediaUrl: parsed.directUrl, localFetch: null, error: null };
   }
 
   // Share page: fetch it (SSRF-guarded https, capped size) and scrape.
@@ -247,11 +507,18 @@ export async function resolveCallLink(
       const contentType = response.headers.get("content-type") ?? "";
       // The "page" may itself be the media (some direct links lack extensions).
       if (/^(audio|video)\//i.test(contentType)) {
-        return { parsed, mediaUrl: parsed.url, error: null };
+        return {
+          parsed,
+          mediaUrl: parsed.url,
+          localFetch: null,
+          error: null,
+        };
       }
       const html = (await response.text()).slice(0, MAX_PAGE_BYTES);
       const media = extractMediaUrlFromHtml(html);
-      if (media) return { parsed, mediaUrl: media, error: null };
+      if (media) {
+        return { parsed, mediaUrl: media, localFetch: null, error: null };
+      }
     }
   } catch {
     // fall through to the provider-specific message
@@ -260,6 +527,7 @@ export async function resolveCallLink(
   return {
     parsed,
     mediaUrl: null,
+    localFetch: null,
     error:
       PROVIDER_HELP[parsed.provider] ??
       "Couldn't resolve this link to a playable recording. Download the file and upload it instead.",

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  downloadGoogleDriveFile,
+  extractDriveConfirmToken,
   extractMediaUrlFromHtml,
+  filenameFromContentDisposition,
   isSafeHttpsUrl,
   parseCallLink,
   resolveCallLink,
@@ -38,15 +41,6 @@ describe("call-link parsing", () => {
     );
   });
 
-  it("fireflies view link: names stripped from the slug into a title", () => {
-    const p = parseCallLink(
-      "https://app.fireflies.ai/view/GrowthX-AI-Deepan-SaaS-Labs-::01KTWE0E8PDEV1EMC9ATA190E9",
-    )!;
-    assert.equal(p.provider, "fireflies");
-    assert.equal(p.id, "01KTWE0E8PDEV1EMC9ATA190E9");
-    assert.equal(p.title, "GrowthX AI Deepan SaaS Labs");
-  });
-
   it("loom, zoom, gong classify with ids", () => {
     assert.equal(parseCallLink("https://www.loom.com/share/abc123def456")!.provider, "loom");
     assert.equal(
@@ -57,6 +51,15 @@ describe("call-link parsing", () => {
       parseCallLink("https://app.gong.io/call?id=1234567890")!.provider,
       "gong",
     );
+  });
+
+  it("fireflies view link: names stripped from the slug into a title", () => {
+    const p = parseCallLink(
+      "https://app.fireflies.ai/view/GrowthX-AI-Deepan-SaaS-Labs-::01KTWE0E8PDEV1EMC9ATA190E9",
+    )!;
+    assert.equal(p.provider, "fireflies");
+    assert.equal(p.id, "01KTWE0E8PDEV1EMC9ATA190E9");
+    assert.equal(p.title, "GrowthX AI Deepan SaaS Labs");
   });
 
   it("direct media URLs pass straight through, with a title from the filename", () => {
@@ -136,6 +139,107 @@ describe("media extraction from share pages", () => {
   });
 });
 
+describe("google drive download helpers", () => {
+  it("extracts confirm tokens from virus-scan HTML", () => {
+    assert.equal(
+      extractDriveConfirmToken(
+        '<form><input name="confirm" value="ABzK7x"><a href="/uc?export=download&confirm=ABzK7x&id=1">',
+      ),
+      "ABzK7x",
+    );
+  });
+
+  it("parses Content-Disposition filenames", () => {
+    assert.equal(
+      filenameFromContentDisposition(
+        'attachment; filename="JustCall meeting.mp3"',
+        "fallback",
+      ),
+      "JustCall meeting.mp3",
+    );
+    assert.equal(
+      filenameFromContentDisposition(
+        "attachment; filename*=UTF-8''call%20rec.m4a",
+        "fallback",
+      ),
+      "call rec.m4a",
+    );
+  });
+
+  it("downloads binary Drive responses and follows confirm pages", async () => {
+    const mp3 = Buffer.from([0xff, 0xfb, 0x90, 0x00, ...Buffer.alloc(200, 1)]);
+    let calls = 0;
+    const result = await downloadGoogleDriveFile("1AbCdEfGhIjKlMnOpQr", {
+      fetchImpl: async (url) => {
+        calls += 1;
+        if (String(url).includes("confirm=t") && calls === 1) {
+          const html = Buffer.from(
+            '<html><a href="/uc?export=download&confirm=TOKEN99&id=1">Download</a></html>',
+          );
+          return {
+            ok: true,
+            status: 200,
+            url: String(url),
+            headers: {
+              get: (n: string) =>
+                n.toLowerCase() === "content-type" ? "text/html" : null,
+            },
+            text: async () => html.toString("utf8"),
+            arrayBuffer: async () =>
+              html.buffer.slice(html.byteOffset, html.byteOffset + html.byteLength),
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          url: String(url),
+          headers: {
+            get: (n: string) => {
+              const key = n.toLowerCase();
+              if (key === "content-type") return "application/octet-stream";
+              if (key === "content-disposition")
+                return 'attachment; filename="meeting.mp3"';
+              return null;
+            },
+          },
+          text: async () => "",
+          arrayBuffer: async () =>
+            mp3.buffer.slice(mp3.byteOffset, mp3.byteOffset + mp3.byteLength),
+        };
+      },
+    });
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.filename, "meeting.mp3");
+      assert.equal(result.contentType, "audio/mpeg");
+      assert.equal(result.bytes.length, mp3.length);
+    }
+    assert.ok(calls >= 2);
+  });
+
+  it("returns an access-denied message for private Drive HTML", async () => {
+    const html = Buffer.from(
+      "<html>You need access Sign in with Google Accounts.Google</html>",
+    );
+    const result = await downloadGoogleDriveFile("1AbCdEfGhIjKlMnOpQr", {
+      fetchImpl: async () => ({
+        ok: true,
+        status: 200,
+        url: "https://drive.google.com/uc?export=download&id=1AbCdEfGhIjKlMnOpQr",
+        headers: {
+          get: (n: string) =>
+            n.toLowerCase() === "content-type" ? "text/html" : null,
+        },
+        text: async () => html.toString("utf8"),
+        arrayBuffer: async () =>
+          html.buffer.slice(html.byteOffset, html.byteOffset + html.byteLength),
+      }),
+    });
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.match(result.error, /Anyone with the link/);
+  });
+});
+
 describe("resolution", () => {
   const htmlPage = (body: string) => ({
     ok: true,
@@ -154,8 +258,25 @@ describe("resolution", () => {
       },
     );
     assert.equal(r!.mediaUrl, null);
+    assert.equal(r!.localFetch, null);
     assert.match(r!.error!, /FOLDER link/);
     assert.match(r!.error!, /file link/);
+    assert.equal(fetched, 0);
+  });
+
+  it("drive file → localFetch, never hands uc URL to Hear", async () => {
+    let fetched = 0;
+    const r = await resolveCallLink(
+      "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view?usp=sharing",
+      async () => {
+        fetched += 1;
+        return htmlPage("");
+      },
+    );
+    assert.equal(r!.localFetch, "gdrive");
+    assert.equal(r!.mediaUrl, null);
+    assert.equal(r!.error, null);
+    assert.equal(r!.parsed.id, "1AbCdEfGhIjKlMnOp");
     assert.equal(fetched, 0);
   });
 
@@ -166,6 +287,7 @@ describe("resolution", () => {
         htmlPage('<meta property="og:video" content="https://cdn.fathom.video/call.mp4">'),
     );
     assert.equal(r!.mediaUrl, "https://cdn.fathom.video/call.mp4");
+    assert.equal(r!.localFetch, null);
   });
 
   it("login-walled page → provider-specific guidance, never a throw", async () => {

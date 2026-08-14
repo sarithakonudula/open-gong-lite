@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resolveCallLink } from "@/lib/call-link";
+import {
+  downloadGoogleDriveFile,
+  resolveCallLink,
+} from "@/lib/call-link";
 import { config } from "@/lib/config";
 import { runDealNotesLoop } from "@/lib/harness/loop";
 import { ensurePyaiKey } from "@/lib/pyai-key";
@@ -22,6 +25,8 @@ const ALLOWED_AUDIO = new Set([
   "audio/ogg",
   "video/webm",
   "video/mp4",
+  "application/octet-stream",
+  "application/binary",
 ]);
 
 function badRequest(message: string, status = 400) {
@@ -59,10 +64,78 @@ export async function POST(request: NextRequest) {
           "Only public https links are supported (no localhost or private IPs)",
         );
       }
-      if (!resolved.mediaUrl) {
-        return badRequest(resolved.error ?? "Couldn't resolve this link to a recording");
-      }
+
       const linkTitle = resolved.parsed.title;
+
+      // Google Drive: download bytes here. Passing uc?export=download to Hear
+      // returns HTML interstitials → diarize "invalid audio".
+      if (resolved.localFetch === "gdrive") {
+        const fileId = resolved.parsed.id;
+        if (!fileId) {
+          return badRequest(
+            "Couldn't read a file id from this Google Drive link.",
+          );
+        }
+        const downloaded = await downloadGoogleDriveFile(fileId, {
+          maxBytes: MAX_UPLOAD_BYTES,
+        });
+        if (!downloaded.ok) {
+          return badRequest(downloaded.error);
+        }
+        if (
+          downloaded.contentType &&
+          !ALLOWED_AUDIO.has(downloaded.contentType) &&
+          !/^(audio|video)\//i.test(downloaded.contentType)
+        ) {
+          return badRequest(
+            `Google Drive file doesn't look like audio/video (${downloaded.contentType}). Export an MP3/WAV/M4A and upload it, or share a media file.`,
+          );
+        }
+
+        const replay = new File([downloaded.bytes], downloaded.filename, {
+          type: downloaded.contentType || "application/octet-stream",
+        });
+        const { transcript, recap, callId, hearPath } =
+          await runHearAndMaybeRecap({
+            mode: "upload",
+            file: replay,
+            filename: downloaded.filename,
+            customerName: body.customerName || linkTitle || undefined,
+          });
+
+        const run = await runDealNotesLoop({
+          source: "url",
+          sourceLabel: (
+            linkTitle ?? `gdrive: ${downloaded.filename}`
+          ).slice(0, 120),
+          transcript,
+          titleHint:
+            body.customerName || linkTitle || downloaded.filename || "Call from Drive",
+          recap,
+          pyaiCallId: callId,
+        });
+
+        await saveRunAudio(
+          run.id,
+          downloaded.bytes,
+          downloaded.contentType || "application/octet-stream",
+        );
+
+        return NextResponse.json({
+          id: run.id,
+          status: run.status,
+          hearPath,
+          pyaiCallId: callId,
+          recapStatus: recap?.status ?? null,
+          keySource: key.source,
+        });
+      }
+
+      if (!resolved.mediaUrl) {
+        return badRequest(
+          resolved.error ?? "Couldn't resolve this link to a recording",
+        );
+      }
 
       const { transcript, recap, callId, hearPath } = await runHearAndMaybeRecap(
         {
