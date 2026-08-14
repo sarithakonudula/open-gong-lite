@@ -112,7 +112,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const form = await request.formData();
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      return badRequest(
+        "Upload too large or incomplete. Max file size is 25MB.",
+      );
+    }
     const file = form.get("file");
     if (!(file instanceof File)) {
       return badRequest("file is required");

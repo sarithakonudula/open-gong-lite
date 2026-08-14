@@ -35,7 +35,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const form = await request.formData();
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      return NextResponse.json(
+        {
+          error:
+            "Recording too large or incomplete. Max file size is 25MB.",
+        },
+        { status: 400 },
+      );
+    }
     const file = form.get("file");
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "file is required" }, { status: 400 });
