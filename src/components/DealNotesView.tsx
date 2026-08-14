@@ -6,7 +6,6 @@ import { isEmailableStatus } from "@/lib/types";
 import {
   attemptReasonLine,
   backedFraction,
-  blockedReasonLine,
   COVERAGE_BAND_LABEL,
   linesCutLine,
   modelSourceLabel,
@@ -26,6 +25,10 @@ function claimStatus(claim: Claim): ClaimStatus {
   return claim.status ?? "verified";
 }
 
+function backedClaims(claims: Claim[]): Claim[] {
+  return claims.filter((claim) => isEmailableStatus(claimStatus(claim)));
+}
+
 function NoteList({
   title,
   claims,
@@ -35,7 +38,9 @@ function NoteList({
   claims: Claim[];
   onSource: (lineId: string) => void;
 }) {
-  if (!claims.length) {
+  const visibleClaims = backedClaims(claims);
+
+  if (!visibleClaims.length) {
     return (
       <section className="space-y-3">
         <h3 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
@@ -52,46 +57,27 @@ function NoteList({
         {title}
       </h3>
       <ul className="space-y-4">
-        {claims.map((claim, index) => {
+        {visibleClaims.map((claim, index) => {
           const status = claimStatus(claim);
           return (
             <li
               key={claim.id || `${title}-${index}`}
-              className={`space-y-2 ${status === "blocked_injection" ? "opacity-80" : ""}`}
+              className="space-y-2"
             >
               <div className="flex flex-wrap items-center gap-2">
                 <span className={BADGE_CLASS[status]}>
                   {NOTE_STATUS_LABEL[status]}
                 </span>
               </div>
-              <p
-                className={`text-[1.05rem] leading-relaxed ${
-                  status === "uncorroborated" || status === "blocked_injection"
-                    ? "text-mist line-through decoration-heat/60"
-                    : "text-paper/95"
-                }`}
-              >
+              <p className="text-[1.05rem] leading-relaxed text-paper/95">
                 {claim.text}
               </p>
-              {status === "blocked_injection" && (
-                <p className="text-sm text-heat">
-                  {blockedReasonLine(claim.blockedReasons)}
-                </p>
-              )}
-              {status === "uncorroborated" && (
-                <p className="text-sm text-heat">
-                  The AI offered the quote below as its source. That sentence
-                  is nowhere in the call, so the note stays here unbacked and
-                  never enters the follow-up email.
-                </p>
-              )}
               <button
                 type="button"
                 className="receipt-link text-sm"
                 onClick={() => onSource(claim.evidence.lineId)}
               >
-                {status === "uncorroborated" ? "Quote the AI offered" : "Source"}{" "}
-                · {claim.evidence.lineId}: “{claim.evidence.quote}”
+                Source · {claim.evidence.lineId}: “{claim.evidence.quote}”
               </button>
             </li>
           );
@@ -126,19 +112,6 @@ export function DealNotesView({
     return "text-mist";
   }, [run.status]);
 
-  const gateFailures = useMemo(() => {
-    return run.attempts
-      .filter((a) => !a.ok)
-      .flatMap((a) =>
-        a.failures.map((f) => ({
-          attempt: a.attempt,
-          code: f.code,
-          message: f.message,
-          path: f.path,
-        })),
-      );
-  }, [run.attempts]);
-
   const notes = run.notes;
   const coverage = notes?.coverage;
   const allClaims = notes
@@ -152,10 +125,6 @@ export function DealNotesView({
         ...(notes.competitors || []),
       ]
     : [];
-  const quarantined = allClaims.filter(
-    (c) => claimStatus(c) === "blocked_injection",
-  );
-
   function jumpToLine(lineId: string) {
     setActiveLineId(lineId);
     if (!canPlayAudio || !audioRef.current) return;
@@ -172,10 +141,10 @@ export function DealNotesView({
 
   const intelCounts = notes
     ? [
-        { label: "Summary", value: notes.summary.length },
-        { label: "Objections", value: notes.objections.length },
-        { label: "Intent", value: notes.intent.length },
-        { label: "Next steps", value: notes.nextSteps.length },
+        { label: "Summary", value: backedClaims(notes.summary).length },
+        { label: "Objections", value: backedClaims(notes.objections).length },
+        { label: "Intent", value: backedClaims(notes.intent).length },
+        { label: "Next steps", value: backedClaims(notes.nextSteps).length },
       ]
     : [];
 
@@ -206,8 +175,7 @@ export function DealNotesView({
             {canPlayAudio
               ? " to see that sentence in the call and hear that second."
               : " to see that sentence in the call."}{" "}
-            A note the AI cannot point to stays on this page, marked, and never
-            reaches the follow-up email.
+            Notes without transcript support are not displayed.
           </p>
           {coverage && (
             <p className="text-sm text-fog/90">
@@ -219,15 +187,7 @@ export function DealNotesView({
                   corrected
                 </>
               )}
-              {" · "}
-              <span className="text-heat">
-                ⚠ {coverage.stats.uncorroborated} not found in the call
-              </span>
-              {" · "}
-              <span className="text-heat">
-                ⛔ {coverage.stats.blocked_injection} blocked
-              </span>
-              . Nothing is deleted. Every note stays on this page.
+              . Only transcript-backed notes are shown.
             </p>
           )}
           <div className="flex flex-wrap items-center gap-3 text-sm text-mist">
@@ -263,21 +223,6 @@ export function DealNotesView({
             )}
           </div>
 
-          {quarantined.length > 0 && (
-            <div className="rounded-2xl border border-heat/40 bg-heat/10 px-4 py-3 text-sm">
-              <p className="font-medium text-heat">
-                {quarantined.length} note{quarantined.length === 1 ? "" : "s"}{" "}
-                blocked
-              </p>
-              <p className="mt-1 text-fog/85">
-                Someone spoke an instruction to the AI on this call. Anything
-                standing on that moment is struck through below and barred from
-                the follow-up email. When a call talks to your AI, that is an
-                attack on your notes, and an attack never counts as a source.
-              </p>
-            </div>
-          )}
-
           {run.status !== "shipped" && (
             <div className="rounded-2xl border border-heat/40 bg-heat/10 px-4 py-3 text-sm text-paper">
               <p className="font-medium text-heat">
@@ -286,18 +231,8 @@ export function DealNotesView({
               </p>
               <p className="mt-1 text-fog/85">
                 {run.error ||
-                  "Notes the AI could not point to are still on this page. They are marked, and they never appear as facts."}
+                  "Only notes backed by the transcript are displayed."}
               </p>
-              {gateFailures.length > 0 && (
-                <ul className="mt-3 space-y-1 text-fog/80">
-                  {gateFailures.slice(0, 6).map((f, i) => (
-                    <li key={`${f.attempt}-${f.code}-${i}`}>
-                      Try #{f.attempt} · {f.code}
-                      {f.path ? ` @ ${f.path}` : ""}: {f.message}
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
           )}
 
@@ -342,9 +277,9 @@ export function DealNotesView({
               claims={notes.nextSteps}
               onSource={jumpToLine}
             />
-            {((notes.pain || []).length > 0 ||
-              (notes.pricing || []).length > 0 ||
-              (notes.competitors || []).length > 0) && (
+            {(backedClaims(notes.pain || []).length > 0 ||
+              backedClaims(notes.pricing || []).length > 0 ||
+              backedClaims(notes.competitors || []).length > 0) && (
               <>
                 <NoteList
                   title="Pain"
@@ -367,26 +302,30 @@ export function DealNotesView({
               <h3 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
                 5 · Follow-up email
               </h3>
-              {!isEmailableStatus(notes.followUpEmail.status) && (
+              {!isEmailableStatus(notes.followUpEmail.status) ? (
                 <p className="text-sm text-heat">
-                  No draft went out. A note has to be backed by a line in the
-                  call before it can leave this page, and none here were.
+                  No transcript-backed follow-up email is available.
                 </p>
+              ) : (
+                <>
+                  <p className="text-sm text-mist">
+                    Subject: {notes.followUpEmail.subject}
+                  </p>
+                  <pre className="whitespace-pre-wrap rounded-2xl border border-white/10 bg-ink-soft/70 p-4 text-sm leading-relaxed text-paper/90">
+                    {notes.followUpEmail.body}
+                  </pre>
+                  <button
+                    type="button"
+                    className="receipt-link text-sm"
+                    onClick={() =>
+                      jumpToLine(notes.followUpEmail.evidence.lineId)
+                    }
+                  >
+                    Source · {notes.followUpEmail.evidence.lineId}: “
+                    {notes.followUpEmail.evidence.quote}”
+                  </button>
+                </>
               )}
-              <p className="text-sm text-mist">
-                Subject: {notes.followUpEmail.subject}
-              </p>
-              <pre className="whitespace-pre-wrap rounded-2xl border border-white/10 bg-ink-soft/70 p-4 text-sm leading-relaxed text-paper/90">
-                {notes.followUpEmail.body}
-              </pre>
-              <button
-                type="button"
-                className="receipt-link text-sm"
-                onClick={() => jumpToLine(notes.followUpEmail.evidence.lineId)}
-              >
-                Source · {notes.followUpEmail.evidence.lineId}: “
-                {notes.followUpEmail.evidence.quote}”
-              </button>
             </section>
 
             {notes.routedFollowUp && (
@@ -452,9 +391,6 @@ export function DealNotesView({
                   Try #{attempt.attempt} ·{" "}
                   {attempt.ok ? "accepted" : "sent back"} ·{" "}
                   {attemptReasonLine(attempt.reason)}
-                  {!attempt.ok && attempt.failures[0]
-                    ? `: ${attempt.failures[0].message}`
-                    : ""}
                 </li>
               ))}
             </ul>
