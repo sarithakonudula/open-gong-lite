@@ -15,7 +15,7 @@ open public issues for vulnerabilities.
   the environment only.
 - Transcripts are untrusted input. The follow-up email is built only from
   citation-gate-passed claims. Prompt-injection lines are quarantined in the UI.
-- Upload validation: MIME allowlist, 25MB cap. Audio URL ingest is https-only
+- Upload validation: MIME allowlist, 100MB cap. Audio URL ingest is https-only
   and rejects localhost / private / link-local hosts.
 - Share links (`/share/{token}`) are unguessable but do not expire. Treat them
   as confidential until expiry/revoke exists.
