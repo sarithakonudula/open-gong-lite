@@ -48,7 +48,9 @@ export function RunActionsBar({ runId }: { runId: string }) {
       }
       const r = data.result;
       setSyncStatus(
-        `✅ ${r.dealName}: momentum ${r.momentumScore}/100 (${r.momentumDirection}) + note written · linked for next time`,
+        r.momentumScore != null
+          ? `✅ ${r.dealName}: momentum ${r.momentumScore}/100 (${r.momentumDirection}) + note written · linked for next time`
+          : `✅ ${r.dealName}: cited notes written (non-sales call — momentum skipped) · linked for next time`,
       );
     } catch (error) {
       setSyncStatus(

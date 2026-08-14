@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { detectCallKind, KIND_LABEL } from "@/lib/call-kind";
 import {
   HubspotError,
   hubspotConfigured,
@@ -83,12 +84,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const momentum = computeMomentum(run.notes);
+    // Momentum is a sales metric — a support or CS call never writes
+    // ai_momentum_* onto the deal, though its cited notes still land.
+    const kind = detectCallKind(run.transcript);
+    const momentum =
+      kind.kind === "sales" ? computeMomentum(run.notes) : undefined;
     const result = await syncRunToHubspot(run, {
       company,
       dealId,
       momentum,
-      momentumBlock: renderMomentum(momentum),
+      momentumBlock: momentum
+        ? renderMomentum(momentum)
+        : `Call kind: ${KIND_LABEL[kind.kind]} — deal momentum not applicable.`,
     });
     await saveRun({
       ...run,

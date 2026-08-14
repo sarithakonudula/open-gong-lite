@@ -42,14 +42,20 @@ export function MethodologyScorecardView({
   initialCard,
   llmAvailable,
   packs,
+  defaultPackId,
+  detectedKind,
 }: {
   run: RunRecord;
   initialCard: MethodologyScorecard | null;
   llmAvailable: boolean;
   packs: Array<{ id: string; name: string }>;
+  defaultPackId?: string;
+  detectedKind?: string;
 }) {
   const [card, setCard] = useState<MethodologyScorecard | null>(initialCard);
-  const [packId, setPackId] = useState(initialCard?.pack.id ?? "meddic");
+  const [packId, setPackId] = useState(
+    initialCard?.pack.id ?? defaultPackId ?? "meddic",
+  );
   const [dealValue, setDealValue] = useState(
     initialCard?.dealValueUsd != null ? String(initialCard.dealValueUsd) : "",
   );
@@ -206,6 +212,11 @@ export function MethodologyScorecardView({
         <section className="space-y-3 rounded-2xl border border-white/10 bg-ink-soft/55 p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-mist">
             Live score
+            {detectedKind ? (
+              <span className="ml-2 normal-case tracking-normal text-signal">
+                detected: {detectedKind} call
+              </span>
+            ) : null}
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <label className="min-w-[10rem] flex-1 text-sm text-mist">

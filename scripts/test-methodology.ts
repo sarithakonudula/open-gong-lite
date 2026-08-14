@@ -21,8 +21,8 @@ const brightsmile = JSON.parse(
 ) as { transcript: TranscriptLine[] };
 
 describe("methodology packs", () => {
-  it("ships 14 packs, all valid, ids unique", () => {
-    assert.equal(METHODOLOGY_PACKS.length, 14);
+  it("ships 16 packs (14 sales + support + CS), all valid, ids unique", () => {
+    assert.equal(METHODOLOGY_PACKS.length, 16);
     const ids = new Set<string>();
     for (const p of METHODOLOGY_PACKS) {
       MethodologyPackSchema.parse(p);

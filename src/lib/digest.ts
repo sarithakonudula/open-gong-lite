@@ -3,6 +3,7 @@
 // feed. Deterministic markdown first; an optional LLM paragraph can sit on
 // top but never introduces facts (it only rephrases the bullet inputs).
 
+import { CallKind, detectCallKind, KIND_LABEL } from "@/lib/call-kind";
 import { DealAlert, DealSignalFeed } from "@/lib/deal-signals";
 import { computeMomentum, MomentumResult } from "@/lib/momentum";
 import { isEmailableStatus, RunRecord } from "@/lib/types";
@@ -11,6 +12,8 @@ export type DigestEntry = {
   company: string;
   latestRun: RunRecord;
   callCount: number;
+  /** Detected kind of the latest call — support/CS entries carry no momentum. */
+  callKind: CallKind;
   momentum: MomentumResult | null;
   /** Verified highlights with receipts. */
   highlights: Array<{ text: string; lineId: string }>;
@@ -60,7 +63,10 @@ export function buildDigestEntries(
     );
     const latest = sorted[0]!;
     const notes = latest.notes!;
-    const momentum = computeMomentum(notes);
+    // Deal momentum is a sales concept — a support ticket call scoring
+    // "stalling" would be noise, so non-sales entries carry no momentum.
+    const callKind = detectCallKind(latest.transcript).kind;
+    const momentum = callKind === "sales" ? computeMomentum(notes) : null;
     const verified = (claims: typeof notes.summary) =>
       claims.filter((c) => isEmailableStatus(c.status));
     const feed = opts.feedForCompany?.(company) ?? null;
@@ -68,6 +74,7 @@ export function buildDigestEntries(
       company,
       latestRun: latest,
       callCount: sorted.length,
+      callKind,
       momentum,
       highlights: verified(notes.summary)
         .slice(0, 2)
@@ -134,7 +141,13 @@ export function renderDigestMarkdown(
     const m = e.momentum;
     lines.push("");
     lines.push(
-      `## ${e.company} — ${m ? `${DIRECTION_LABEL[m.direction]} (${m.score}/100)` : "no score"}`,
+      `## ${e.company} — ${
+        m
+          ? `${DIRECTION_LABEL[m.direction]} (${m.score}/100)`
+          : e.callKind !== "sales"
+            ? `${KIND_LABEL[e.callKind]} call`
+            : "no score"
+      }`,
     );
     lines.push(
       `Latest call: ${e.latestRun.notes?.title ?? e.latestRun.sourceLabel} · ${e.latestRun.createdAt.slice(0, 10)} · ${e.callCount} call${e.callCount === 1 ? "" : "s"} on record`,
