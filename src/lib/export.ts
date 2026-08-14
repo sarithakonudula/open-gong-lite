@@ -1,8 +1,11 @@
 import {
   backedFraction,
+  callTimeLabel,
+  callTitle,
   COVERAGE_BAND_LABEL,
   NOTE_STATUS_LABEL,
   RUN_STATUS_LABEL,
+  speakerDisplayName,
 } from "@/lib/labels";
 import {
   Claim,
@@ -29,11 +32,16 @@ function claimMd(
   },
   transcript: TranscriptLine[],
 ): string {
-  const line = transcript.find((l) => l.id === claim.evidence.lineId);
-  const loc = line
-    ? `line ${line.index + 1} · ${line.speaker}`
-    : claim.evidence.lineId;
   const badge = claim.status ? ` [${NOTE_STATUS_LABEL[claim.status]}]` : "";
+  const line = transcript.find((l) => l.id === claim.evidence.lineId);
+  // A reader gets the moment, not the harness's addressing. A single-stream
+  // recording carries no speaker worth naming, so the label drops out here
+  // for the same reason it drops out of the screen.
+  if (!line) return `- ${claim.text}${badge}`;
+  const loc =
+    [callTimeLabel(line.startMs), speakerDisplayName(line.speaker)]
+      .filter(Boolean)
+      .join(" · ") || `line ${line.index + 1}`;
   return `- ${claim.text}${badge}\n  - Source (${loc}): “${claim.evidence.quote}”`;
 }
 
@@ -61,7 +69,7 @@ export function notesToMarkdown(run: RunRecord): string {
 
   const emailBacked = isEmailableStatus(notes.followUpEmail.status);
   const sections: string[] = [
-    `# ${notes.title}`,
+    `# ${callTitle(notes.title, run.sourceLabel)}`,
     "",
     `**${RUN_STATUS_LABEL[run.status]}** · From: ${run.sourceLabel}`,
     notes.coverage
@@ -95,9 +103,15 @@ export function notesToMarkdown(run: RunRecord): string {
     "---",
     "",
     "## Transcript",
-    ...run.transcript.map(
-      (line) => `**[${line.id}] ${line.speaker}:** ${line.text}`,
-    ),
+    ...run.transcript.map((line) => {
+      const head = [
+        callTimeLabel(line.startMs),
+        speakerDisplayName(line.speaker),
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      return head ? `**${head}:** ${line.text}` : line.text;
+    }),
     "",
     "_Runs on PyAI · OpenGong Lite_",
   ];
