@@ -7,7 +7,8 @@ import { pyaiUserMessage, runHearAndMaybeRecap } from "@/lib/pyai";
 import { saveRunAudio } from "@/lib/store";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+/** Long uploads are chunked into parallel Hear jobs; allow headroom past one chunk. */
+export const maxDuration = 600;
 
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 const ALLOWED_AUDIO = new Set([

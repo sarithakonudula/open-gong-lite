@@ -7,7 +7,11 @@ import {
   type HearJobResult,
   type RecapUtterance,
 } from "@/lib/hear-speakers";
-import { prepareAudioForHear } from "@/lib/prepare-hear-audio";
+import {
+  chunkAudioForHear,
+  prepareAudioForHear,
+  type HearAudioChunk,
+} from "@/lib/prepare-hear-audio";
 import {
   canRemintSandbox,
   isSandboxKey,
@@ -189,6 +193,33 @@ async function loadJobResult(job: {
   }
   if (job.result) return job.result;
   throw new Error("Transcription job completed without result");
+}
+
+/** ~15s wall time per minute of audio, floored at 2 min / capped at 8 min. */
+export function hearJobPollTimeoutMs(durationMs: number): number {
+  const minutes = Math.max(1, durationMs / 60_000);
+  return Math.min(480_000, Math.max(120_000, Math.round(minutes * 15_000)));
+}
+
+export function mergeChunkTranscripts(
+  parts: Array<{ lines: TranscriptLine[]; offsetMs: number }>,
+): TranscriptLine[] {
+  const merged: TranscriptLine[] = [];
+  for (const part of parts) {
+    for (const line of part.lines) {
+      merged.push({
+        ...line,
+        startMs:
+          line.startMs != null ? line.startMs + part.offsetMs : undefined,
+        endMs: line.endMs != null ? line.endMs + part.offsetMs : undefined,
+      });
+    }
+  }
+  return merged.map((line, index) => ({
+    ...line,
+    id: `L${index + 1}`,
+    index,
+  }));
 }
 
 export async function pollTranscriptionJob(
@@ -504,6 +535,48 @@ export async function pollRecap(
   );
 }
 
+const HEAR_CHUNK_FALLBACK_MS = 10 * 60 * 1000;
+
+async function transcribeUploadChunks(opts: {
+  chunks: HearAudioChunk[];
+  callId: string;
+  customerName?: string;
+  mode: HearJobMode;
+}): Promise<TranscriptLine[]> {
+  // Parallel jobs keep wall-clock near one chunk (~2 min) instead of N×chunk.
+  const created = await Promise.all(
+    opts.chunks.map((chunk, index) =>
+      createTranscriptionJobFromUpload({
+        file: chunk.file,
+        filename: chunk.filename,
+        callId: opts.callId,
+        customerName: opts.customerName,
+        mode: opts.mode,
+        idempotencyKey: `${opts.callId}_${opts.mode.channel ? "ch" : "dz"}_p${index}`,
+      }).then((job) => ({ job, chunk })),
+    ),
+  );
+
+  const parts = await Promise.all(
+    created.map(async ({ job, chunk }) => {
+      const result = await pollTranscriptionJob(
+        job.jobId,
+        hearJobPollTimeoutMs(chunk.durationMs || HEAR_CHUNK_FALLBACK_MS),
+      );
+      return {
+        lines: hearResultToTranscript(result),
+        offsetMs: chunk.offsetMs,
+      };
+    }),
+  );
+
+  const transcript = mergeChunkTranscripts(parts);
+  if (!transcript.length) {
+    throw new Error("Hear returned empty transcript");
+  }
+  return transcript;
+}
+
 export async function runHearAndMaybeRecap(opts: {
   mode: "upload" | "url";
   file?: File | Blob;
@@ -522,10 +595,16 @@ export async function runHearAndMaybeRecap(opts: {
 
   let uploadFile = opts.file;
   let uploadFilename = opts.filename || "call.webm";
+  let uploadChunks: HearAudioChunk[] | null = null;
   if (opts.mode === "upload" && uploadFile) {
     const prepared = await prepareAudioForHear(uploadFile, uploadFilename);
     uploadFile = prepared.file;
     uploadFilename = prepared.filename;
+    uploadChunks = await chunkAudioForHear(uploadFile, uploadFilename);
+    if (uploadChunks.length === 1) {
+      uploadFile = uploadChunks[0]!.file;
+      uploadFilename = uploadChunks[0]!.filename;
+    }
   }
 
   async function withRecap(
@@ -561,6 +640,16 @@ export async function runHearAndMaybeRecap(opts: {
   });
 
   try {
+    if (opts.mode === "upload" && uploadChunks && uploadChunks.length > 1) {
+      const transcript = await transcribeUploadChunks({
+        chunks: uploadChunks,
+        callId,
+        customerName: opts.customerName,
+        mode,
+      });
+      return withRecap(transcript, "jobs");
+    }
+
     const created =
       opts.mode === "url" && opts.audioUrl
         ? await createTranscriptionJobFromUrl({
@@ -579,7 +668,10 @@ export async function runHearAndMaybeRecap(opts: {
             idempotencyKey: `${callId}_${mode.channel ? "ch" : "dz"}`,
           });
 
-    let result = await pollTranscriptionJob(created.jobId);
+    const pollMs = hearJobPollTimeoutMs(
+      uploadChunks?.[0]?.durationMs || HEAR_CHUNK_FALLBACK_MS,
+    );
+    let result = await pollTranscriptionJob(created.jobId, pollMs);
     let transcript: TranscriptLine[] = [];
     try {
       transcript = hearResultToTranscript(result);
@@ -615,7 +707,7 @@ export async function runHearAndMaybeRecap(opts: {
                 mode: alt,
                 idempotencyKey: `${callId}_${alt.channel ? "ch" : "dz"}`,
               });
-        const altResult = await pollTranscriptionJob(retry.jobId);
+        const altResult = await pollTranscriptionJob(retry.jobId, pollMs);
         const altTranscript = hearResultToTranscript(altResult);
         const altSpeakers = new Set(altTranscript.map((line) => line.speaker));
         if (altSpeakers.size > speakers.size) {
@@ -633,7 +725,16 @@ export async function runHearAndMaybeRecap(opts: {
     if (opts.mode !== "upload" || !uploadFile) throw jobError;
 
     // Fallback: sync Hear when jobs scope is missing or format fails.
-    // Sync has no speaker diarization — last resort only.
+    // Sync has no speaker diarization — last resort only. Skip for multi-chunk
+    // long calls; sync also dies on ~30+ min STT upstream failures.
+    if (uploadChunks && uploadChunks.length > 1) {
+      const jobMsg =
+        jobError instanceof Error ? jobError.message : String(jobError);
+      throw new Error(
+        `Hear could not transcribe this long recording (${uploadChunks.length} parts). ${jobMsg.slice(0, 220)}. Tip: retry, or upload a shorter clip.`,
+      );
+    }
+
     try {
       const transcript = await transcribeAudioSync(uploadFile, uploadFilename);
       return withRecap(transcript, "sync");
