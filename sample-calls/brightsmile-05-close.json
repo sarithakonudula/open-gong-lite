@@ -1,0 +1,224 @@
+{
+  "slug": "brightsmile-05-close",
+  "title": "Brightsmile 5 · Close",
+  "company": "Brightsmile Dental Group",
+  "durationLabel": "5 min",
+  "description": "Verbal commit: two locations, ninety days, twenty six a seat. Search ringhawk to see the incumbent fade.",
+  "dealArc": {
+    "id": "brightsmile",
+    "seq": 5,
+    "beat": "Two-location pilot"
+  },
+  "audioFile": "audio/call-05.m4a",
+  "transcript": [
+    {
+      "id": "L1",
+      "index": 0,
+      "speaker": "Maya",
+      "text": "so proposals in front of you two locations ninety day pilot and we landed at twenty six per seat with the recall tooling included",
+      "startMs": 0,
+      "endMs": 8000
+    },
+    {
+      "id": "L2",
+      "index": 1,
+      "speaker": "Rahul",
+      "text": "twenty six i can sell doctor meta looked at it last night and his only question was whether we're locked in if the pilot goes badly",
+      "startMs": 8080,
+      "endMs": 15280
+    },
+    {
+      "id": "L3",
+      "index": 2,
+      "speaker": "Maya",
+      "text": "you're not if the pilot fills your numbers you walk at ninety days and your lines port right back that's in section four",
+      "startMs": 15200,
+      "endMs": 21680
+    },
+    {
+      "id": "L4",
+      "index": 3,
+      "speaker": "Rahul",
+      "text": "that clause is what got him to yes honestly okay the two pilot sites are the downtown location and the elm street one",
+      "startMs": 22080,
+      "endMs": 29360
+    },
+    {
+      "id": "L5",
+      "index": 4,
+      "speaker": "Maya",
+      "text": "busiest and smallest smart cutover happens on a weekend like we your phones never go dark on a patient day",
+      "startMs": 29440,
+      "endMs": 35360
+    },
+    {
+      "id": "L6",
+      "index": 5,
+      "speaker": "Rahul",
+      "text": "more thing i noticed in the proposal the core recording can we use those for training the new front desk hires because that alone might fix my churn problem",
+      "startMs": 35760,
+      "endMs": 45120
+    },
+    {
+      "id": "L7",
+      "index": 6,
+      "speaker": "Maya",
+      "text": "yes and i'll set up the training live review for your office manager as part of onboarding no extra line item",
+      "startMs": 45280,
+      "endMs": 51040
+    },
+    {
+      "id": "L8",
+      "index": 7,
+      "speaker": "Rahul",
+      "text": "then we're done negotiating send the agreement over i'll have doctor meta sign early next week and let's aim the cutover for the weekend after",
+      "startMs": 51040,
+      "endMs": 59360
+    },
+    {
+      "id": "L9",
+      "index": 8,
+      "speaker": "Maya",
+      "text": "agreement goes out this afternoon rahul genuinely looking forward to this one",
+      "startMs": 59440,
+      "endMs": 63920
+    },
+    {
+      "id": "L10",
+      "index": 9,
+      "speaker": "Rahul",
+      "text": "get my after ask patients booking again and i'll be your reference customer talk next week",
+      "startMs": 63840,
+      "endMs": 68000
+    }
+  ],
+  "notes": {
+    "title": "Close: verbal commit on the pilot",
+    "summary": [
+      {
+        "text": "Verbal commit: two-location ninety-day pilot at twenty six per seat, recall tooling included.",
+        "evidence": {
+          "lineId": "L1",
+          "quote": "two locations ninety day pilot and we landed at twenty six per seat with the recall tooling included"
+        }
+      },
+      {
+        "text": "Cutover happens on a weekend so phones never go dark on a patient day.",
+        "evidence": {
+          "lineId": "L5",
+          "quote": "smart cutover happens on a weekend like we your phones never go dark on a patient day"
+        }
+      },
+      {
+        "text": "Buyer wants to use call recordings to train new front-desk hires and sees it fixing churn.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "the core recording can we use those for training the new front desk hires"
+        }
+      }
+    ],
+    "objections": [
+      {
+        "text": "Dr. Mehta's only remaining question: are we locked in if the pilot goes badly?",
+        "evidence": {
+          "lineId": "L2",
+          "quote": "his only question was whether we're locked in if the pilot goes badly"
+        }
+      }
+    ],
+    "intent": [
+      {
+        "text": "Dr. Mehta reviewed the proposal himself and is set to sign. He wasn't on this call.",
+        "evidence": {
+          "lineId": "L2",
+          "quote": "doctor meta looked at it last night"
+        }
+      },
+      {
+        "text": "Office manager gets the training live-review as part of onboarding. She wasn't on this call either.",
+        "evidence": {
+          "lineId": "L7",
+          "quote": "i'll set up the training live review for your office manager"
+        }
+      },
+      {
+        "text": "Single-threaded: only one contact in the loop so far.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "i'll have doctor meta sign early next week"
+        }
+      }
+    ],
+    "nextSteps": [
+      {
+        "text": "Rep to send the agreement this afternoon.",
+        "evidence": {
+          "lineId": "L9",
+          "quote": "agreement goes out this afternoon"
+        }
+      },
+      {
+        "text": "Buyer to have Dr. Mehta sign the agreement early next week.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "i'll have doctor meta sign early next week"
+        }
+      },
+      {
+        "text": "Both sides to aim the cutover for the weekend after signing.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "let's aim the cutover for the weekend after"
+        }
+      },
+      {
+        "text": "Rep to set up a training live-review of call recordings for the office manager as part of onboarding, no extra line item.",
+        "evidence": {
+          "lineId": "L7",
+          "quote": "i'll set up the training live review for your office manager as part of onboarding no extra line item"
+        }
+      },
+      {
+        "text": "Rep sends the agreement this afternoon; Dr. Mehta signs early next week; cutover the weekend after.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "i'll have doctor meta sign early next week and let's aim the cutover for the weekend after"
+        }
+      }
+    ],
+    "pain": [
+      {
+        "text": "Front-desk churn is Rahul's own problem; he sees call recordings for training as the thing that might fix it.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "the core recording can we use those for training the new front desk hires because that alone might fix my churn problem"
+        }
+      }
+    ],
+    "pricing": [
+      {
+        "text": "Final landed price: twenty six per seat, recall tooling included, on a two-location ninety-day pilot.",
+        "evidence": {
+          "lineId": "L1",
+          "quote": "we landed at twenty six per seat with the recall tooling included"
+        }
+      },
+      {
+        "text": "Buyer can sell twenty six internally; Dr. Mehta reviewed it the night before.",
+        "evidence": {
+          "lineId": "L2",
+          "quote": "twenty six i can sell doctor meta looked at it last night"
+        }
+      }
+    ],
+    "competitors": [],
+    "followUpEmail": {
+      "subject": "Follow-up: Close: verbal commit on the pilot",
+      "body": "Thanks for the time today.\n\nVerbal commit: two-location ninety-day pilot at twenty six per seat, recall tooling included.\nCutover happens on a weekend so phones never go dark on a patient day.\n\nNext steps:\n- Rep to send the agreement this afternoon.\n- Buyer to have Dr. Mehta sign the agreement early next week.\n- Both sides to aim the cutover for the weekend after signing.\n- Rep to set up a training live-review of call recordings for the office manager as part of onboarding, no extra line item.\n\n— OpenGong Lite",
+      "evidence": {
+        "lineId": "L9",
+        "quote": "agreement goes out this afternoon"
+      }
+    }
+  }
+}

@@ -126,6 +126,39 @@ Scopes for the full live path:
 - `hear:transcribe` + `transcribe:jobs` (Hear batch)
 - `recap:read`, plus `recap:configure` once to flip Recap on for the org
 
+## Score calls with a free LLM
+
+Everything in the demo works with zero keys: Brightsmile 1 ships its scorecard
+and deal-signal feed offline. Live scoring of your own calls needs any
+OpenAI-compatible endpoint. Two free routes:
+
+**Ollama (fully local, no signup):**
+
+```bash
+ollama pull llama3.1        # once
+# .env
+LLM_BASE_URL=http://localhost:11434/v1
+LLM_API_KEY=ollama
+LLM_MODEL=llama3.1
+```
+
+**Groq (hosted free tier):**
+
+```bash
+# .env — key from console.groq.com
+LLM_BASE_URL=https://api.groq.com/openai/v1
+LLM_API_KEY=gsk_...
+LLM_MODEL=llama-3.3-70b-versatile
+```
+
+Restart the dev server after setting these — config is read at boot. The
+Scorecard tab's "Score with LLM" button goes live once both vars are present.
+
+Running a shared deployment on your own key is fine: the key stays server-side
+and never reaches the browser. Do two things first — set
+`OPENGONG_AUTH_PASSWORD` so only people you let in can spend your tokens, and
+put a hard spend cap on the key in your provider's console.
+
 ## What you get
 
 Notes
@@ -151,12 +184,32 @@ Email
   citation checks out
 - One unknown note id throws out the whole draft
 
-Live
+Scorecard
+
+- A second tab on a run scores how the call itself was run, trait by trait,
+  against MEDDIC or one of thirteen other packs
+- Every line of that scorecard is checked the same way the notes are. A
+  coaching point with no line behind it does not get to claim one
+- What a call of that size is expected to cover is set by the deal's size, so a
+  short discovery call is not marked down for skipping what it had no reason to
+  reach
+- Brightsmile call 1 ships with a stored scorecard, so the tab works with no
+  keys at all. Live scoring is opt-in
+
+Signals
+
+- `/signals` collects what changed across a deal's calls: what was promised and
+  never picked up again, what the buyer pushed back on twice, who went quiet
+- Each signal carries the same citation into the call, and says plainly when
+  scoring is off
+
+Live and the rest
 
 - `/live` runs a scripted offline stream, or mic → Hear → checks
-- Seven sample calls in `sample-calls/`, including a Fireflies displacement call
-  and the messy call above
+- Thirteen sample calls in `sample-calls/`, including the six-call Brightsmile ×
+  CallForge deal, a Fireflies displacement call, and the messy call above
 - Search across past calls on the home page
+- Export to Markdown or JSON, plus a shareable link
 - `/how` is the one-pager: what gets checked and in what order
 - Every outbound network call is listed in `DATA-FLOW.md`
 
@@ -171,6 +224,7 @@ Live
 | Retry | Wrong shape and zero-citation runs get asked again with the reason, capped |
 | Status | Notes ready, notes ready with gaps, or not enough backing to ship. A sandbox 401 remints the key, and the daily cap gets its own named exit |
 | Budget | A cap on tries plus a deadline |
+| Scorecard | Each trait scored none / mentioned / explored / nailed down, against what a deal that size should have covered. The same citation check runs on every line of it |
 
 Developers: the four note states are `verified`, `segment_corrected`,
 `uncorroborated`, and `blocked_injection` in the code and the JSON. They are
@@ -201,17 +255,26 @@ past the checker. `scripts/test-fabrication.ts` holds each one closed:
 
 ## Demo script (90 seconds)
 
-1. Homepage. Brand hits first. Note the PyAI key status line.
-2. Run **Basecamp Retail / Fireflies** (or Acme pricing pushback).
-3. Click a citation under an objection. The transcript jumps.
-4. Run **Messy call (planted lie + injection)**. Point at the grey note marked
-   not found in the call, and at the struck-through blocked one. Read the
-   fraction in the header. Open the follow-up. Neither trap is in the email.
-5. Optional: `/live` → scripted demo, or record mic → End call, where clicking a
+1. Homepage. Brand hits first, on the Brightsmile × CallForge deal strip. Note
+   the PyAI key status line. Line: *Gong asks you to trust its summary. We show
+   you the line.*
+2. Run **Brightsmile 3 · Pricing**. Click a citation under an objection. The
+   transcript jumps and the audio plays that second. Silence in the room.
+3. Point at the grey note: *Rep agreed to match RingHawk's twenty two…* Nobody
+   said it, so it is marked not found in the call.
+4. Run **Brightsmile 6 · Messy**. The planted instruction is struck through and
+   stays on the page. Read the fraction in the header. Open the follow-up.
+   Neither trap is in the email.
+5. Search **`tcpa`** across past calls (after running calls 2 and 4). Promised
+   on Friday, never picked up again on the ledger call.
+6. Run **Brightsmile 1 · Discovery** and open the Scorecard tab. Same citations
+   under the coaching. Champion-building is not counted against a deal this
+   size.
+7. Optional: `/live` → scripted demo, or record mic → End call, where clicking a
    citation plays that second.
-6. Open `/how` if anyone asks what the checking actually does.
-7. Share link / Copy share URL + export Markdown.
-8. Line: *People pay Gong $1,400 a seat for this. Ours is a git clone.*
+8. Open `/how` if anyone asks what the checking actually does. Share link and
+   export Markdown if there is time.
+9. Line: *People pay Gong $1,400 a seat for this. Ours is a git clone.*
 
 ## Scripts
 

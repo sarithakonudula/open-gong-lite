@@ -100,6 +100,14 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
 
   const canUpload = useMemo(() => Boolean(file) && !busy, [file, busy]);
   const canUrl = useMemo(() => url.trim().length > 8 && !busy, [url, busy]);
+  const dealSamples = useMemo(
+    () => samples.filter((s) => s.dealArc?.id === "brightsmile"),
+    [samples],
+  );
+  const otherSamples = useMemo(
+    () => samples.filter((s) => s.dealArc?.id !== "brightsmile"),
+    [samples],
+  );
 
   async function runDemo(slug: string) {
     setError(null);
@@ -186,6 +194,9 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
           <a href="#try" className="btn-primary">
             See the notes →
           </a>
+          <a href="/signals" className="btn-ghost">
+            Deal signals
+          </a>
           <a href="/live" className="btn-ghost">
             Live call
           </a>
@@ -215,19 +226,68 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <h2 className="font-[family-name:var(--font-display)] text-3xl tracking-tight md:text-4xl">
-              Run a sample call
+              Brightsmile × CallForge — one deal, six calls
             </h2>
             <p className="mt-2 max-w-2xl text-mist">
               Click any call. You land on a page with summary, objections,
-              intent, next steps, and a citation under every line. Run the
-              messy sample to see a note the AI could not back, and a line
-              someone planted to give the AI orders.
+              intent, next steps, and a citation under every line. Call 1 also
+              gets a scorecard of how the call was run. Call 3 has a note the
+              app could not find in the call. Call 4 is where you search{" "}
+              <button
+                type="button"
+                className="text-signal underline-offset-2 hover:underline"
+                onClick={() => setSearch("tcpa")}
+              >
+                tcpa
+              </button>
+              . Call 6 has a line someone planted to give the AI orders, and it
+              never reaches the email. Click a citation to play that second.
             </p>
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          {samples.map((sample, index) => (
+          {dealSamples.map((sample, index) => (
+            <button
+              key={sample.slug}
+              type="button"
+              onClick={() => runDemo(sample.slug)}
+              disabled={Boolean(busy)}
+              className="group rounded-[1.4rem] border border-white/10 bg-ink-soft/55 p-5 text-left transition hover:border-signal/40 hover:bg-ink-soft/90 disabled:opacity-60"
+              style={{ animationDelay: `${index * 40}ms` }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-mist">
+                  {sample.dealArc?.beat} · {sample.durationLabel}
+                </p>
+                <span className="text-signal text-sm opacity-0 transition group-hover:opacity-100">
+                  {busy === sample.slug ? "Running…" : "Run →"}
+                </span>
+              </div>
+              <h3 className="mt-3 font-[family-name:var(--font-display)] text-2xl tracking-tight">
+                {sample.title}
+              </h3>
+              {sample.slug === "brightsmile-01-discovery" && (
+                <p className="mt-2 text-xs uppercase tracking-[0.14em] text-signal">
+                  MEDDIC scorecard on the run
+                </p>
+              )}
+              <p className="mt-2 text-sm leading-relaxed text-fog/80">
+                {sample.description}
+              </p>
+            </button>
+          ))}
+        </div>
+
+        <h3 className="mt-12 font-[family-name:var(--font-display)] text-2xl tracking-tight">
+          More samples
+        </h3>
+        <p className="mt-2 max-w-2xl text-mist">
+          One-shot calls, including a compressed honesty demo if you skip the
+          full arc.
+        </p>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          {otherSamples.map((sample, index) => (
             <button
               key={sample.slug}
               type="button"
@@ -269,7 +329,7 @@ export function HomeClient({ samples }: { samples: SampleCall[] }) {
         <input
           className="field mt-6 max-w-xl"
           type="search"
-          placeholder="e.g. Fireflies, procurement, SSO…"
+          placeholder="e.g. tcpa, ringhawk, Fireflies…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

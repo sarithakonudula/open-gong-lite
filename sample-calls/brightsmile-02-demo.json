@@ -1,0 +1,236 @@
+{
+  "slug": "brightsmile-02-demo",
+  "title": "Brightsmile 2 · Demo",
+  "company": "Brightsmile Dental Group",
+  "durationLabel": "7 min",
+  "description": "Value lands. Maya promises the SOC2 report and a TCPA one-pager by Friday — the commitment the ledger will catch.",
+  "dealArc": {
+    "id": "brightsmile",
+    "seq": 2,
+    "beat": "SOC2 + TCPA promised by Friday"
+  },
+  "audioFile": "audio/call-02.m4a",
+  "transcript": [
+    {
+      "id": "L1",
+      "index": 0,
+      "speaker": "Maya",
+      "text": "rahul thanks for the thirty minutes straight into it this is the after hours flow call comes in at seven no answer at the desk watch what happens",
+      "startMs": 0,
+      "endMs": 8720
+    },
+    {
+      "id": "L2",
+      "index": 1,
+      "speaker": "Rahul",
+      "text": "okay so it routed to the oncore line and then texted the patient at booking link that's the part we lose today that's genuinely useful",
+      "startMs": 8640,
+      "endMs": 15680
+    },
+    {
+      "id": "L3",
+      "index": 2,
+      "speaker": "Maya",
+      "text": "and he is answering machine detection on the outbound side when your record campaign hits a voice mail the system knows it's a machine and drops the right message instead of burning staff time",
+      "startMs": 15680,
+      "endMs": 25200
+    },
+    {
+      "id": "L4",
+      "index": 3,
+      "speaker": "Rahul",
+      "text": "so the detection part is my front desk isn't sitting there listening to beeps all afternoon because recall days are half wasted on that",
+      "startMs": 25600,
+      "endMs": 32000
+    },
+    {
+      "id": "L5",
+      "index": 4,
+      "speaker": "Maya",
+      "text": "exactly that and the texting flow you're asking every message goes out with consent tracking attached so the compliance question stops being your problem",
+      "startMs": 31920,
+      "endMs": 39040
+    },
+    {
+      "id": "L6",
+      "index": 5,
+      "speaker": "Rahul",
+      "text": "texting piece with the consent baked in that i like my office manager will like it more",
+      "startMs": 39360,
+      "endMs": 43840
+    },
+    {
+      "id": "L7",
+      "index": 6,
+      "speaker": "Maya",
+      "text": "do things from my side then i'll send you our sot report and the tcpa one paper for your office manager both by friday",
+      "startMs": 43920,
+      "endMs": 50800
+    },
+    {
+      "id": "L8",
+      "index": 7,
+      "speaker": "Rahul",
+      "text": "could send both an exchange or pull our call volume report from ringcak so you can size this properly i can get that to you early next week",
+      "startMs": 50880,
+      "endMs": 58320
+    },
+    {
+      "id": "L9",
+      "index": 8,
+      "speaker": "Maya",
+      "text": "deal what worries you about actually moving",
+      "startMs": 58320,
+      "endMs": 60000
+    },
+    {
+      "id": "L10",
+      "index": 9,
+      "speaker": "Rahul",
+      "text": "downtime we cannot be down during patient hours at all if switching means two dead days of phones the deal is off before it starts",
+      "startMs": 60160,
+      "endMs": 67440
+    },
+    {
+      "id": "L11",
+      "index": 10,
+      "speaker": "Maya",
+      "text": "whatever happens on a weekend numbers port in the background and the old system stays live until the new one answers nobody's phones go dark on a tuesday",
+      "startMs": 67360,
+      "endMs": 76400
+    },
+    {
+      "id": "L12",
+      "index": 11,
+      "speaker": "Rahul",
+      "text": "alright and hypothetically if we ever opened a sixth location next year adding it as what a form not a project",
+      "startMs": 76400,
+      "endMs": 82880
+    },
+    {
+      "id": "L13",
+      "index": 12,
+      "speaker": "Maya",
+      "text": "form same day but let's get five working first",
+      "startMs": 83120,
+      "endMs": 85760
+    },
+    {
+      "id": "L14",
+      "index": 13,
+      "speaker": "Rahul",
+      "text": "fine send me the two documents i'll send the report and then let's talk numbers",
+      "startMs": 85840,
+      "endMs": 90320
+    }
+  ],
+  "notes": {
+    "title": "Demo: after-hours routing and compliant texting",
+    "summary": [
+      {
+        "text": "Demo landed: after-hours routing, AMD, and consent-tracked texting all resonated with the buyer.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "texting piece with the consent baked in that i like"
+        }
+      },
+      {
+        "text": "Buyer is drawn to answering-machine detection and to consent-tracked texting for compliance.",
+        "evidence": {
+          "lineId": "L4",
+          "quote": "my front desk isn't sitting there listening to beeps all afternoon"
+        }
+      }
+    ],
+    "objections": [
+      {
+        "text": "Downtime is a dealbreaker: 'we cannot be down during patient hours at all, if switching means two dead days of phones the deal is off before it starts.'",
+        "evidence": {
+          "lineId": "L10",
+          "quote": "we cannot be down during patient hours at all if switching means two dead days of phones the deal is off before it starts"
+        }
+      }
+    ],
+    "intent": [
+      {
+        "text": "Office manager's the internal champion for texting. She wasn't on this call.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "my office manager will like it more"
+        }
+      },
+      {
+        "text": "Single-threaded: only one contact in the loop so far.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "my office manager will like it more"
+        }
+      }
+    ],
+    "nextSteps": [
+      {
+        "text": "Rep committed to send the SOC 2 report and the TCPA one-pager to the office manager, both by Friday.",
+        "evidence": {
+          "lineId": "L7",
+          "quote": "i'll send you our sot report and the tcpa one paper for your office manager both by friday"
+        }
+      },
+      {
+        "text": "Buyer to pull the RingHawk call-volume report and send it so the rep can size the deal, early next week.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "pull our call volume report from ringcak so you can size this properly"
+        }
+      },
+      {
+        "text": "Once the documents are exchanged, both sides move to pricing.",
+        "evidence": {
+          "lineId": "L14",
+          "quote": "and then let's talk numbers"
+        }
+      },
+      {
+        "text": "Rep to send SOC 2 report and TCPA one-pager by Friday; buyer to send the call-volume report early next week.",
+        "evidence": {
+          "lineId": "L7",
+          "quote": "i'll send you our sot report and the tcpa one paper for your office manager both by friday"
+        }
+      }
+    ],
+    "pain": [
+      {
+        "text": "Front desk currently loses time to answering-machine beeps on recall campaigns; AMD would give that time back.",
+        "evidence": {
+          "lineId": "L4",
+          "quote": "my front desk isn't sitting there listening to beeps all afternoon"
+        }
+      }
+    ],
+    "pricing": [
+      {
+        "text": "No numbers yet: buyer signals pricing is the next conversation once documents are exchanged.",
+        "evidence": {
+          "lineId": "L14",
+          "quote": "and then let's talk numbers"
+        }
+      }
+    ],
+    "competitors": [
+      {
+        "text": "RingHawk (spoken 'ringcak') is still the system of record: the buyer will export its call-volume report to size the CallForge deal.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "pull our call volume report from ringcak so you can size this properly"
+        }
+      }
+    ],
+    "followUpEmail": {
+      "subject": "Follow-up: Demo: after-hours routing and compliant texting",
+      "body": "Thanks for the time today.\n\nDemo landed: after-hours routing, AMD, and consent-tracked texting all resonated with the buyer.\nBuyer is drawn to answering-machine detection and to consent-tracked texting for compliance.\n\nNext steps:\n- Rep committed to send the SOC 2 report and the TCPA one-pager to the office manager, both by Friday.\n- Buyer to pull the RingHawk call-volume report and send it so the rep can size the deal, early next week.\n- Once the documents are exchanged, both sides move to pricing.\n- Rep to send SOC 2 report and TCPA one-pager by Friday; buyer to send the call-volume report early next week.\n\n— OpenGong Lite",
+      "evidence": {
+        "lineId": "L7",
+        "quote": "i'll send you our sot report and the tcpa one paper for your office manager both by friday"
+      }
+    }
+  }
+}

@@ -1,45 +1,42 @@
+import { gateEvidenceQuote } from "@/lib/harness/gates";
 import type { RecapCall } from "@/lib/pyai";
 import { Claim, DealNotes, Evidence, TranscriptLine } from "@/lib/types";
 
-function normalize(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+/**
+ * lineId for a claim no transcript line supports. It never exists in the
+ * transcript, so the downstream gate returns missing_line and demotes the
+ * claim — and the UI cannot show a real, unrelated line as its receipt.
+ */
+const UNSUPPORTED_LINE = "__unsupported__";
 
 /**
- * Evidence sentinel for Recap text no transcript line actually supports.
- * The lineId never exists, so the downstream gate demotes the claim to
- * uncorroborated — a Recap sentence must EARN its receipt, never be handed
- * one. (Previously this function returned the best-scoring line's own text
- * as the quote, which the gate then trivially exact-matched: self-certified
- * evidence, the exact laundering the receipts story forbids.)
+ * Attach a receipt using the *claim text* as the quote. Never copy a transcript
+ * line into evidence.quote — that made the gate self-pass. If the claim is not
+ * in the call, the quote still fails the gate and the claim is demoted.
  */
-const NO_EVIDENCE: Evidence = { lineId: "__unsupported__", quote: "(no supporting line found in this call)" };
-
-function bestEvidence(
+export function locateEvidence(
   text: string,
   transcript: TranscriptLine[],
 ): Evidence {
-  if (!transcript.length) return NO_EVIDENCE;
-
-  const needle = normalize(text);
-  if (!needle) return NO_EVIDENCE;
+  if (!transcript.length) {
+    throw new Error("Cannot attach receipts to an empty transcript");
+  }
+  const quote = text.trim().slice(0, 240) || "unquoted claim";
 
   for (const line of transcript) {
-    const hay = normalize(line.text);
-    if (!hay) continue;
-    if (hay.includes(needle) || needle.includes(hay)) {
-      return {
-        lineId: line.id,
-        quote: line.text.length > 100 ? `${line.text.slice(0, 97)}...` : line.text,
-      };
+    const gate = gateEvidenceQuote(quote, line.id, transcript);
+    if (
+      gate.verdict === "match_exact" ||
+      gate.verdict === "match_normalized"
+    ) {
+      return { lineId: gate.matchedLineId || line.id, quote };
+    }
+    if (gate.verdict === "segment_corrected" && gate.matchedLineId) {
+      return { lineId: gate.matchedLineId, quote };
     }
   }
 
-  return NO_EVIDENCE;
+  return { lineId: UNSUPPORTED_LINE, quote };
 }
 
 function asStringList(value: unknown): string[] {
@@ -74,7 +71,7 @@ function asStringList(value: unknown): string[] {
 }
 
 function claim(text: string, transcript: TranscriptLine[]): Claim {
-  return { text, evidence: bestEvidence(text, transcript) };
+  return { text, evidence: locateEvidence(text, transcript) };
 }
 
 function pickStrings(
@@ -88,12 +85,22 @@ function pickStrings(
   return [];
 }
 
+function absent(label: string, transcript: TranscriptLine[]): Claim[] {
+  return [
+    claim(`${label} was not stated on this call.`, transcript),
+  ];
+}
+
 /** Map PyAI Recap artifacts into OpenGong DealNotes with transcript receipts. */
 export function mapRecapToDealNotes(
   recap: RecapCall,
   transcript: TranscriptLine[],
   titleHint?: string,
 ): DealNotes {
+  if (!transcript.length) {
+    throw new Error("Cannot map Recap onto an empty transcript");
+  }
+
   const record = (recap.record || {}) as Record<string, unknown>;
   const title =
     recap.headline ||
@@ -115,9 +122,6 @@ export function mapRecapToDealNotes(
   }
   if (!uniqueSummary.length && recap.headline) {
     uniqueSummary.push(recap.headline);
-  }
-  if (!uniqueSummary.length) {
-    uniqueSummary.push("Call completed; detailed summary unavailable from Recap.");
   }
 
   const objections = pickStrings(record, [
@@ -153,31 +157,28 @@ export function mapRecapToDealNotes(
     "alternatives",
   ]);
 
-  // Absence honesty: when Recap yields no next steps, the section stays
-  // empty — a next step the buyer never agreed to must not be invented from
-  // a transcript line (right quote, fabricated commitment).
-  const next = nextSteps;
+  // Absence honesty: when Recap yields nothing for a section, say so in
+  // words. A next step the buyer never agreed to must not be invented from a
+  // transcript line (right quote, fabricated commitment); the absence claim
+  // carries no receipt either, so the gate demotes it too.
+  const summaryClaims = uniqueSummary.length
+    ? uniqueSummary.map((t) => claim(t, transcript))
+    : absent("A call summary", transcript);
+  const intentClaims = intent.length
+    ? intent.slice(0, 3).map((t) => claim(t, transcript))
+    : absent("Buyer intent", transcript);
+  const nextClaims = nextSteps.length
+    ? nextSteps.slice(0, 4).map((t) => claim(t, transcript))
+    : absent("A next step", transcript);
 
-  const intentClaims =
-    intent.length > 0
-      ? intent.slice(0, 3).map((t) => claim(t, transcript))
-      : [
-          claim(
-            recap.headline ||
-              "Buyer left an actionable signal; confirm commitment in follow-up.",
-            transcript,
-          ),
-        ];
-
-  const actionLine = next[0];
-  const emailEvidence = actionLine ? bestEvidence(actionLine, transcript) : NO_EVIDENCE;
+  const emailSource = nextSteps[0] || uniqueSummary[0] || title;
 
   return {
     title: String(title).slice(0, 160),
-    summary: uniqueSummary.map((t) => claim(t, transcript)),
+    summary: summaryClaims,
     objections: objections.slice(0, 4).map((t) => claim(t, transcript)),
     intent: intentClaims,
-    nextSteps: next.slice(0, 4).map((t) => claim(t, transcript)),
+    nextSteps: nextClaims,
     pain: pain.slice(0, 4).map((t) => claim(t, transcript)),
     pricing: pricing.slice(0, 4).map((t) => claim(t, transcript)),
     competitors: competitors.slice(0, 4).map((t) => claim(t, transcript)),
@@ -186,18 +187,18 @@ export function mapRecapToDealNotes(
       body: [
         "Thanks again for the conversation.",
         "",
-        typeof record.summary === "string"
-          ? record.summary
-          : uniqueSummary.join(" "),
+        uniqueSummary.join(" ") || "Recap did not return a summary we could cite.",
         "",
         "Next steps:",
-        ...next.slice(0, 4).map((step) => `- ${step}`),
+        ...(nextSteps.length
+          ? nextSteps.slice(0, 4).map((step) => `- ${step}`)
+          : ["- None stated on the call — not invented here."]),
         "",
         "Happy to adjust if I missed anything.",
         "",
         "— OpenGong Lite",
       ].join("\n"),
-      evidence: emailEvidence,
+      evidence: locateEvidence(String(emailSource), transcript),
     },
   };
 }

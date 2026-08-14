@@ -10,6 +10,7 @@
  * 1. A count is always a fraction ("10 of 11 backed"), never a bare percentage.
  * 2. No term appears on screen that the page has not already explained.
  */
+import type { Depth } from "@/lib/methodology";
 import type { ClaimStatus, Coverage, CoverageBand, RunStatus } from "@/lib/types";
 
 /** What each note status is called on screen. */
@@ -83,3 +84,67 @@ export function attemptReasonLine(reason?: string): string {
 export function backedFraction(coverage: Coverage): string {
   return `${coverage.stats.corroborated} of ${coverage.stats.attempted} backed`;
 }
+
+/**
+ * Scorecard vocabulary. `Depth` is the enum the scoring code and its tests
+ * use; these are the words for it. A rep reading their own call should not
+ * have to learn what "mastery" or "surface" was supposed to mean.
+ */
+export const DEPTH_LABEL: Record<Depth, string> = {
+  mastery: "nailed down",
+  developing: "explored",
+  surface: "mentioned",
+  missing: "never came up",
+  not_applicable: "not needed here",
+};
+
+/** What a trait scored none-to-full means when the call could not back it. */
+export const DEPTH_UNBACKED_LABEL = "no line in the call backs this";
+
+/** "8 of 12 backed", same shape as the notes header. Never a bare percentage. */
+export function scorecardBackedFraction(stats: {
+  corroborated: number;
+  total: number;
+}): string {
+  return `${stats.corroborated} of ${stats.total} backed`;
+}
+
+/**
+ * How thoroughly a call of this size is expected to have been run. The bands
+ * are set by deal value, so a short first call is not marked down for skipping
+ * what it had no reason to reach yet.
+ */
+export const RIGOR_LABEL: Record<string, string> = {
+  core: "the basics",
+  standard: "a full working call",
+  deep: "everything, on the record",
+};
+
+export function rigorLine(band: { label: string; rigor: string } | null): string {
+  if (!band) return "No deal size given, so the whole method is in scope.";
+  const expectation = RIGOR_LABEL[band.rigor] ?? band.rigor;
+  return `${band.label} — measured against ${expectation}.`;
+}
+
+/**
+ * Deal-signal vocabulary. A signal either carries a line from the call or
+ * says out loud that it does not; there is no third, quieter state.
+ */
+export const SIGNAL_EVIDENCE_LABEL: Record<"cited" | "signal_only", string> = {
+  cited: "from the call",
+  signal_only: "no line in the call backs this one",
+};
+
+export const SIGNAL_SEVERITY_LABEL: Record<string, string> = {
+  hot: "act today",
+  high: "worth a move this week",
+  watch: "keep an eye on it",
+  info: "context",
+};
+
+export const SIGNAL_DIRECTION_LABEL: Record<string, string> = {
+  buying_intent: "buying signal",
+  risk: "risk",
+  stalled: "stalled",
+  momentum: "momentum",
+};

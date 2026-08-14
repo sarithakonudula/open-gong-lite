@@ -1,0 +1,212 @@
+{
+  "slug": "brightsmile-04-ledger",
+  "title": "Brightsmile 4 · Commitment check",
+  "company": "Brightsmile Dental Group",
+  "durationLabel": "5 min",
+  "description": "SOC2 arrived. The TCPA one-pager did not. Search tcpa across this deal — the broken promise is the Gong moment.",
+  "dealArc": {
+    "id": "brightsmile",
+    "seq": 4,
+    "beat": "TCPA one-pager dropped"
+  },
+  "audioFile": "audio/call-04.m4a",
+  "transcript": [
+    {
+      "id": "L1",
+      "index": 0,
+      "speaker": "Maya",
+      "text": "for a whole quick check in before we talk pilot you got the soc report",
+      "startMs": 0,
+      "endMs": 3360
+    },
+    {
+      "id": "L2",
+      "index": 1,
+      "speaker": "Rahul",
+      "text": "got the soctu yes forwarded it to our it guy already but maya you promised my office manager a tcpa one pager by friday and it never showed up she asked me twice",
+      "startMs": 3280,
+      "endMs": 13840
+    },
+    {
+      "id": "L3",
+      "index": 2,
+      "speaker": "Maya",
+      "text": "you're right that one's on me it goes out today and i'll send it directly to her so it doesn't root through you",
+      "startMs": 14000,
+      "endMs": 19840
+    },
+    {
+      "id": "L4",
+      "index": 3,
+      "speaker": "Rahul",
+      "text": "please because the texting piece is her favorite part of this whole thing and right now she's the one selling it internally not me",
+      "startMs": 20000,
+      "endMs": 26160
+    },
+    {
+      "id": "L5",
+      "index": 4,
+      "speaker": "Maya",
+      "text": "noted today and thank you for the volume report that's what let us ship the pilot here's the idea two locations your busiest and your smallest running live before you commit the other three",
+      "startMs": 26320,
+      "endMs": 36000
+    },
+    {
+      "id": "L6",
+      "index": 5,
+      "speaker": "Rahul",
+      "text": "two locations i can defend to doctor meta without a fight which too is my call though",
+      "startMs": 36080,
+      "endMs": 41200
+    },
+    {
+      "id": "L7",
+      "index": 6,
+      "speaker": "Maya",
+      "text": "completely your call what's changed on your side since we talked",
+      "startMs": 41360,
+      "endMs": 44160
+    },
+    {
+      "id": "L8",
+      "index": 7,
+      "speaker": "Rahul",
+      "text": "contest tenab again lost two receptions this month every new hire has to lend ringhawks fifteen screens and honestly training time is becoming its own cost",
+      "startMs": 44080,
+      "endMs": 52240
+    },
+    {
+      "id": "L9",
+      "index": 8,
+      "speaker": "Maya",
+      "text": "for what it's worth new stuff get one screen with ring and subtext the pilot will show that faster than i can say it",
+      "startMs": 52160,
+      "endMs": 58800
+    },
+    {
+      "id": "L10",
+      "index": 9,
+      "speaker": "Rahul",
+      "text": "good so tcpa paper today palate proposal on paper this week and the sharper number you owe me from last time comes with it",
+      "startMs": 58880,
+      "endMs": 66240
+    },
+    {
+      "id": "L11",
+      "index": 10,
+      "speaker": "Maya",
+      "text": "all three you'll have the proposal and the number together",
+      "startMs": 66320,
+      "endMs": 68800
+    }
+  ],
+  "notes": {
+    "title": "Commitment check: the ledger moment",
+    "summary": [
+      {
+        "text": "SOC 2 delivered but the TCPA one-pager was missed; rep owned it and re-committed. Pilot scoped to two locations.",
+        "evidence": {
+          "lineId": "L3",
+          "quote": "you're right that one's on me it goes out today"
+        }
+      },
+      {
+        "text": "Front-desk churn: lost two receptionists this month; RingHawk's fifteen screens make training a cost.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "lost two receptions this month every new hire has to lend ringhawks fifteen screens"
+        }
+      }
+    ],
+    "objections": [
+      {
+        "text": "Dropped commitment called out: the TCPA one-pager promised by Friday never showed up, and the office manager asked twice.",
+        "evidence": {
+          "lineId": "L2",
+          "quote": "you promised my office manager a tcpa one pager by friday and it never showed up she asked me twice"
+        }
+      }
+    ],
+    "intent": [
+      {
+        "text": "Office manager's now the internal champion, selling this deal for us. She wasn't on this call.",
+        "evidence": {
+          "lineId": "L4",
+          "quote": "she's the one selling it internally not me"
+        }
+      },
+      {
+        "text": "Dr. Mehta's still the economic buyer Rahul has to satisfy. He wasn't on this call.",
+        "evidence": {
+          "lineId": "L6",
+          "quote": "i can defend to doctor meta without a fight"
+        }
+      },
+      {
+        "text": "Single-threaded: only one contact in the loop so far.",
+        "evidence": {
+          "lineId": "L4",
+          "quote": "she's the one selling it internally not me"
+        }
+      }
+    ],
+    "nextSteps": [
+      {
+        "text": "Rep to send the overdue TCPA one-pager today, directly to the office manager.",
+        "evidence": {
+          "lineId": "L3",
+          "quote": "it goes out today and i'll send it directly to her so it doesn't root through you"
+        }
+      },
+      {
+        "text": "Rep to deliver the pilot proposal on paper this week together with the sharper number owed from last call.",
+        "evidence": {
+          "lineId": "L10",
+          "quote": "palate proposal on paper this week and the sharper number you owe me from last time comes with it"
+        }
+      },
+      {
+        "text": "Rep sends the overdue TCPA one-pager today, and the pilot proposal plus sharper number this week.",
+        "evidence": {
+          "lineId": "L10",
+          "quote": "palate proposal on paper this week and the sharper number you owe me from last time comes with it"
+        }
+      }
+    ],
+    "pain": [
+      {
+        "text": "Front-desk churn is now a cost center: every new hire must learn RingHawk's fifteen screens, so training time is its own cost.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "every new hire has to lend ringhawks fifteen screens and honestly training time is becoming its own cost"
+        }
+      }
+    ],
+    "pricing": [
+      {
+        "text": "Buyer is still owed the sharper number from the pricing call; it will land with the proposal.",
+        "evidence": {
+          "lineId": "L10",
+          "quote": "the sharper number you owe me from last time comes with it"
+        }
+      }
+    ],
+    "competitors": [
+      {
+        "text": "RingHawk's fifteen-screen UI (spoken 'ringhawks') is now a training burden as front-desk staff churn.",
+        "evidence": {
+          "lineId": "L8",
+          "quote": "every new hire has to lend ringhawks fifteen screens"
+        }
+      }
+    ],
+    "followUpEmail": {
+      "subject": "Follow-up: Commitment check: the ledger moment",
+      "body": "Thanks for the time today.\n\nSOC 2 delivered but the TCPA one-pager was missed; rep owned it and re-committed. Pilot scoped to two locations.\nFront-desk churn: lost two receptionists this month; RingHawk's fifteen screens make training a cost.\n\nNext steps:\n- Rep to send the overdue TCPA one-pager today, directly to the office manager.\n- Rep to deliver the pilot proposal on paper this week together with the sharper number owed from last call.\n- Rep sends the overdue TCPA one-pager today, and the pilot proposal plus sharper number this week.\n\n— OpenGong Lite",
+      "evidence": {
+        "lineId": "L3",
+        "quote": "it goes out today and i'll send it directly to her so it doesn't root through you"
+      }
+    }
+  }
+}

@@ -102,9 +102,12 @@ export default function HowPage() {
               The checker looks four ways, in order: exactly as written, then
               ignoring case and punctuation, then anywhere in the call if the
               quote is long and appears only once, and otherwise the note is
-              marked not found. Two rules it never bends. Digits and number
+              marked not found. Three rules it never bends. Digits and number
               words are never treated as equal, so &quot;forty&quot; is not
-              &quot;40&quot;. And when a quote could match two different
+              &quot;40&quot;, and a time like &quot;3:30&quot; can never
+              collapse into &quot;330&quot;. A quote that is empty, all
+              punctuation, or too short to mean anything on its own is never
+              accepted as backing. And when a quote could match two different
               places, the checker refuses to guess.
             </p>
           </li>
@@ -144,7 +147,46 @@ export default function HowPage() {
               its own.
             </p>
           </li>
+          <li>
+            <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
+              6 · Methodology scorecard
+            </h2>
+            <p className="mt-2 text-mist">
+              A second tab on the run page scores the call against MEDDIC (or
+              another pack) on a 0–3 depth rubric. Evidence still runs the L7
+              gate. Deal-band rigor keeps champion-building off the denominator
+              on a mid-market deal instead of punishing a short discovery.
+              Brightsmile 1 ships a stored verdict with no LLM keys; live scoring
+              is opt-in.
+            </p>
+          </li>
         </ol>
+
+        <section className="mt-14 space-y-4">
+          <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
+            Why this is not a prompt
+          </h2>
+          <p className="text-mist">
+            A prompt can ask for a citation. Only code can refuse to render one
+            that isn&apos;t true. Recap summaries have no segment pointers —
+            we still require a quote the transcript can re-find, or the claim
+            stays grey.
+          </p>
+          <ul className="space-y-3 text-mist">
+            <li>
+              Hyprnote&apos;s summary path never receives a line id — citation
+              is architecturally impossible there.
+            </li>
+            <li>
+              Meetily&apos;s open-source edition paywalls diarization; the
+              audio behind a summary is not replayable from the notes.
+            </li>
+            <li>
+              Gong&apos;s call brief does not carry claim-level receipts. Ours
+              does, in git-clone form.
+            </li>
+          </ul>
+        </section>
 
         <section className="mt-14 rounded-[1.4rem] border border-white/10 bg-ink-soft/55 p-6">
           <h2 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
@@ -155,7 +197,8 @@ export default function HowPage() {
   → read into notes, each with a quote
   → instruction screen + the quote check
   → email built from backed notes only
-  → the page you are reading`}</pre>
+  → the page you are reading
+  → scorecard and signals, if you open them`}</pre>
           <p className="mt-4 text-sm text-mist">
             Every outbound network call this app can make is listed in{" "}
             <code className="text-signal">DATA-FLOW.md</code>.

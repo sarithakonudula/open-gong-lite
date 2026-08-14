@@ -109,6 +109,11 @@ export const RunRecordSchema = z.object({
   status: RunStatusSchema,
   source: z.enum(["upload", "url", "sample", "live"]),
   sourceLabel: z.string(),
+  /** Sample slug when source is sample — used to attach a stored methodology verdict. */
+  sampleSlug: z
+    .string()
+    .regex(/^[a-z0-9-]{1,80}$/)
+    .optional(),
   shareToken: z.string(),
   transcript: z.array(TranscriptLineSchema).default([]),
   notes: DealNotesSchema.nullable().default(null),
@@ -123,12 +128,20 @@ export const RunRecordSchema = z.object({
 });
 export type RunRecord = z.infer<typeof RunRecordSchema>;
 
+export type SampleDealArc = {
+  id: string;
+  seq: number;
+  beat: string;
+};
+
 export type SampleCall = {
   slug: string;
   title: string;
   company: string;
   durationLabel: string;
   description: string;
+  dealArc?: SampleDealArc;
+  audioFile?: string;
 };
 
 export function isEmailableStatus(

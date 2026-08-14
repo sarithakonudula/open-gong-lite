@@ -109,6 +109,13 @@ describe("normalizeQuote", () => {
       normalizeQuote("almost forty less"),
     );
   });
+
+  it("does not fuse digit-flanked marks (3:30 and 3..30 stay distinct from 330)", () => {
+    assert.equal(normalizeQuote("meet at 3:30"), "meet at 3:30");
+    assert.equal(normalizeQuote("3..30"), "3..30");
+    assert.notEqual(normalizeQuote("3:30"), normalizeQuote("330"));
+    assert.notEqual(normalizeQuote("3..30"), normalizeQuote("330"));
+  });
 });
 
 describe("gateEvidenceQuote L7 chain", () => {
@@ -147,6 +154,41 @@ describe("gateEvidenceQuote L7 chain", () => {
       stereoTranscript,
     );
     assert.equal(g.verdict, "uncorroborated");
+  });
+
+  it("rejects empty and punctuation-only quotes", () => {
+    assert.equal(
+      gateEvidenceQuote("   ", "L2", stereoTranscript).verdict,
+      "uncorroborated",
+    );
+    assert.equal(
+      gateEvidenceQuote("...", "L2", stereoTranscript).verdict,
+      "uncorroborated",
+    );
+  });
+
+  it("rejects a short fragment that is not the whole utterance", () => {
+    const g = gateEvidenceQuote("fair", "L3", stereoTranscript);
+    assert.equal(g.verdict, "uncorroborated");
+  });
+
+  it("rejects 3:30 laundered as 330", () => {
+    const timed: TranscriptLine[] = [
+      {
+        id: "L1",
+        index: 0,
+        speaker: "Rep",
+        text: "Let's reconvene at 3:30 tomorrow.",
+      },
+    ];
+    assert.equal(
+      gateEvidenceQuote("reconvene at 330 tomorrow", "L1", timed).verdict,
+      "uncorroborated",
+    );
+    assert.equal(
+      gateEvidenceQuote("reconvene at 3:30 tomorrow", "L1", timed).verdict,
+      "match_exact",
+    );
   });
 
   it("segment_corrected rescues long unique quote with wrong lineId", () => {

@@ -28,33 +28,61 @@ export type EvidenceGateResult = {
 /** Long unique quotes may be rescued across the whole transcript (L7 stage 3). */
 const RESCUE_MIN_WORDS = 6;
 
+/** Evidence floor: a quote shorter than this can never anchor a claim. */
+export const MIN_NORMALIZED_QUOTE = 15;
+
 const REQUIRED_SECTIONS = ["summary", "intent", "nextSteps"] as const;
 
-/**
- * Normalize for containment checks: lowercase, strip punctuation, collapse
- * whitespace. Digits are kept — no "forty" ↔ "40" folding. Punctuation
- * flanked by digits on both sides becomes a SPACE, never deleted, so
- * "40.15" normalizes to "40 15" and can never fuse into a fabricated "4015"
- * (digit-fusion laundering guard, ported from the audited gate).
- */
-export function normalizeQuote(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s]/g, (match, offset: number, s: string) => {
-      const prev = s[offset - 1] ?? "";
-      const next = s[offset + 1] ?? "";
-      return /\d/.test(prev) && /\d/.test(next) ? " " : "";
-    })
-    .replace(/\s+/g, " ")
-    .trim();
+/** Sentence punctuation only. Hyphen/slash stay so "3:30" cannot become "330". */
+const STRIP_PUNCT = /[.,;:!?'"()[\]{}]/;
+
+const TYPOGRAPHIC: Record<string, string> = {
+  "\u2018": "'",
+  "\u2019": "'",
+  "\u201C": '"',
+  "\u201D": '"',
+  "\u2013": "-",
+  "\u2014": "-",
+};
+
+function nearestNonPunct(
+  text: string,
+  index: number,
+  step: number,
+): string | undefined {
+  let cursor = index + step;
+  while (
+    cursor >= 0 &&
+    cursor < text.length &&
+    STRIP_PUNCT.test(text[cursor] ?? "")
+  ) {
+    cursor += step;
+  }
+  return text[cursor];
 }
 
 /**
- * A quote shorter than this (normalized) cannot anchor a claim: empty and
- * whitespace quotes exact-match anything (`includes("")` is always true), and
- * one-word quotes let arbitrary claim text ride on a single common word.
+ * Normalize for containment checks: NFKC + casefold + whitelist punct strip.
+ * Digits are kept — no "forty" ↔ "40" folding. Marks flanked by digits
+ * ("3:30", "3..30") are preserved so they cannot fuse into another number.
  */
-const MIN_QUOTE_CHARS = 15;
+export function normalizeQuote(text: string): string {
+  const folded = [...text.normalize("NFKC").toLowerCase()]
+    .map((ch) => TYPOGRAPHIC[ch] ?? ch)
+    .join("");
+  let stripped = "";
+  for (let i = 0; i < folded.length; i++) {
+    const ch = folded[i] ?? "";
+    if (STRIP_PUNCT.test(ch)) {
+      const left = nearestNonPunct(folded, i, -1);
+      const right = nearestNonPunct(folded, i, 1);
+      const digitFlanked = /\d/.test(left ?? "") && /\d/.test(right ?? "");
+      if (!digitFlanked) continue;
+    }
+    stripped += ch;
+  }
+  return stripped.replace(/\s+/g, " ").trim();
+}
 
 function neighbors(
   transcript: TranscriptLine[],
@@ -82,34 +110,37 @@ export function gateEvidenceQuote(
     return { verdict: "missing_line", matchedLineId: null, stage: 4 };
   }
 
-  // Fabrication guard: an empty/whitespace/too-short quote is never evidence.
-  if (normalizeQuote(quote).length < MIN_QUOTE_CHARS) {
+  const trimmed = quote.trim();
+  const normQuote = normalizeQuote(trimmed);
+
+  // Fabrication guard: an empty, punctuation-only, or too-short quote is never
+  // evidence. Empty quotes exact-match anything (`includes("")` is always
+  // true), and a short quote lets arbitrary claim text ride on one common word
+  // or a bare "yes" — even when that word is the whole utterance.
+  if (!trimmed || !normQuote || normQuote.length < MIN_NORMALIZED_QUOTE) {
     return { verdict: "uncorroborated", matchedLineId: null, stage: 4 };
   }
 
   const window = neighbors(transcript, lineId);
 
   for (const line of window) {
-    if (line.text.includes(quote)) {
+    if (line.text.includes(trimmed)) {
       return { verdict: "match_exact", matchedLineId: line.id, stage: 1 };
     }
   }
 
-  const normQuote = normalizeQuote(quote);
-  if (normQuote) {
-    for (const line of window) {
-      if (normalizeQuote(line.text).includes(normQuote)) {
-        return {
-          verdict: "match_normalized",
-          matchedLineId: line.id,
-          stage: 2,
-        };
-      }
+  for (const line of window) {
+    if (normalizeQuote(line.text).includes(normQuote)) {
+      return {
+        verdict: "match_normalized",
+        matchedLineId: line.id,
+        stage: 2,
+      };
     }
   }
 
   const wordCount = normQuote.split(" ").filter(Boolean).length;
-  if (normQuote && wordCount >= RESCUE_MIN_WORDS) {
+  if (wordCount >= RESCUE_MIN_WORDS) {
     const hits = transcript.filter((line) =>
       normalizeQuote(line.text).includes(normQuote),
     );

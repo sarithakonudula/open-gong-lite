@@ -12,6 +12,7 @@ import { mapRecapToDealNotes } from "../src/lib/recap-map";
 import { chokeFollowUp } from "../src/lib/harness/email";
 import { demoExtractDealNotes } from "../src/lib/demo-extract";
 import type { TranscriptLine } from "../src/lib/types";
+import { CONVERSATION_TOPICS, topicEvidence } from "../src/lib/deal-signals";
 
 const T = [
   { id: "l1", index: 0, speaker: "prospect", text: "honestly my main concern is pricing your competitor quoted us almost forty less last week" },
@@ -32,7 +33,11 @@ test("short quotes cannot anchor a claim (min normalized length)", () => {
 });
 
 test("digit-fusion laundering is dead: '4015' cannot be fabricated from '40.15'", () => {
-  assert.equal(normalizeQuote("40.15"), "40 15");
+  // The property, not the mechanism: a mark between two digits must survive
+  // normalization in some form, so the two numbers can never fuse into one.
+  // (Preserving the mark and replacing it with a space both satisfy this.)
+  assert.notEqual(normalizeQuote("40.15"), "4015");
+  assert.notEqual(normalizeQuote("40.15"), normalizeQuote("4015"));
   assert.equal(gateEvidenceQuote("quoted 4015 per seat", "l2", T).verdict, "uncorroborated");
 });
 
@@ -126,4 +131,39 @@ test("schema altitude: unmatched claims DEMOTE through validateDealNotes, never 
     assert.ok(all.every((c) => c.status !== "verified" || c.evidence.lineId.startsWith("q")),
       "sentinel-backed claims must never read verified");
   }
+});
+
+/**
+ * Deal signals (added on main after this branch opened) produce their own
+ * receipts. Audited clean: `gatedQuoteFromLine` is the ONLY constructor of a
+ * GatedQuote, it slices verbatim from a real transcript line, and it re-runs
+ * the same gate. These two probes keep it that way — they are the deal-signals
+ * spelling of the bestEvidence disease we closed in recap-map: never hand a
+ * signal a receipt it did not earn.
+ */
+test("deal signals: topic evidence is a verbatim slice that survives the gate", () => {
+  const topic = CONVERSATION_TOPICS.find((t) => t.id === "pricing")!;
+  const evidence = topicEvidence(topic, T);
+  assert.ok(evidence.length > 0, "pricing is discussed on this transcript");
+  for (const e of evidence) {
+    const line = T.find((l) => l.id === e.lineId);
+    assert.ok(line, `evidence must point at a real line, got ${e.lineId}`);
+    assert.ok(line!.text.includes(e.quote),
+      `quote must be a verbatim slice of its own line, not a paraphrase: ${JSON.stringify(e.quote)}`);
+    assert.notEqual(e.status, "uncorroborated",
+      "uncorroborated evidence must be dropped, never shown as a receipt");
+    const regated = gateEvidenceQuote(e.quote, e.lineId, T);
+    assert.ok(regated.verdict !== "uncorroborated" && regated.verdict !== "missing_line",
+      "a shown signal receipt must still pass the gate on a re-run");
+  }
+});
+
+test("deal signals: a topic with no backing line yields NO evidence, not a manufactured one", () => {
+  const topic = CONVERSATION_TOPICS.find((t) => t.id === "pricing")!;
+  const silent = [
+    { id: "s1", index: 0, speaker: "rep", text: "thanks for making the time today it was good to meet the team" },
+    { id: "s2", index: 1, speaker: "prospect", text: "likewise we will talk internally and circle back to you" },
+  ] as unknown as TranscriptLine[];
+  assert.deepEqual(topicEvidence(topic, silent), [],
+    "no line discusses this topic, so the signal must stand alone rather than borrow a receipt");
 });
