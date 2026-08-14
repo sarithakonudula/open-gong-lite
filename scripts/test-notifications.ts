@@ -15,6 +15,7 @@ function row(overrides: Partial<RecordingRow> = {}): RecordingRow {
     topics: ["pricing"],
     score: 74,
     scoreSource: "momentum",
+    callType: "Sales",
     dealState: "Positive",
     sentimentPct: 74,
     status: "shipped",

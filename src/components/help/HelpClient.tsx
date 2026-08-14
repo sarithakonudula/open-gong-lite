@@ -33,7 +33,7 @@ const CARDS: HelpCard[] = [
   {
     title: "Uploading recordings",
     blurb:
-      "Audio or webm/mp4 up to 100MB, or paste a Fathom, Fireflies, Google Drive, Loom, or Zoom link. Large files are compressed before transcription.",
+      "Audio or webm/mp4 up to 500MB, or paste a Fathom, Fireflies, Google Drive, Loom, or Zoom link. Large files are compressed before transcription.",
     href: "/",
     linkLabel: "Go to Upload",
     tile: "bg-brand-soft text-brand",

@@ -1,7 +1,7 @@
 // One derivation for every list surface: Recordings table, Companies
 // clusters, and notification events all read the same row shape.
 
-import { detectCallKind, type CallKind } from "@/lib/call-kind";
+import { detectCallKind, KIND_LABEL, type CallKind } from "@/lib/call-kind";
 import {
   buildSampleCompanyIndex,
   companyForRun,
@@ -31,6 +31,7 @@ export type RecordingRow = {
   topics: TopicTag[];
   score: number | null;
   scoreSource: ScoreSource | null;
+  callType: string;
   dealState: DealStateLabel | null;
   sentimentPct: number | null;
   status: RunStatus;
@@ -107,6 +108,7 @@ export function toRecordingRow(
     topics: run.notes ? deriveTopics(run.notes) : [],
     score,
     scoreSource: source,
+    callType: KIND_LABEL[detectCallKind(run.transcript).kind],
     dealState: sentiment?.state ?? null,
     sentimentPct: sentiment?.pct ?? null,
     status: run.status,

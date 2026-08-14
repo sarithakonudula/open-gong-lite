@@ -55,13 +55,15 @@ export function composeEmail(
     claimId: c.id || c.evidence.lineId,
   }));
   const body = [
-    `Thanks for ${title}. Recapping what we actually discussed:`,
+    "Hi there,",
+    "",
+    `Thank you for taking the time to discuss ${title}. Here is a quick recap of our conversation:`,
     "",
     ...bullets.map((b) => `- ${b.text}`),
     "",
-    "Every point above is backed by a line in the call. Anything we could not find in the call was left out.",
+    "Please let me know if I missed anything or if you would like me to clarify any of these points.",
     "",
-    "OpenGong Lite",
+    "Best,",
   ].join("\n");
   return { subject: `Follow-up: ${title}`, body, bullets };
 }
@@ -221,13 +223,19 @@ export async function composeContextualEmail(opts: {
     .filter(Boolean)
     .join("\n");
 
-  const system = `You draft a short follow-up email for a sales rep after a call.
+  const system = `You are the sales rep writing a follow-up email directly to the customer after a call.
 Return ONLY valid JSON: {"subject": string, "body": string, "usedClaimIds": string[]}
 Rules:
 - You may ONLY state facts from the VERIFIED CLAIMS and CRM CONTEXT below.
 - List every claim id you used in usedClaimIds. Use at least one.
 - Never invent numbers, dates, discounts, or commitments.
-- Warm, concrete, under 160 words. Reference CRM context naturally when it helps.
+- Write from the rep's point of view using "I" or "we", and address the customer as "you".
+- Never refer to either person as "the rep", "the seller", "the customer", "the prospect", or "the buyer".
+- Rewrite note-like claim text into complete, natural sentences with correct grammar. Do not copy internal labels such as "Rep:", "Customer:", or "Owner:" into the email.
+- Include a brief greeting, a warm thank-you, a clear recap, any agreed next steps, and a professional close.
+- Sound helpful and human, not like an internal call summary, audit report, or AI-generated message.
+- Do not mention verified claims, citations, evidence, gates, transcripts, or OpenGong.
+- Warm, concrete, and under 160 words. Reference CRM context naturally when it helps.
 ${opts.guidance ? `Admin guidance:\n${opts.guidance}` : ""}`;
 
   const user = `Call: ${opts.title}

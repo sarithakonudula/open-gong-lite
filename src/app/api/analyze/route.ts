@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 /** Long uploads are chunked into parallel Hear jobs; allow headroom past one chunk. */
 export const maxDuration = 600;
 
-const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 500 * 1024 * 1024;
 const ALLOWED_AUDIO = new Set([
   "audio/mpeg",
   "audio/mp3",
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
       form = await request.formData();
     } catch {
       return badRequest(
-        "Upload too large or incomplete. Max file size is 100MB.",
+        "Upload too large or incomplete. Max file size is 500MB.",
       );
     }
     const file = form.get("file");
@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
       return badRequest("file is required");
     }
     if (file.size <= 0 || file.size > MAX_UPLOAD_BYTES) {
-      return badRequest("file must be between 1 byte and 100MB");
+      return badRequest("file must be between 1 byte and 500MB");
     }
     if (file.type && !ALLOWED_AUDIO.has(file.type)) {
       return badRequest(`Unsupported content type: ${file.type}`);

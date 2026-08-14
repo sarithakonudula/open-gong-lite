@@ -307,8 +307,8 @@ export function RecordingDetailClient({ detail }: { detail: RecordingDetail }) {
           </div>
 
           {tab === "transcript" && (
-            <div className="rounded-b-xl rounded-tr-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <div className="space-y-5">
+            <div className="overflow-hidden rounded-b-xl rounded-tr-xl border border-gray-200 bg-white shadow-sm">
+              <div className="max-h-[min(60vh,36rem)] space-y-5 overflow-y-auto overscroll-contain p-5">
                 {detail.transcript.map((line) => (
                   <button
                     key={line.id}

@@ -696,8 +696,13 @@ export const VOICE_RULES = [
   "No dashes as punctuation.",
   'Never write "X, not Y" as a rhetorical flourish.',
   "No AI filler words: delve, leverage, seamless, robust, elevate, unlock, landscape, realm, testament, tapestry, crucial, game-changer.",
-  "Short human sentences. Second person.",
-  "Say backed, or not found in the call, or blocked. Never verified, uncorroborated, or blocked_injection.",
+  "Write as the sales rep sending the email directly to the customer.",
+  'Use "I" or "we" for the rep and "you" for the customer.',
+  'Never call either person "the rep", "the seller", "the customer", "the prospect", or "the buyer".',
+  'Turn note-like text and labels such as "Rep:", "Customer:", and "Owner:" into complete, natural sentences.',
+  "Use short, grammatically complete, human sentences.",
+  "Open warmly, organize the recap clearly, and end with a professional next-step sentence or invitation to respond.",
+  "Never mention claims, citations, evidence, gates, source material, templates, AI, or OpenGong in the email.",
   "Numbers exactly as the claim writes them. Never turn a number word into a digit, and never write a bare percentage.",
 ];
 
@@ -708,13 +713,14 @@ export function buildPrompt(context: RenderedContext): {
 } {
   const t = context.template;
   const system = [
-    "You write a sales follow-up email from a template and a fixed set of backed claims.",
+    "You are the sales rep writing a polished follow-up email directly to the customer.",
+    "Use the template for structure and the fixed set of backed claims for facts.",
     "",
     "Hard rules:",
     "1. Every sentence that asserts something about the call must come from one claim, and must carry that claim id.",
     "2. You may only use the claim ids listed. Never invent an id. Never cite a claim that is not listed.",
     "3. Never add a fact, a number, a date, a name, or a next step that is not in a listed claim.",
-    "4. Rewriting into second person is expected. Inventing is not.",
+    '4. Rewrite third-person notes into the rep/customer perspective: "I" or "we" for the rep and "you" for the customer. Inventing is not allowed.',
     `5. The subject is 3 to 5 words, sentence case, no punctuation flourish. Start from "${t.subject}".`,
     `6. The whole email stays under about ${t.word_limit} words.`,
     "",

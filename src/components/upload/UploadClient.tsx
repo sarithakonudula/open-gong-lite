@@ -14,7 +14,9 @@ export function UploadClient({ samples }: { samples: SampleCall[] }) {
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const requestRef = useRef<AbortController | null>(null);
 
   const canUpload = useMemo(() => Boolean(file) && !busy, [file, busy]);
   const canUrl = useMemo(() => url.trim().length > 8 && !busy, [url, busy]);
@@ -29,42 +31,74 @@ export function UploadClient({ samples }: { samples: SampleCall[] }) {
   );
 
   async function runDemo(slug: string) {
+    const controller = new AbortController();
+    requestRef.current = controller;
     setError(null);
+    setNotice(null);
     setBusy(slug);
     try {
-      const res = await fetch(`/api/demos/${slug}`, { method: "POST" });
+      const res = await fetch(`/api/demos/${slug}`, {
+        method: "POST",
+        signal: controller.signal,
+      });
       const data = (await res.json()) as { id?: string; error?: string };
       if (!res.ok || !data.id) throw new Error(data.error || "Demo failed");
       router.push(`/runs/${data.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Demo failed");
-      setBusy(null);
+      if (controller.signal.aborted) {
+        setNotice("Sample run stopped.");
+      } else {
+        setError(err instanceof Error ? err.message : "Demo failed");
+      }
+    } finally {
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        setBusy(null);
+      }
     }
   }
 
   async function analyzeUpload() {
     if (!file) return;
+    const controller = new AbortController();
+    requestRef.current = controller;
     setError(null);
+    setNotice(null);
     setBusy("upload");
     try {
       const form = new FormData();
       form.append("file", file);
       const trimmed = company.trim();
       if (trimmed) form.append("customerName", trimmed);
-      const res = await fetch("/api/analyze", { method: "POST", body: form });
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        body: form,
+        signal: controller.signal,
+      });
       const data = (await res.json()) as { id?: string; error?: string };
       if (!res.ok || !data.id) {
         throw new Error(data.error || "Upload analyze failed");
       }
       router.push(`/runs/${data.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-      setBusy(null);
+      if (controller.signal.aborted) {
+        setNotice("Upload transcription stopped.");
+      } else {
+        setError(err instanceof Error ? err.message : "Upload failed");
+      }
+    } finally {
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        setBusy(null);
+      }
     }
   }
 
   async function analyzeUrl() {
+    const controller = new AbortController();
+    requestRef.current = controller;
     setError(null);
+    setNotice(null);
     setBusy("url");
     try {
       const trimmed = company.trim();
@@ -75,6 +109,7 @@ export function UploadClient({ samples }: { samples: SampleCall[] }) {
           url: url.trim(),
           ...(trimmed ? { customerName: trimmed } : {}),
         }),
+        signal: controller.signal,
       });
       const data = (await res.json()) as { id?: string; error?: string };
       if (!res.ok || !data.id) {
@@ -82,16 +117,39 @@ export function UploadClient({ samples }: { samples: SampleCall[] }) {
       }
       router.push(`/runs/${data.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "URL analyze failed");
-      setBusy(null);
+      if (controller.signal.aborted) {
+        setNotice("Link transcription stopped.");
+      } else {
+        setError(err instanceof Error ? err.message : "URL analyze failed");
+      }
+    } finally {
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        setBusy(null);
+      }
     }
   }
+
+  function stopTranscription() {
+    requestRef.current?.abort();
+  }
+
+  function chooseFile(next: File | null) {
+    setFile(next);
+    setError(null);
+    if (!next && fileInput.current) fileInput.current.value = "";
+    setNotice(
+      next ? `File selected: ${next.name}. Ready to upload.` : null,
+    );
+  }
+
+  const sampleBusy = Boolean(busy && busy !== "upload" && busy !== "url");
 
   function onDrop(event: React.DragEvent) {
     event.preventDefault();
     setDragging(false);
     const dropped = event.dataTransfer.files?.[0];
-    if (dropped) setFile(dropped);
+    if (dropped) chooseFile(dropped);
   }
 
   return (
@@ -187,16 +245,27 @@ export function UploadClient({ samples }: { samples: SampleCall[] }) {
               className="hidden"
               type="file"
               accept="audio/*,video/webm,video/mp4"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              onChange={(e) => chooseFile(e.target.files?.[0] || null)}
             />
-            <div className="mt-4 flex items-center gap-3">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
               <button
                 type="button"
                 className="btn-ghost !py-2 text-sm"
+                disabled={Boolean(busy)}
                 onClick={() => fileInput.current?.click()}
               >
                 Choose file
               </button>
+              {file && (
+                <button
+                  type="button"
+                  className="btn-ghost !py-2 text-sm"
+                  disabled={Boolean(busy)}
+                  onClick={() => chooseFile(null)}
+                >
+                  Clear
+                </button>
+              )}
               <button
                 type="button"
                 className="btn-primary !py-2 text-sm"
@@ -205,7 +274,24 @@ export function UploadClient({ samples }: { samples: SampleCall[] }) {
               >
                 {busy === "upload" ? "Transcribing…" : "Analyze upload"}
               </button>
+              {busy === "upload" && (
+                <button
+                  type="button"
+                  className="btn-ghost !py-2 text-sm text-danger"
+                  onClick={stopTranscription}
+                >
+                  Stop transcribing
+                </button>
+              )}
             </div>
+            {file && busy !== "upload" && (
+              <p className="mt-3 text-sm font-medium text-positive" role="status">
+                ✓ File selected and ready to upload
+                {file.size > 0
+                  ? ` · ${(file.size / (1024 * 1024)).toFixed(file.size > 1024 * 1024 ? 1 : 2)} MB`
+                  : ""}
+              </p>
+            )}
           </div>
 
           <div className="rounded-xl bg-canvas px-6 py-7 text-center">
@@ -223,14 +309,25 @@ export function UploadClient({ samples }: { samples: SampleCall[] }) {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
             />
-            <button
-              type="button"
-              className="btn-primary mt-3 !py-2 text-sm"
-              disabled={!canUrl}
-              onClick={analyzeUrl}
-            >
-              {busy === "url" ? "Fetching…" : "Analyze URL"}
-            </button>
+            <div className="mt-3 flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                className="btn-primary !py-2 text-sm"
+                disabled={!canUrl}
+                onClick={analyzeUrl}
+              >
+                {busy === "url" ? "Transcribing…" : "Analyze URL"}
+              </button>
+              {busy === "url" && (
+                <button
+                  type="button"
+                  className="btn-ghost !py-2 text-sm text-danger"
+                  onClick={stopTranscription}
+                >
+                  Stop transcribing
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -253,6 +350,14 @@ export function UploadClient({ samples }: { samples: SampleCall[] }) {
           {error}
         </p>
       )}
+      {notice && (
+        <p
+          className="mt-6 rounded-xl border border-positive/30 bg-positive-soft px-4 py-3 text-sm text-positive"
+          role="status"
+        >
+          {notice}
+        </p>
+      )}
 
       <div className="mt-14">
         <h2 className="text-lg font-semibold text-fg">Or try a sample call</h2>
@@ -260,6 +365,18 @@ export function UploadClient({ samples }: { samples: SampleCall[] }) {
           The Brightsmile deal — one deal, six calls — plus one-off samples.
           Samples need no key and land in Recordings like any other call.
         </p>
+        {sampleBusy && (
+          <div className="mt-4 flex items-center gap-3">
+            <p className="text-sm text-fg-muted">Sample run in progress…</p>
+            <button
+              type="button"
+              className="btn-ghost !py-1.5 text-sm text-danger"
+              onClick={stopTranscription}
+            >
+              Stop
+            </button>
+          </div>
+        )}
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {[...dealSamples, ...otherSamples].map((sample) => (
             <button

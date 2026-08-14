@@ -154,7 +154,27 @@ function sourceFor(
   // A note with no line behind it gets no source row. Its state already says
   // everything a source row could, and a fake one would say something false.
   if (status === "uncorroborated" || isSentinelEvidence(evidence)) return null;
-  const line = byId.get(evidence.lineId);
+  let line = byId.get(evidence.lineId) ?? null;
+  const quote = evidence.quote.trim();
+  const normQuote = normalizeQuote(quote);
+  // Prefer a line that actually contains the cited quote. Extractors sometimes
+  // keep a nearby id after a paraphrase, which makes takeaway links jump to
+  // the wrong sentence even though the receipt text is real.
+  if (quote && normQuote.length >= 15) {
+    const citedHoldsQuote =
+      line != null &&
+      (line.text.includes(quote) ||
+        normalizeQuote(line.text).includes(normQuote));
+    if (!citedHoldsQuote) {
+      const hit =
+        [...byId.values()].find(
+          (candidate) =>
+            candidate.text.includes(quote) ||
+            normalizeQuote(candidate.text).includes(normQuote),
+        ) ?? null;
+      if (hit) line = hit;
+    }
+  }
   if (!line) return null;
   return {
     lineId: line.id,

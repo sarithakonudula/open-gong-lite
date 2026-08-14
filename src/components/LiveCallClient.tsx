@@ -25,6 +25,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
     "Scripted demo works offline. Mic mode records WAV and diarizes speakers with PyAI Hear jobs.",
   );
   const [busy, setBusy] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const [live, setLive] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +35,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const wavCaptureRef = useRef<WavCapture | null>(null);
+  const requestRef = useRef<AbortController | null>(null);
   const abortScriptRef = useRef(false);
 
   const visible = useMemo(
@@ -56,6 +58,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
       if (timerRef.current) clearTimeout(timerRef.current);
       if (elapsedRef.current) clearInterval(elapsedRef.current);
       wavCaptureRef.current?.stream.getTracks().forEach((t) => t.stop());
+      requestRef.current?.abort();
     };
   }, []);
 
@@ -177,9 +180,12 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
   }
 
   async function endScriptCall() {
+    const controller = new AbortController();
+    requestRef.current = controller;
     clearTimers();
     setPartial(null);
     setBusy(true);
+    setTranscribing(true);
     setStatus("Call ended. Checking every citation…");
     setError(null);
 
@@ -193,6 +199,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
           title: title.trim() || undefined,
           transcript,
         }),
+        signal: controller.signal,
       });
       const data = (await res.json()) as { id?: string; error?: string };
       if (!res.ok || !data.id) {
@@ -201,16 +208,28 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
       setStatus("Notes ready. Opening them now…");
       router.push(`/runs/${data.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Finalize failed");
-      setBusy(false);
-      setStatus("Finalize failed. Try again or stream more of the script.");
+      if (controller.signal.aborted) {
+        setStatus("Transcription stopped.");
+      } else {
+        setError(err instanceof Error ? err.message : "Finalize failed");
+        setStatus("Finalize failed. Try again or stream more of the script.");
+      }
       setLive(false);
+    } finally {
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        setBusy(false);
+        setTranscribing(false);
+      }
     }
   }
 
   async function endMicCall() {
+    const controller = new AbortController();
+    requestRef.current = controller;
     clearTimers();
     setBusy(true);
+    setTranscribing(true);
     setStatus("Transcribing, splitting speakers, checking citations…");
     setError(null);
 
@@ -240,6 +259,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
       const res = await fetch("/api/live/record", {
         method: "POST",
         body: form,
+        signal: controller.signal,
       });
       const data = (await res.json()) as { id?: string; error?: string };
       if (!res.ok || !data.id) {
@@ -250,22 +270,58 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
     } catch (err) {
       capture?.stream.getTracks().forEach((t) => t.stop());
       wavCaptureRef.current = null;
-      const message =
-        err instanceof Error ? err.message : "Mic finalize failed";
-      setError(
-        message.includes("transcription") || message.includes("Hear")
-          ? `${message} Or switch to Scripted demo for a guaranteed path.`
-          : message,
-      );
-      setBusy(false);
+      if (controller.signal.aborted) {
+        setStatus("Transcription stopped.");
+      } else {
+        const message =
+          err instanceof Error ? err.message : "Mic finalize failed";
+        setError(
+          message.includes("transcription") || message.includes("Hear")
+            ? `${message} Or switch to Scripted demo for a guaranteed path.`
+            : message,
+        );
+        setStatus(
+          "Mic finalize failed. Try again with clearer speech, or use Scripted demo.",
+        );
+      }
       setLive(false);
-      setStatus("Mic finalize failed. Try again with clearer speech, or use Scripted demo.");
+    } finally {
+      if (requestRef.current === controller) {
+        requestRef.current = null;
+        setBusy(false);
+        setTranscribing(false);
+      }
     }
   }
 
   async function endCall() {
     if (mode === "mic") return endMicCall();
     return endScriptCall();
+  }
+
+  function stopTranscription() {
+    requestRef.current?.abort();
+  }
+
+  /** Discard an in-progress live session without sending notes. */
+  function discardLive() {
+    if (transcribing) {
+      stopTranscription();
+      return;
+    }
+    clearTimers();
+    setPartial(null);
+    if (mode === "mic") {
+      wavCaptureRef.current?.stream.getTracks().forEach((t) => t.stop());
+      wavCaptureRef.current = null;
+    }
+    setLive(false);
+    setBusy(false);
+    setStatus(
+      mode === "mic"
+        ? "Recording discarded. Start mic again when ready."
+        : "Script stopped. Start again when ready.",
+    );
   }
 
   const mm = String(Math.floor(elapsed / 60)).padStart(2, "0");
@@ -320,8 +376,8 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
         </div>
 
         {mode === "script" ? (
-          <div className="mt-8 grid gap-4 md:grid-cols-[1fr_auto_auto] md:items-end">
-            <label className="block">
+          <div className="mt-8 flex flex-wrap items-end gap-3">
+            <label className="block min-w-[12rem] flex-1">
               <span className="text-xs uppercase tracking-[0.16em] text-fg-soft">
                 Script
               </span>
@@ -354,6 +410,24 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
             >
               {busy && live ? "Finalizing…" : "End call → notes"}
             </button>
+            {live && !transcribing && (
+              <button
+                type="button"
+                className="btn-ghost text-danger"
+                onClick={discardLive}
+              >
+                Stop
+              </button>
+            )}
+            {transcribing && (
+              <button
+                type="button"
+                className="btn-ghost text-danger"
+                onClick={stopTranscription}
+              >
+                Stop transcribing
+              </button>
+            )}
           </div>
         ) : (
           <div className="mt-8 flex flex-wrap items-end gap-3">
@@ -373,6 +447,24 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
             >
               {busy ? "Transcribing…" : "End call → Hear + notes"}
             </button>
+            {live && !transcribing && (
+              <button
+                type="button"
+                className="btn-ghost text-danger"
+                onClick={discardLive}
+              >
+                Stop recording
+              </button>
+            )}
+            {transcribing && (
+              <button
+                type="button"
+                className="btn-ghost text-danger"
+                onClick={stopTranscription}
+              >
+                Stop transcribing
+              </button>
+            )}
             <p className="text-sm text-fg-soft">
               PyAI:{" "}
               {pyaiReady === null

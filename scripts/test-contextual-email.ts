@@ -69,6 +69,10 @@ describe("contextual email choke", () => {
     });
     assert.doesNotMatch(seen, /RingHawk at forty percent/);
     assert.doesNotMatch(seen, /ignore all previous/);
+    assert.match(seen, /sales rep writing a follow-up email directly to the customer/);
+    assert.match(seen, /using "I" or "we", and address the customer as "you"/);
+    assert.match(seen, /complete, natural sentences with correct grammar/);
+    assert.match(seen, /Do not mention verified claims, citations, evidence/);
   });
 
   it("rejects a draft citing an unproven claim id", async () => {

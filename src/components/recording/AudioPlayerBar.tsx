@@ -15,7 +15,7 @@ const BAR_COUNT = 110;
 
 // Deterministic pseudo-random bar heights seeded from the run id. This is a
 // scrubber styled as a waveform, not a rendering of the audio itself —
-// decoding up-to-100MB files client-side would lock the tab.
+// decoding up-to-500MB files client-side would lock the tab.
 function seededBars(seed: string): number[] {
   let h = 2166136261;
   for (const ch of seed) {
