@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { detectCallKind, KIND_LABEL } from "@/lib/call-kind";
 import {
+  getDealPipelineStages,
   HubspotError,
   hubspotConfigured,
   openDealCandidatesForCompany,
+  StageSuggestion,
+  suggestStageMove,
   syncRunToHubspot,
 } from "@/lib/hubspot";
 import { computeMomentum, renderMomentum } from "@/lib/momentum";
@@ -106,7 +109,21 @@ export async function POST(request: NextRequest) {
         linkedAt: new Date().toISOString(),
       },
     });
-    return NextResponse.json({ result });
+
+    // Approval-gated stage suggestion: only an advancing sales call with a
+    // verified next step proposes moving one stage forward; the rep clicks
+    // to approve, nothing moves on its own.
+    let stageSuggestion: StageSuggestion | null = null;
+    if (momentum && result.pipeline && result.stage) {
+      try {
+        const stages = await getDealPipelineStages(result.pipeline);
+        stageSuggestion = suggestStageMove(result.stage, stages, momentum);
+      } catch {
+        // suggestion is best-effort; the sync already succeeded
+      }
+    }
+
+    return NextResponse.json({ result, stageSuggestion });
   } catch (error) {
     if (error instanceof HubspotError) {
       return NextResponse.json(

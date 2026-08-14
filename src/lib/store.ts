@@ -58,6 +58,12 @@ export function newShareToken(): string {
   return randomBytes(12).toString("hex");
 }
 
+/** Remove a run and any stored audio. Silent when already gone. */
+export async function deleteRun(id: string): Promise<void> {
+  await fs.rm(runPath(id), { force: true });
+  await fs.rm(audioPath(id), { force: true });
+}
+
 /** Pure TTL check; ttlDays <= 0 means links never expire. */
 export function isShareExpired(
   createdAt: string,
