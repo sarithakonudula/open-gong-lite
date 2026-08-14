@@ -152,6 +152,8 @@ export const RunRecordSchema = z.object({
   status: RunStatusSchema,
   source: z.enum(["upload", "url", "sample", "live"]),
   sourceLabel: z.string(),
+  /** Customer/company this call belongs to — groups runs into deal clusters. */
+  company: z.string().optional(),
   /** Sample slug when source is sample — used to attach a stored methodology verdict. */
   sampleSlug: z
     .string()

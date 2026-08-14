@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  buildSampleCompanyIndex,
+  companyForRun as resolveCompanyForRun,
+} from "@/lib/company";
 import { demoSignalFeedForRun } from "@/lib/deal-signals";
 import { buildDigest, toPublicDigest } from "@/lib/digest";
 import { sendSlack } from "@/lib/notify";
@@ -12,17 +16,11 @@ export const runtime = "nodejs";
 async function generateDigest() {
   const runs = await listFullRuns(200);
   const samples = await listSamples();
-  const titleToSlug = Object.fromEntries(samples.map((s) => [s.title, s.slug]));
-  const slugToCompany = Object.fromEntries(
-    samples.map((s) => [s.slug, s.company]),
-  );
+  const index = buildSampleCompanyIndex(samples);
+  const titleToSlug = index.titleToSlug;
 
-  const companyForRun = (run: RunRecord): string => {
-    const slug =
-      run.sampleSlug ||
-      (run.source === "sample" ? titleToSlug[run.sourceLabel] : undefined);
-    return (slug && slugToCompany[slug]) || run.sourceLabel;
-  };
+  const companyForRun = (run: RunRecord): string =>
+    resolveCompanyForRun(run, index);
 
   // Signal feeds per company from the newest run that has one.
   const feedByCompany = new Map<
