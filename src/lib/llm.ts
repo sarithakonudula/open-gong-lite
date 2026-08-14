@@ -5,18 +5,18 @@
 // a provider that errors or returns nothing is skipped and the next one is
 // tried, so a rate-limited primary doesn't take scoring down with it.
 
-import { resolveLlmChain, type LlmTarget } from "@/lib/settings";
+import { detectOllama } from "@/lib/llm-detect";
+import { resolveLlm, resolveLlmChain, type LlmTarget } from "@/lib/settings";
 
 /**
  * An endpoint the caller resolved itself, used instead of resolveLlm().
  *
- * The one caller is the routed follow-up email's tier ladder, which can end up
- * on a keyless local Ollama that resolveLlm() cannot describe: nothing is in
- * admin settings and nothing is in the env, the endpoint was found by probing
- * loopback. Overriding the target keeps that tier on this single chat call
- * instead of growing a second one beside it. `source` is free-form so a caller
- * can label its own provenance ("ollama-local") without teaching settings.ts
- * about tiers it does not own.
+ * The common case is a keyless local Ollama that resolveLlm() cannot describe:
+ * nothing is in admin settings and nothing is in the env, the endpoint was
+ * found by probing loopback. Overriding the target keeps that tier on this
+ * single chat call instead of growing a second one beside it. `source` is
+ * free-form so a caller can label its own provenance ("ollama-local") without
+ * teaching settings.ts about tiers it does not own.
  */
 export type ChatTarget = Omit<LlmTarget, "source"> & { source?: string };
 
@@ -36,9 +36,55 @@ export type FetchLike = (
 
 export class LlmNotConfiguredError extends Error {
   constructor() {
-    super("LLM is not configured — set it on /admin or via LLM_* env vars");
+    super(
+      "LLM is not configured — set it on /admin, via LLM_* env vars, or run Ollama locally",
+    );
     this.name = "LLM_NOT_CONFIGURED";
   }
+}
+
+/**
+ * Configured keys first; when none are set, one short Ollama loopback probe.
+ * Returns a ChatTarget for whichever tier answered, or null when nothing is
+ * available. `configured: null` (tests) skips the settings/env lookup.
+ */
+export async function resolveAvailableLlm(
+  opts: {
+    detect?: typeof detectOllama;
+    configured?: LlmTarget | null;
+  } = {},
+): Promise<ChatTarget | null> {
+  const configured =
+    opts.configured !== undefined ? opts.configured : resolveLlm();
+  if (configured) {
+    return {
+      baseUrl: configured.baseUrl,
+      apiKey: configured.apiKey,
+      model: configured.model,
+      label: configured.label,
+      source: configured.source,
+    };
+  }
+  const detect = opts.detect ?? detectOllama;
+  const found = await detect();
+  if (!found) return null;
+  return {
+    baseUrl: found.baseUrl,
+    apiKey: "ollama",
+    model: found.model,
+    label: `local Ollama · ${found.model}`,
+    source: "ollama-local",
+  };
+}
+
+/** True when a hosted key chain or a responding local Ollama is available. */
+export async function hasLlmAvailable(
+  opts: {
+    detect?: typeof detectOllama;
+    configured?: LlmTarget | null;
+  } = {},
+): Promise<boolean> {
+  return (await resolveAvailableLlm(opts)) != null;
 }
 
 async function callOne(
@@ -106,12 +152,24 @@ export async function chatTextChain(
  * Chain-backed chat returning just the assistant text. A caller-resolved
  * target (the detected local Ollama tier, which the settings chain cannot
  * describe) bypasses the chain and calls that one endpoint directly.
+ *
+ * When no target is passed and no keys are configured, probes local Ollama
+ * once so keyless demos still get a model when one is running.
  */
 export const chatText: ChatFn = async (args) => {
   if (args.target) {
     return callOne(args.target, args, fetch as unknown as FetchLike);
   }
-  return (await chatTextChain(args)).text;
+  try {
+    return (await chatTextChain(args)).text;
+  } catch (error) {
+    if (!(error instanceof LlmNotConfiguredError)) throw error;
+  }
+  const local = await resolveAvailableLlm();
+  if (!local || local.source !== "ollama-local") {
+    throw new LlmNotConfiguredError();
+  }
+  return callOne(local, args, fetch as unknown as FetchLike);
 };
 
 /** Strip accidental code fences before JSON.parse. */

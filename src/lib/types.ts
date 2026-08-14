@@ -107,8 +107,10 @@ export const DealNotesSchema = z.object({
   title: z.string().min(1),
   summary: z.array(ClaimSchema).min(1),
   objections: z.array(ClaimSchema).default([]),
-  intent: z.array(ClaimSchema).min(1),
-  nextSteps: z.array(ClaimSchema).min(1),
+  // A short discovery call may contain no buying intent or agreed next step.
+  // Empty is more honest than forcing an unsupported "not stated" claim.
+  intent: z.array(ClaimSchema).default([]),
+  nextSteps: z.array(ClaimSchema).default([]),
   pain: z.array(ClaimSchema).default([]),
   pricing: z.array(ClaimSchema).default([]),
   competitors: z.array(ClaimSchema).default([]),
@@ -118,12 +120,25 @@ export const DealNotesSchema = z.object({
 export type DealNotes = z.infer<typeof DealNotesSchema>;
 
 /**
+ * Where the notes on a run came from. Set by the harness after the gate, never
+ * accepted from a model: DealNotesSchema is the contract the extractor answers
+ * and zod strips anything it does not name, so a keyword pass cannot label
+ * itself "model" to win the ordering on the page.
+ *
+ * `model` covers a summarizer or language model. `keyword` is the local
+ * pattern extractor. `curated` is notes that shipped with a sample.
+ */
+export const NotesSourceSchema = z.enum(["model", "keyword", "curated"]);
+export type NotesSource = z.infer<typeof NotesSourceSchema>;
+
+/**
  * What a run stores: the gated notes, plus the routed variant when one was
  * generated. Additive and optional, so every run written before this existed
  * still parses and still renders the same page.
  */
 export const RunNotesSchema = DealNotesSchema.extend({
   routedFollowUp: RoutedFollowUpEmailSchema.optional(),
+  notesSource: NotesSourceSchema.optional(),
 });
 export type RunNotes = z.infer<typeof RunNotesSchema>;
 
@@ -150,6 +165,13 @@ export const RunRecordSchema = z.object({
   status: RunStatusSchema,
   source: z.enum(["upload", "url", "sample", "live"]),
   sourceLabel: z.string(),
+  /** Customer/company this call belongs to — groups runs into deal clusters. */
+  company: z.string().optional(),
+  /**
+   * When the call actually happened (ISO), for imported/historical calls.
+   * createdAt is upload time and stays the fallback — see callDateForRun.
+   */
+  callDate: z.string().optional(),
   /** Sample slug when source is sample — used to attach a stored methodology verdict. */
   sampleSlug: z
     .string()

@@ -39,6 +39,16 @@ describe("locateEvidence", () => {
       evidence.quote,
       "Buyer agreed to a forty percent discount today.",
     );
+    assert.equal(evidence.lineId, "__unsupported__");
+  });
+
+  it("grounds a strong Recap paraphrase in the exact source line", () => {
+    const evidence = locateEvidence(
+      "The buyer loses ten weekly bookings and sees trust as the main problem.",
+      transcript,
+    );
+    assert.equal(evidence.lineId, "L2");
+    assert.equal(evidence.quote, transcript[1]!.text);
   });
 
   it("refuses an empty transcript", () => {
@@ -47,7 +57,7 @@ describe("locateEvidence", () => {
 });
 
 describe("mapRecapToDealNotes", () => {
-  it("does not invent next steps when Recap is empty", () => {
+  it("leaves absent next steps and intent empty", () => {
     const recap = {
       call_id: "c1",
       status: "complete",
@@ -55,9 +65,8 @@ describe("mapRecapToDealNotes", () => {
       record: {},
     } as RecapCall;
     const notes = mapRecapToDealNotes(recap, transcript, "Quiet wrap-up");
-    assert.ok(
-      notes.nextSteps[0]!.text.toLowerCase().includes("not stated"),
-    );
+    assert.deepEqual(notes.nextSteps, []);
+    assert.deepEqual(notes.intent, []);
     assert.equal(
       notes.followUpEmail.body.includes("Follow up on:"),
       false,

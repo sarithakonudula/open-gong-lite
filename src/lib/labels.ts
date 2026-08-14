@@ -63,6 +63,8 @@ const ATTEMPT_REASON_LABEL: Record<string, string> = {
   pyai_recap: "notes from the PyAI summarizer",
   llm_fallback: "notes from the backup language model",
   gate_blocked: "the answer came back in the wrong shape",
+  repair_placeholder_discarded:
+    "a repair came back with a stand-in where a line from the call belongs, so it was thrown away and the earlier notes kept",
   gate_unproven: "nothing in the answer could be backed by a line in the call",
   extract_error: "the notes step errored out",
   deadline_exceeded: "the time budget ran out",
@@ -154,6 +156,7 @@ export function routedPanelTitle(short: string): string {
 const MODEL_SOURCE_LABEL: Record<string, string> = {
   configured: "the model this deployment is configured with",
   "ollama-local": "a model running on this machine",
+  deterministic: "the template filled from backed notes only (no model)",
 };
 
 export function modelSourceLabel(source: string): string {
@@ -165,6 +168,126 @@ export function linesCutLine(cut: number, offTemplateCut = 0): string {
   const base = `${cut} line${cut === 1 ? "" : "s"} cut`;
   if (offTemplateCut <= 0) return base;
   return `${base}, ${offTemplateCut} of them off this template`;
+}
+
+/**
+ * Analysis-screen vocabulary.
+ *
+ * Everything below is what the notes page is allowed to say out loud. The
+ * screen is for a rep between calls, so the page reads as the call's own
+ * title and findings, and the machinery that produced it stays in one
+ * collapsed drawer at the end.
+ */
+
+/** Engineering state the extractor used to staple onto the call's title. */
+const TITLE_MACHINERY = /\s*\((?:[^()]*\b(?:extractor|deterministic|fallback|keyword|model|pipeline)\b[^()]*)\)\s*$/i;
+
+/** The page's heading is the call, never the pipeline that read it. */
+export function callTitle(raw: string | undefined, fallback: string): string {
+  const cleaned = (raw ?? "").replace(TITLE_MACHINERY, "").trim();
+  return cleaned || fallback;
+}
+
+/** A speaker label that is only a machine's numbering, not an identity. */
+const MACHINE_SPEAKER = /^(?:speaker|spk|channel|ch)[\s_-]*\d+$/i;
+
+export function isMachineSpeakerLabel(raw: string | undefined): boolean {
+  return MACHINE_SPEAKER.test((raw ?? "").trim());
+}
+
+/**
+ * The name to show for a speaker, or null when there is no name to show.
+ * A single-stream recording gives the diarizer nothing to separate, so the
+ * numbers it invents ("Speaker 3") are not people and never appear as people.
+ */
+export function speakerDisplayName(raw: string | undefined): string | null {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed || isMachineSpeakerLabel(trimmed)) return null;
+  return trimmed;
+}
+
+/** "0:41", "12:05", "1:02:33". The reader's address for a moment in the call. */
+export function callTimeLabel(ms: number | undefined): string | null {
+  if (ms == null || !Number.isFinite(ms) || ms < 0) return null;
+  const total = Math.floor(ms / 1000);
+  const seconds = total % 60;
+  const minutes = Math.floor(total / 60) % 60;
+  const hours = Math.floor(total / 3600);
+  const mm = hours > 0 ? String(minutes).padStart(2, "0") : String(minutes);
+  const ss = String(seconds).padStart(2, "0");
+  return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/** What a citation button says when the call carries no clock for that line. */
+export const SOURCE_WITHOUT_TIME = "See it in the call";
+
+export function sourceLine(timeLabel: string | null): string {
+  return timeLabel ? `Hear it at ${timeLabel}` : SOURCE_WITHOUT_TIME;
+}
+
+/** The chip strip under the title: what the call touched on, each with a line. */
+export const TOPICS_HEADING = "Topics detected";
+
+/** Section headers, as labels rather than display type. */
+export const SECTION_TITLE: Record<string, string> = {
+  summary: "Summary",
+  nextSteps: "Next steps",
+  objections: "Objections",
+  intent: "Intent",
+  pain: "Pain",
+  pricing: "Pricing",
+  competitors: "Competitors",
+};
+
+/** What a section says when the call never went there. */
+export function nothingInCallLine(title: string): string {
+  return `${title} did not come up on this call.`;
+}
+
+/**
+ * What the page says when the call produced no finding worth printing. One
+ * honest line beats seven copies of "Nothing on this in the call."
+ */
+export const NO_NOTES_LINE =
+  "Nothing in this call could be written up as a finding that points back to a line. The topics it touched on are above, each one with the moment it came from.";
+
+/** The one explainer for a group of notes with no line behind them. */
+export function couldNotVerifyHeading(count: number): string {
+  return `Couldn't verify (${count})`;
+}
+
+export const COULD_NOT_VERIFY_EXPLAINER =
+  "These lines couldn't be matched to anything said on the call. They stay visible and never enter the follow-up email.";
+
+export function blockedHeading(count: number): string {
+  return `Blocked (${count})`;
+}
+
+/** Who carries a next step. Derived from the claim's own words, or nobody. */
+export const NEXT_STEP_OWNER_LABEL: Record<string, string> = {
+  rep: "Your side",
+  buyer: "The buyer",
+  joint: "Both sides",
+  unassigned: "No owner named",
+};
+
+export function nextStepOwnerLabel(owner: string | undefined): string {
+  return NEXT_STEP_OWNER_LABEL[owner ?? "unassigned"] ?? NEXT_STEP_OWNER_LABEL.unassigned!;
+}
+
+/** The email is the one surface a run-level verdict is allowed to close. */
+export const EMAIL_HELD_BACK_LINE =
+  "No draft went out. Every line in a follow-up has to be backed by a line in the call, and this run did not clear that bar. The notes above still stand as they are.";
+
+/** The drawer at the end of the page, for whoever runs this deployment. */
+export const RUN_DETAILS_SUMMARY = "Run details";
+
+export const RUN_DETAILS_INTRO =
+  "How this call was read, for whoever runs this deployment.";
+
+export function templateLinesHeldBackLine(count: number): string {
+  if (count <= 0) return "";
+  return `${count} line${count === 1 ? "" : "s"} of category text held back from the notes and folded into the topics above.`;
 }
 
 /**

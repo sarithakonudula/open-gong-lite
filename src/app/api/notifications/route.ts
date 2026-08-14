@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { demoSignalFeedForRun } from "@/lib/deal-signals";
 import { buildDigest } from "@/lib/digest";
+import { buildNotificationFeed } from "@/lib/notifications-server";
 import { composeNotifications, toRecordingRow } from "@/lib/recordings-view";
 import { listSamples } from "@/lib/samples";
 import { listFullRuns } from "@/lib/store";
@@ -19,7 +20,13 @@ import {
 
 export const runtime = "nodejs";
 
-/** Notification feed composed from real state: risks, momentum, coaching. */
+/**
+ * Two consumers, two shapes from one endpoint:
+ *   - `ids` — the light-shell sidebar dot (unread computed locally against
+ *     localStorage) reads the id list from buildNotificationFeed.
+ *   - `notifications` — the electron screens render the full composed feed,
+ *     whose kind vocabulary matches their icon map.
+ */
 export async function GET() {
   const runs = await listFullRuns(100);
   const samples = await listSamples();
@@ -95,5 +102,10 @@ export async function GET() {
     templateTitles: templateLibrary().map((t) => t.title),
   });
 
-  return NextResponse.json({ notifications });
+  const sidebarItems = await buildNotificationFeed();
+
+  return NextResponse.json({
+    ids: sidebarItems.map((item) => item.id),
+    notifications,
+  });
 }

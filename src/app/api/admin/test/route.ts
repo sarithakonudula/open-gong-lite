@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { getPortalId, hubspotConfigured } from "@/lib/hubspot";
-import { chatText } from "@/lib/llm";
+import { chatText, hasLlmAvailable } from "@/lib/llm";
 import { sendSlack } from "@/lib/notify";
-import { hasLlmConfigured, resolveSlackWebhook } from "@/lib/settings";
+import { resolveSlackWebhook } from "@/lib/settings";
 
 export const runtime = "nodejs";
 
@@ -20,8 +20,11 @@ export async function POST(request: NextRequest) {
 
   try {
     if (kind === "llm") {
-      if (!hasLlmConfigured()) {
-        return NextResponse.json({ ok: false, detail: "LLM not configured" });
+      if (!(await hasLlmAvailable())) {
+        return NextResponse.json({
+          ok: false,
+          detail: "LLM not configured — set keys on /admin or run Ollama locally",
+        });
       }
       // Prompt must contain the word "JSON": providers that enforce the
       // OpenAI json_object contract (e.g. Groq) 400 otherwise.

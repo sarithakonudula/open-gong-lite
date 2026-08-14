@@ -52,12 +52,20 @@ describe("detectOllama", () => {
     });
   });
 
-  it("lets LLM_MODEL override the auto-pick", async () => {
+  it("lets LLM_MODEL override the auto-pick only when that tag is installed", async () => {
     const out = await detectOllama({
       fetchImpl: tags(["llama3.2:3b", "mistral:7b"]),
-      env: { LLM_MODEL: "my-custom-tag" },
+      env: { LLM_MODEL: "mistral:7b" },
     });
-    assert.equal(out?.model, "my-custom-tag");
+    assert.equal(out?.model, "mistral:7b");
+  });
+
+  it("ignores a hosted LLM_MODEL that is not installed locally", async () => {
+    const out = await detectOllama({
+      fetchImpl: tags(["llama3.2:3b", "mistral:7b"]),
+      env: { LLM_MODEL: "gpt-4o-mini" },
+    });
+    assert.equal(out?.model, "llama3.2:3b");
   });
 
   it("trims a trailing slash on a custom base URL", async () => {

@@ -208,6 +208,19 @@ describe("validateDealNotes gates", () => {
     assert.equal(result.ok, true);
   });
 
+  it("does not fail a short call when intent and next steps are absent", () => {
+    const notes = validNotes();
+    notes.intent = [];
+    notes.nextSteps = [];
+    const result = validateDealNotes(notes, transcript);
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.deepEqual(result.notes.intent, []);
+      assert.deepEqual(result.notes.nextSteps, []);
+      assert.notEqual(result.notes.coverage?.band, "FAILED_UNPROVEN");
+    }
+  });
+
   it("demotes unknown evidence line ids instead of failing the run", () => {
     const notes = validNotes();
     notes.summary[0].evidence.lineId = "L999";

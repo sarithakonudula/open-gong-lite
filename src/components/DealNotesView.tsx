@@ -1,102 +1,209 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Claim, ClaimStatus, RunRecord } from "@/lib/types";
-import { isEmailableStatus } from "@/lib/types";
+import type {
+  AnalysisView,
+  NoteSectionView,
+  NoteView,
+  SourceView,
+} from "@/lib/analysis-view";
+import { buildAnalysisView } from "@/lib/analysis-view";
+import type { ClaimStatus, RunRecord } from "@/lib/types";
 import {
   attemptReasonLine,
-  backedFraction,
+  blockedHeading,
   blockedReasonLine,
+  COULD_NOT_VERIFY_EXPLAINER,
+  couldNotVerifyHeading,
   COVERAGE_BAND_LABEL,
+  EMAIL_HELD_BACK_LINE,
   linesCutLine,
   modelSourceLabel,
+  NO_NOTES_LINE,
   NOTE_STATUS_LABEL,
   routedPanelTitle,
+  RUN_DETAILS_INTRO,
+  RUN_DETAILS_SUMMARY,
   RUN_STATUS_LABEL,
+  sourceLine,
+  templateLinesHeldBackLine,
+  TOPICS_HEADING,
 } from "@/lib/labels";
 
-const BADGE_CLASS: Record<ClaimStatus, string> = {
-  verified: "badge-verified",
+/**
+ * The notes screen.
+ *
+ * Everything it shows comes from `buildAnalysisView`, which is where the rules
+ * about what may reach a reader live and where they are tested. This file
+ * decides how those things look and nothing else: no status enum, no line id,
+ * no try count, and no sentinel reaches the DOM through here, because none of
+ * them reach this file.
+ */
+
+/** Backed is the default state. Only exceptions announce themselves. */
+const ANNOUNCED_STATUS: Partial<Record<ClaimStatus, string>> = {
   segment_corrected: "badge-corrected",
   uncorroborated: "badge-unproven",
   blocked_injection: "badge-blocked",
 };
 
-function claimStatus(claim: Claim): ClaimStatus {
-  return claim.status ?? "verified";
-}
-
-function NoteList({
-  title,
-  claims,
+function SourceRow({
+  source,
   onSource,
 }: {
-  title: string;
-  claims: Claim[];
+  source: SourceView;
   onSource: (lineId: string) => void;
 }) {
-  if (!claims.length) {
-    return (
-      <section className="space-y-3">
-        <h3 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
-          {title}
-        </h3>
-        <p className="text-mist text-sm">Nothing on this in the call.</p>
-      </section>
-    );
-  }
-
+  const [open, setOpen] = useState(false);
   return (
-    <section className="space-y-4">
-      <h3 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
-        {title}
+    <div className="text-sm">
+      <button
+        type="button"
+        className="receipt-link min-h-11 py-2 text-sm"
+        aria-expanded={open}
+        onClick={() => {
+          setOpen((prev) => !prev);
+          onSource(source.lineId);
+        }}
+      >
+        {sourceLine(source.timeLabel)}
+      </button>
+      {open && (
+        <p className="mt-1 border-l-2 border-brand/30 pl-3 text-fg-muted">
+          {source.speaker ? `${source.speaker}: ` : ""}“{source.quote}”
+        </p>
+      )}
+    </div>
+  );
+}
+
+function NoteItem({
+  note,
+  onSource,
+  muted = false,
+}: {
+  note: NoteView;
+  onSource: (lineId: string) => void;
+  muted?: boolean;
+}) {
+  const badge = ANNOUNCED_STATUS[note.status];
+  const blocked = note.status === "blocked_injection";
+  return (
+    <li className={`space-y-1.5 ${muted ? "border-l-2 border-edge pl-3" : ""}`}>
+      <p
+        className={`text-[1.06rem] leading-relaxed ${
+          blocked
+            ? "text-fg-soft line-through decoration-heat/60"
+            : muted
+              ? "text-fg-muted"
+              : "text-fg"
+        }`}
+      >
+        {note.text}
+      </p>
+      {badge && note.status !== "uncorroborated" && (
+        <span className={badge}>{NOTE_STATUS_LABEL[note.status]}</span>
+      )}
+      {blocked && (
+        <p className="text-sm text-danger">
+          {blockedReasonLine(note.blockedReasons)}
+        </p>
+      )}
+      {note.source && <SourceRow source={note.source} onSource={onSource} />}
+    </li>
+  );
+}
+
+function Section({
+  section,
+  onSource,
+}: {
+  section: NoteSectionView;
+  onSource: (lineId: string) => void;
+}) {
+  return (
+    <section className="space-y-3">
+      <h3 className="text-xs uppercase tracking-[0.18em] text-fg-soft">
+        {section.title}
       </h3>
-      <ul className="space-y-4">
-        {claims.map((claim, index) => {
-          const status = claimStatus(claim);
-          return (
-            <li
-              key={claim.id || `${title}-${index}`}
-              className={`space-y-2 ${status === "blocked_injection" ? "opacity-80" : ""}`}
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={BADGE_CLASS[status]}>
-                  {NOTE_STATUS_LABEL[status]}
-                </span>
-              </div>
-              <p
-                className={`text-[1.05rem] leading-relaxed ${
-                  status === "uncorroborated" || status === "blocked_injection"
-                    ? "text-mist line-through decoration-heat/60"
-                    : "text-paper/95"
-                }`}
-              >
-                {claim.text}
-              </p>
-              {status === "blocked_injection" && (
-                <p className="text-sm text-heat">
-                  {blockedReasonLine(claim.blockedReasons)}
-                </p>
-              )}
-              {status === "uncorroborated" && (
-                <p className="text-sm text-heat">
-                  The AI offered the quote below as its source. That sentence
-                  is nowhere in the call, so the note stays here unbacked and
-                  never enters the follow-up email.
-                </p>
-              )}
-              <button
-                type="button"
-                className="receipt-link text-sm"
-                onClick={() => onSource(claim.evidence.lineId)}
-              >
-                {status === "uncorroborated" ? "Quote the AI offered" : "Source"}{" "}
-                · {claim.evidence.lineId}: “{claim.evidence.quote}”
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      {section.backed.length > 0 && (
+        <ul className="space-y-4">
+          {section.backed.map((note) => (
+            <NoteItem key={note.key} note={note} onSource={onSource} />
+          ))}
+        </ul>
+      )}
+      {section.unverified.length > 0 && (
+        <div className="space-y-2 pt-1">
+          <p className="text-xs uppercase tracking-[0.16em] text-fg-soft">
+            {couldNotVerifyHeading(section.unverified.length)}
+          </p>
+          <p className="text-sm text-fg-soft">{COULD_NOT_VERIFY_EXPLAINER}</p>
+          <ul className="space-y-3">
+            {section.unverified.map((note) => (
+              <NoteItem key={note.key} note={note} onSource={onSource} muted />
+            ))}
+          </ul>
+        </div>
+      )}
+      {section.blocked.length > 0 && (
+        <div className="space-y-2 pt-1">
+          <p className="text-xs uppercase tracking-[0.16em] text-danger">
+            {blockedHeading(section.blocked.length)}
+          </p>
+          <ul className="space-y-3">
+            {section.blocked.map((note) => (
+              <NoteItem key={note.key} note={note} onSource={onSource} />
+            ))}
+          </ul>
+        </div>
+      )}
+      {section.absenceLine && (
+        <p className="text-sm text-fg-soft">{section.absenceLine}</p>
+      )}
+    </section>
+  );
+}
+
+function OwnerActions({
+  view,
+  onSource,
+}: {
+  view: AnalysisView;
+  onSource: (lineId: string) => void;
+}) {
+  if (!view.ownerGroups.length) return null;
+  return (
+    <section className="space-y-3">
+      <h3 className="text-xs uppercase tracking-[0.18em] text-fg-soft">
+        Action items
+      </h3>
+      <div className="space-y-4">
+        {view.ownerGroups.map((group) => (
+          <div key={group.owner} className="space-y-2">
+            <p className="text-sm font-medium text-fg">{group.ownerLabel}</p>
+            <ul className="space-y-2">
+              {group.steps.map((step) => (
+                <li key={step.key} className="text-[0.98rem] text-fg-muted">
+                  {step.text}
+                  {step.due ? (
+                    <span className="text-fg-soft"> · due {step.due}</span>
+                  ) : null}
+                  {step.source?.timeLabel ? (
+                    <button
+                      type="button"
+                      className="receipt-link ml-2 text-sm"
+                      onClick={() => onSource(step.source!.lineId)}
+                    >
+                      {step.source.timeLabel}
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
@@ -113,48 +220,13 @@ export function DealNotesView({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canPlayAudio = Boolean(run.audioContentType) && !shareMode;
 
+  const view = useMemo(() => buildAnalysisView(run), [run]);
+
   useEffect(() => {
     if (!activeLineId) return;
     const el = document.getElementById(`line-${activeLineId}`);
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [activeLineId]);
-
-  const statusTone = useMemo(() => {
-    if (run.status === "shipped") return "text-signal";
-    if (run.status === "partial") return "text-heat";
-    if (run.status === "failed") return "text-heat";
-    return "text-mist";
-  }, [run.status]);
-
-  const gateFailures = useMemo(() => {
-    return run.attempts
-      .filter((a) => !a.ok)
-      .flatMap((a) =>
-        a.failures.map((f) => ({
-          attempt: a.attempt,
-          code: f.code,
-          message: f.message,
-          path: f.path,
-        })),
-      );
-  }, [run.attempts]);
-
-  const notes = run.notes;
-  const coverage = notes?.coverage;
-  const allClaims = notes
-    ? [
-        ...notes.summary,
-        ...notes.objections,
-        ...notes.intent,
-        ...notes.nextSteps,
-        ...(notes.pain || []),
-        ...(notes.pricing || []),
-        ...(notes.competitors || []),
-      ]
-    : [];
-  const quarantined = allClaims.filter(
-    (c) => claimStatus(c) === "blocked_injection",
-  );
 
   function jumpToLine(lineId: string) {
     setActiveLineId(lineId);
@@ -170,15 +242,6 @@ export function DealNotesView({
     else audio.addEventListener("loadedmetadata", seek, { once: true });
   }
 
-  const intelCounts = notes
-    ? [
-        { label: "Summary", value: notes.summary.length },
-        { label: "Objections", value: notes.objections.length },
-        { label: "Intent", value: notes.intent.length },
-        { label: "Next steps", value: notes.nextSteps.length },
-      ]
-    : [];
-
   async function copyShareLink() {
     const url = `${window.location.origin}/share/${run.shareToken}`;
     try {
@@ -190,49 +253,85 @@ export function DealNotesView({
     }
   }
 
+  const notes = run.notes;
+  const sections = view.sections.filter(
+    (section) => section.hasContent || section.absenceLine,
+  );
+
   return (
     <div className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
       <div className="space-y-8">
         <header className="space-y-4 animate-rise">
-          <p className="text-xs uppercase tracking-[0.22em] text-signal">
+          <p className="text-xs uppercase tracking-[0.22em] text-brand">
             Notes from this call
           </p>
-          <h1 className="font-[family-name:var(--font-display)] text-4xl leading-[1.05] tracking-tight md:text-5xl">
-            {notes?.title || run.sourceLabel}
+          <h1 className="text-3xl leading-tight tracking-tight md:text-4xl">
+            {view.title}
           </h1>
-          <p className="max-w-2xl text-base text-fog/85">
+
+          {view.topics.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.16em] text-fg-soft">
+                {TOPICS_HEADING}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {view.topics.map((topic) => (
+                  <button
+                    key={topic.id}
+                    type="button"
+                    className="topic-chip"
+                    onClick={() => jumpToLine(topic.lineId)}
+                  >
+                    {topic.label}
+                    {topic.timeLabel ? (
+                      <span className="text-fg-soft"> {topic.timeLabel}</span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <p className="max-w-2xl text-base text-fg-muted">
             Every note below carries a citation to the moment it came from.
-            Click a <span className="text-signal">Source</span>
+            Open a source
             {canPlayAudio
               ? " to see that sentence in the call and hear that second."
               : " to see that sentence in the call."}{" "}
             A note the AI cannot point to stays on this page, marked, and never
             reaches the follow-up email.
           </p>
-          {coverage && (
-            <p className="text-sm text-fog/90">
-              <span className="text-signal">✓ {backedFraction(coverage)}</span>
-              {coverage.stats.segment_corrected > 0 && (
+
+          {view.fraction && (
+            <p className="text-sm text-fg-muted">
+              <span className="text-brand">{view.fraction}</span>
+              {view.correctedCount > 0 && (
                 <>
                   {" · "}
-                  {coverage.stats.segment_corrected} of those had the citation
-                  corrected
+                  {view.correctedCount} of those had the citation corrected
                 </>
               )}
-              {" · "}
-              <span className="text-heat">
-                ⚠ {coverage.stats.uncorroborated} not found in the call
-              </span>
-              {" · "}
-              <span className="text-heat">
-                ⛔ {coverage.stats.blocked_injection} blocked
-              </span>
+              {view.notFoundCount > 0 && (
+                <>
+                  {" · "}
+                  <span className="text-danger">
+                    {view.notFoundCount} not found in the call
+                  </span>
+                </>
+              )}
+              {view.blockedCount > 0 && (
+                <>
+                  {" · "}
+                  <span className="text-danger">
+                    {view.blockedCount} blocked
+                  </span>
+                </>
+              )}
               . Nothing is deleted. Every note stays on this page.
             </p>
           )}
-          <div className="flex flex-wrap items-center gap-3 text-sm text-mist">
-            <span className={statusTone}>{RUN_STATUS_LABEL[run.status]}</span>
-            <span>·</span>
+
+          <div className="flex flex-wrap items-center gap-3 text-sm text-fg-soft">
             <span>{run.sourceLabel}</span>
             {!shareMode && (
               <>
@@ -263,13 +362,13 @@ export function DealNotesView({
             )}
           </div>
 
-          {quarantined.length > 0 && (
-            <div className="rounded-2xl border border-heat/40 bg-heat/10 px-4 py-3 text-sm">
-              <p className="font-medium text-heat">
-                {quarantined.length} note{quarantined.length === 1 ? "" : "s"}{" "}
+          {view.blockedCount > 0 && (
+            <div className="rounded-2xl border border-danger/40 bg-danger-soft px-4 py-3 text-sm">
+              <p className="font-medium text-danger">
+                {view.blockedCount} note{view.blockedCount === 1 ? "" : "s"}{" "}
                 blocked
               </p>
-              <p className="mt-1 text-fog/85">
+              <p className="mt-1 text-fg-muted">
                 Someone spoke an instruction to the AI on this call. Anything
                 standing on that moment is struck through below and barred from
                 the follow-up email. When a call talks to your AI, that is an
@@ -277,201 +376,123 @@ export function DealNotesView({
               </p>
             </div>
           )}
-
-          {run.status !== "shipped" && (
-            <div className="rounded-2xl border border-heat/40 bg-heat/10 px-4 py-3 text-sm text-paper">
-              <p className="font-medium text-heat">
-                {RUN_STATUS_LABEL[run.status]}
-                {coverage ? `: ${COVERAGE_BAND_LABEL[coverage.band]}` : ""}
-              </p>
-              <p className="mt-1 text-fog/85">
-                {run.error ||
-                  "Notes the AI could not point to are still on this page. They are marked, and they never appear as facts."}
-              </p>
-              {gateFailures.length > 0 && (
-                <ul className="mt-3 space-y-1 text-fog/80">
-                  {gateFailures.slice(0, 6).map((f, i) => (
-                    <li key={`${f.attempt}-${f.code}-${i}`}>
-                      Try #{f.attempt} · {f.code}
-                      {f.path ? ` @ ${f.path}` : ""}: {f.message}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {intelCounts.length > 0 && (
-            <div className="grid grid-cols-2 gap-3 pt-2 sm:grid-cols-4">
-              {intelCounts.map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-2xl border border-signal/25 bg-signal/10 px-4 py-3"
-                >
-                  <p className="text-2xl font-semibold text-signal">
-                    {item.value}
-                  </p>
-                  <p className="text-xs uppercase tracking-[0.14em] text-mist">
-                    {item.label}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
         </header>
 
         {notes ? (
           <div className="space-y-10 animate-rise-delay">
-            <NoteList
-              title="1 · Summary"
-              claims={notes.summary}
-              onSource={jumpToLine}
-            />
-            <NoteList
-              title="2 · Objections"
-              claims={notes.objections}
-              onSource={jumpToLine}
-            />
-            <NoteList
-              title="3 · Intent"
-              claims={notes.intent}
-              onSource={jumpToLine}
-            />
-            <NoteList
-              title="4 · Next steps"
-              claims={notes.nextSteps}
-              onSource={jumpToLine}
-            />
-            {((notes.pain || []).length > 0 ||
-              (notes.pricing || []).length > 0 ||
-              (notes.competitors || []).length > 0) && (
-              <>
-                <NoteList
-                  title="Pain"
-                  claims={notes.pain || []}
+            {view.noNotes ? (
+              <p className="text-fg-muted">{NO_NOTES_LINE}</p>
+            ) : (
+              sections.map((section) => (
+                <Section
+                  key={section.id}
+                  section={section}
                   onSource={jumpToLine}
                 />
-                <NoteList
-                  title="Pricing"
-                  claims={notes.pricing || []}
-                  onSource={jumpToLine}
-                />
-                <NoteList
-                  title="Competitors"
-                  claims={notes.competitors || []}
-                  onSource={jumpToLine}
-                />
-              </>
+              ))
             )}
+
+            <OwnerActions view={view} onSource={jumpToLine} />
+
             <section className="space-y-3">
-              <h3 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
-                5 · Follow-up email
+              <h3 className="text-xs uppercase tracking-[0.18em] text-fg-soft">
+                Follow-up email
               </h3>
-              {!isEmailableStatus(notes.followUpEmail.status) && (
-                <p className="text-sm text-heat">
-                  No draft went out. A note has to be backed by a line in the
-                  call before it can leave this page, and none here were.
-                </p>
+              {view.email.held ? (
+                <p className="text-sm text-danger">{EMAIL_HELD_BACK_LINE}</p>
+              ) : (
+                <>
+                  <p className="text-sm text-fg-soft">
+                    Subject: {view.email.subject}
+                  </p>
+                  <pre className="whitespace-pre-wrap rounded-2xl border border-edge bg-surface p-4 text-sm leading-relaxed text-fg">
+                    {view.email.body}
+                  </pre>
+                  {view.email.source && (
+                    <SourceRow
+                      source={view.email.source}
+                      onSource={jumpToLine}
+                    />
+                  )}
+                </>
               )}
-              <p className="text-sm text-mist">
-                Subject: {notes.followUpEmail.subject}
-              </p>
-              <pre className="whitespace-pre-wrap rounded-2xl border border-white/10 bg-ink-soft/70 p-4 text-sm leading-relaxed text-paper/90">
-                {notes.followUpEmail.body}
-              </pre>
-              <button
-                type="button"
-                className="receipt-link text-sm"
-                onClick={() => jumpToLine(notes.followUpEmail.evidence.lineId)}
-              >
-                Source · {notes.followUpEmail.evidence.lineId}: “
-                {notes.followUpEmail.evidence.quote}”
-              </button>
             </section>
 
-            {notes.routedFollowUp && (
+            {notes.routedFollowUp && !view.email.held && (
               <section className="space-y-3">
-                <h3 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
-                  6 · {routedPanelTitle(notes.routedFollowUp.template.short)}
+                <h3 className="text-xs uppercase tracking-[0.18em] text-fg-soft">
+                  {routedPanelTitle(notes.routedFollowUp.template.short)}
                 </h3>
-                <p className="text-sm text-fog/85">
+                <p className="text-sm text-fg-muted">
                   {notes.routedFollowUp.template.explainer}
                 </p>
-                <p className="text-sm text-mist">
+                <p className="text-sm text-fg-soft">
                   Subject: {notes.routedFollowUp.subject}
                 </p>
-                <pre className="whitespace-pre-wrap rounded-2xl border border-white/10 bg-ink-soft/70 p-4 text-sm leading-relaxed text-paper/90">
+                <pre className="whitespace-pre-wrap rounded-2xl border border-edge bg-surface p-4 text-sm leading-relaxed text-fg">
                   {notes.routedFollowUp.body}
                 </pre>
-                <p className="text-sm text-mist">
-                  From the template library · Template{" "}
-                  {notes.routedFollowUp.template.id} · Written by{" "}
-                  {notes.routedFollowUp.provenance.model}, which is{" "}
-                  {modelSourceLabel(notes.routedFollowUp.provenance.source)} ·{" "}
-                  {linesCutLine(
-                    notes.routedFollowUp.provenance.cut,
-                    notes.routedFollowUp.provenance.offTemplateCut,
-                  )}
-                </p>
-                <ul className="space-y-2 text-sm text-fog/80">
-                  {notes.routedFollowUp.bullets.map((bullet, index) => (
-                    <li key={`${bullet.claimId}-${index}`}>
-                      <button
-                        type="button"
-                        className="receipt-link"
-                        data-claim={bullet.claimId}
-                        onClick={() => {
-                          const cited = allClaims.find(
-                            (c) => (c.id || c.evidence.lineId) === bullet.claimId,
-                          );
-                          if (cited) jumpToLine(cited.evidence.lineId);
-                        }}
-                      >
-                        Source · {bullet.claimId}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
               </section>
             )}
           </div>
         ) : (
-          <p className="text-mist animate-rise-delay">
-            {run.error || "No notes came out of this call."}
+          <p className="text-fg-soft animate-rise-delay">
+            Nothing came back from this call that could be checked against the
+            transcript.
           </p>
         )}
 
-        {run.attempts.length > 0 && (
-          <section className="space-y-3 border-t border-white/10 pt-6 animate-rise-delay-2">
-            <h3 className="text-sm uppercase tracking-[0.18em] text-mist">
-              What the checker did
-            </h3>
-            <ul className="space-y-2 text-sm text-fog/80">
-              {run.attempts.map((attempt) => (
-                <li key={attempt.attempt}>
-                  Try #{attempt.attempt} ·{" "}
-                  {attempt.ok ? "accepted" : "sent back"} ·{" "}
-                  {attemptReasonLine(attempt.reason)}
-                  {!attempt.ok && attempt.failures[0]
-                    ? `: ${attempt.failures[0].message}`
-                    : ""}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <details className="rounded-2xl border border-edge bg-canvas px-4 py-3 animate-rise-delay-2">
+          <summary className="cursor-pointer text-sm text-fg-soft">
+            {RUN_DETAILS_SUMMARY}
+          </summary>
+          <div className="mt-3 space-y-2 text-sm text-fg-muted">
+            <p>{RUN_DETAILS_INTRO}</p>
+            <p>
+              {RUN_STATUS_LABEL[run.status]}
+              {notes?.coverage
+                ? `: ${COVERAGE_BAND_LABEL[notes.coverage.band]}`
+                : ""}
+            </p>
+            {view.suppressedTemplateCount > 0 && (
+              <p>{templateLinesHeldBackLine(view.suppressedTemplateCount)}</p>
+            )}
+            {notes?.routedFollowUp && (
+              <p>
+                Routed draft written by {notes.routedFollowUp.provenance.model},
+                which is{" "}
+                {modelSourceLabel(notes.routedFollowUp.provenance.source)} ·{" "}
+                {linesCutLine(
+                  notes.routedFollowUp.provenance.cut,
+                  notes.routedFollowUp.provenance.offTemplateCut,
+                )}
+              </p>
+            )}
+            {run.attempts.length > 0 && (
+              <ul className="space-y-1">
+                {run.attempts.map((attempt) => (
+                  <li key={attempt.attempt}>
+                    Pass {attempt.attempt} ·{" "}
+                    {attempt.ok ? "accepted" : "sent back"} ·{" "}
+                    {attemptReasonLine(attempt.reason)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </details>
       </div>
 
       <aside className="animate-rise-delay-2">
-        <div className="sticky top-6 overflow-hidden rounded-[1.5rem] border border-white/10 bg-ink-soft/80">
-          <div className="border-b border-white/10 px-5 py-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-mist">
+        <div className="sticky top-6 overflow-hidden rounded-[1.5rem] border border-edge bg-surface">
+          <div className="border-b border-edge px-5 py-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-fg-soft">
               Transcript
             </p>
-            <p className="mt-1 text-sm text-fog/80">
+            <p className="mt-1 text-sm text-fg-muted">
               {canPlayAudio
-                ? "Click any source and this jumps to the sentence it came from, then plays that second."
-                : "Click any source and this jumps to the sentence it came from."}
+                ? "Open any source and this jumps to the sentence it came from, then plays that second."
+                : "Open any source and this jumps to the sentence it came from."}
             </p>
             {canPlayAudio && (
               <audio
@@ -484,41 +505,37 @@ export function DealNotesView({
             )}
           </div>
           <div className="max-h-[70vh] space-y-1 overflow-y-auto p-3">
-            {run.transcript.map((line) => {
-              const active = activeLineId === line.id;
-              const tainted = allClaims.some(
-                (c) =>
-                  c.evidence.lineId === line.id &&
-                  claimStatus(c) === "blocked_injection",
-              );
+            {view.transcript.map((line) => {
+              const active = activeLineId === line.lineId;
               return (
                 <button
-                  key={line.id}
-                  id={`line-${line.id}`}
+                  key={line.lineId}
+                  id={`line-${line.lineId}`}
                   type="button"
-                  onClick={() => jumpToLine(line.id)}
+                  onClick={() => jumpToLine(line.lineId)}
                   className={`w-full rounded-xl px-3 py-3 text-left transition ${
                     active ? "line-active" : "hover:bg-white/5"
                   }`}
                 >
-                  <div className="mb-1 flex items-center gap-2 text-xs text-mist">
-                    <span>{line.id}</span>
-                    <span>·</span>
-                    <span>{line.speaker}</span>
-                    {tainted && (
+                  <div className="mb-1 flex items-center gap-2 text-xs text-fg-soft">
+                    {line.timeLabel && <span>{line.timeLabel}</span>}
+                    {line.speaker && (
+                      <>
+                        {line.timeLabel && <span>·</span>}
+                        <span>{line.speaker}</span>
+                      </>
+                    )}
+                    {line.blocked && (
                       <span className="badge-blocked">
                         instruction to the AI
                       </span>
                     )}
-                    {line.startMs != null && canPlayAudio && (
-                      <span>{(line.startMs / 1000).toFixed(1)}s</span>
-                    )}
                   </div>
                   <p
                     className={`text-sm leading-relaxed ${
-                      tainted
-                        ? "text-mist line-through decoration-heat/60"
-                        : "text-paper/90"
+                      line.blocked
+                        ? "text-fg-soft line-through decoration-heat/60"
+                        : "text-fg"
                     }`}
                   >
                     {line.text}

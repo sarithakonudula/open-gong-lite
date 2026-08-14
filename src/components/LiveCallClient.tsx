@@ -276,23 +276,22 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
       <div className="pointer-events-none absolute inset-0 grid-atmosphere" />
       <div className="signal-bar absolute left-0 right-0 top-0 h-px" />
 
-      <div className="relative mx-auto w-full max-w-4xl px-5 py-10 md:px-8">
+      <div className="relative mx-auto w-full max-w-5xl px-6 py-8 md:px-10">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <Link
-            href="/"
-            className="font-[family-name:var(--font-display)] text-xl tracking-tight"
-          >
-            OpenGong Lite
-          </Link>
-          <p className="text-xs uppercase tracking-[0.18em] text-mist">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-fg-soft">
+              Coaching
+            </p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-fg">
+              Live call
+            </h1>
+          </div>
+          <p className="text-xs uppercase tracking-[0.18em] text-fg-soft">
             Live call · no bot in the meeting
           </p>
         </div>
 
-        <h1 className="mt-10 font-[family-name:var(--font-display)] text-[clamp(2.4rem,6vw,3.6rem)] leading-[0.95] tracking-[-0.03em]">
-          Live call
-        </h1>
-        <p className="mt-4 max-w-2xl text-fog/90">
+        <p className="mt-4 max-w-2xl text-fg-muted">
           Stream a sample script offline, or record with your mic as WAV PCM.
           End the call and it splits the speakers, writes the notes, and
           checks every citation.
@@ -323,7 +322,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
         {mode === "script" ? (
           <div className="mt-8 grid gap-4 md:grid-cols-[1fr_auto_auto] md:items-end">
             <label className="block">
-              <span className="text-xs uppercase tracking-[0.16em] text-mist">
+              <span className="text-xs uppercase tracking-[0.16em] text-fg-soft">
                 Script
               </span>
               <select
@@ -374,7 +373,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
             >
               {busy ? "Transcribing…" : "End call → Hear + notes"}
             </button>
-            <p className="text-sm text-mist">
+            <p className="text-sm text-fg-soft">
               PyAI:{" "}
               {pyaiReady === null
                 ? "checking…"
@@ -386,7 +385,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
         )}
 
         <label className="mt-4 block">
-          <span className="text-xs uppercase tracking-[0.16em] text-mist">
+          <span className="text-xs uppercase tracking-[0.16em] text-fg-soft">
             Call title
           </span>
           <input
@@ -398,10 +397,10 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
           />
         </label>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-mist">
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-fg-soft">
           <p>{status}</p>
           {live && (
-            <span className="inline-flex items-center gap-2 rounded-full border border-heat/40 bg-heat/10 px-3 py-1 text-heat">
+            <span className="inline-flex items-center gap-2 rounded-full border border-danger/40 bg-danger-soft px-3 py-1 text-danger">
               <span className="live-dot" />
               {mm}:{ss}
             </span>
@@ -410,27 +409,27 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
 
         <div
           ref={scrollRef}
-          className="mt-6 max-h-[52vh] overflow-y-auto rounded-[1.4rem] border border-white/10 bg-ink-soft/55 p-5 font-[family-name:var(--font-mono)] text-sm leading-relaxed"
+          className="mt-6 max-h-[52vh] overflow-y-auto rounded-[1.4rem] border border-edge bg-surface p-5 font-[family-name:var(--font-mono)] text-sm leading-relaxed"
         >
           {mode === "mic" && live && visible.length === 0 ? (
-            <p className="text-mist">
+            <p className="text-fg-soft">
               Listening (16 kHz WAV)… transcript appears after you end the call.
             </p>
           ) : visible.length === 0 && !partial ? (
-            <p className="text-mist">
+            <p className="text-fg-soft">
               Transcript will appear here as the call runs.
             </p>
           ) : (
             <ul className="space-y-3">
               {visible.map((line) => (
                 <li key={line.id}>
-                  <span className="text-signal">{line.speaker}:</span>{" "}
-                  <span className="text-paper">{line.text}</span>
+                  <span className="text-brand">{line.speaker}:</span>{" "}
+                  <span className="text-fg">{line.text}</span>
                 </li>
               ))}
               {partial && (
                 <li className="opacity-60">
-                  <span className="text-signal">…</span> {partial}
+                  <span className="text-brand">…</span> {partial}
                 </li>
               )}
             </ul>
@@ -438,7 +437,7 @@ export function LiveCallClient({ samples, defaultSlug }: Props) {
         </div>
 
         {error && (
-          <p className="mt-6 rounded-xl border border-heat/40 bg-heat/10 px-4 py-3 text-sm text-paper">
+          <p className="mt-6 rounded-xl border border-danger/40 bg-danger-soft px-4 py-3 text-sm text-fg">
             {error}
           </p>
         )}

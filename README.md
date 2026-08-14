@@ -244,6 +244,12 @@ Which model writes it:
 
 The probe never runs when a key is configured.
 
+The company deal summary (Companies page) rides the same ladder: a configured
+key writes the cross-call narrative, a local Ollama writes it keyless, and with
+neither the page shows a rule-based summary assembled from the backed claims —
+badged so the reader knows a model didn't write it. Nothing to enable: install
+Ollama, `ollama pull llama3.2`, and the next visit to Companies uses it.
+
 ## What you get
 
 Notes
