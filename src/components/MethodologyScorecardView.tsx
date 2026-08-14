@@ -171,13 +171,13 @@ export function MethodologyScorecardView({
     <div className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
       <div className="space-y-8">
         <header className="space-y-4 animate-rise">
-          <p className="text-xs uppercase tracking-[0.22em] text-signal">
+          <p className="text-xs uppercase tracking-[0.22em] text-brand">
             Methodology coach
           </p>
           <h1 className="font-[family-name:var(--font-display)] text-4xl leading-[1.05] tracking-tight md:text-5xl">
             {card ? `${card.pack.name} scorecard` : "Score this call"}
           </h1>
-          <p className="max-w-2xl text-base text-fog/85">
+          <p className="max-w-2xl text-base text-fg-muted">
             How deeply the call went, not how much was said. Every line of
             this scorecard needs a quote the transcript can re-find, checked
             the same way the notes are. What a call this size had no reason to
@@ -185,33 +185,33 @@ export function MethodologyScorecardView({
           </p>
           {card && (
             <div className="grid grid-cols-2 gap-3 pt-2 sm:grid-cols-4">
-              <div className="rounded-2xl border border-signal/25 bg-signal/10 px-4 py-3">
-                <p className="text-2xl font-semibold text-signal">{card.score}</p>
-                <p className="text-xs uppercase tracking-[0.14em] text-mist">
+              <div className="rounded-2xl border border-brand/25 bg-signal/10 px-4 py-3">
+                <p className="text-2xl font-semibold text-brand">{card.score}</p>
+                <p className="text-xs uppercase tracking-[0.14em] text-fg-soft">
                   / 100
                 </p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-ink-soft/55 px-4 py-3">
-                <p className="text-2xl font-semibold text-paper">
+              <div className="rounded-2xl border border-edge bg-surface px-4 py-3">
+                <p className="text-2xl font-semibold text-fg">
                   {card.evidenceStats.corroborated} of {card.evidenceStats.total}
                 </p>
-                <p className="text-xs uppercase tracking-[0.14em] text-mist">
+                <p className="text-xs uppercase tracking-[0.14em] text-fg-soft">
                   backed by the call
                 </p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-ink-soft/55 px-4 py-3">
-                <p className="text-lg font-semibold text-paper capitalize">
+              <div className="rounded-2xl border border-edge bg-surface px-4 py-3">
+                <p className="text-lg font-semibold text-fg capitalize">
                   {card.callType}
                 </p>
-                <p className="text-xs uppercase tracking-[0.14em] text-mist">
+                <p className="text-xs uppercase tracking-[0.14em] text-fg-soft">
                   call type
                 </p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-ink-soft/55 px-4 py-3">
-                <p className="text-lg font-semibold text-paper">
+              <div className="rounded-2xl border border-edge bg-surface px-4 py-3">
+                <p className="text-lg font-semibold text-fg">
                   {card.band?.label ?? "Full pack"}
                 </p>
-                <p className="text-xs uppercase tracking-[0.14em] text-mist">
+                <p className="text-xs uppercase tracking-[0.14em] text-fg-soft">
                   measured as
                 </p>
               </div>
@@ -219,17 +219,17 @@ export function MethodologyScorecardView({
           )}
         </header>
 
-        <section className="space-y-3 rounded-2xl border border-white/10 bg-ink-soft/55 p-4">
-          <p className="text-xs uppercase tracking-[0.18em] text-mist">
+        <section className="space-y-3 rounded-2xl border border-edge bg-surface p-4">
+          <p className="text-xs uppercase tracking-[0.18em] text-fg-soft">
             Live score
             {detectedKind ? (
-              <span className="ml-2 normal-case tracking-normal text-signal">
+              <span className="ml-2 normal-case tracking-normal text-brand">
                 detected: {detectedKind} call
               </span>
             ) : null}
           </p>
           <div className="flex flex-wrap items-end gap-3">
-            <label className="min-w-[10rem] flex-1 text-sm text-mist">
+            <label className="min-w-[10rem] flex-1 text-sm text-fg-soft">
               Pack
               <select
                 className="field mt-1"
@@ -244,7 +244,7 @@ export function MethodologyScorecardView({
                 ))}
               </select>
             </label>
-            <label className="w-40 text-sm text-mist">
+            <label className="w-40 text-sm text-fg-soft">
               Deal value (USD)
               <input
                 className="field mt-1"
@@ -267,7 +267,7 @@ export function MethodologyScorecardView({
             ) : (
               <span
                 aria-disabled="true"
-                className="inline-flex cursor-not-allowed items-center rounded-full border border-mist/40 px-5 py-2.5 text-sm text-mist"
+                className="inline-flex cursor-not-allowed items-center rounded-full border border-edge/40 px-5 py-2.5 text-sm text-fg-soft"
                 title="Set LLM_BASE_URL and LLM_API_KEY, then restart"
               >
                 LLM scoring off
@@ -280,17 +280,17 @@ export function MethodologyScorecardView({
             )}
           </div>
           {!llmAvailable && (
-            <p className="text-sm text-mist">
+            <p className="text-sm text-fg-soft">
               Scoring a new call needs a language model, which is off right
               now (set LLM_BASE_URL and LLM_API_KEY). Brightsmile 1 · Discovery
               ships with its scorecard already made, so it works with no keys.
             </p>
           )}
-          {error && <p className="text-sm text-heat">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
         </section>
 
         {!card ? (
-          <p className="text-mist animate-rise-delay">
+          <p className="text-fg-soft animate-rise-delay">
             This call has not been scored yet. Brightsmile 1 · Discovery ships
             with its scorecard already made and needs no keys. Any other call
             can be scored once a language model is configured.
@@ -307,7 +307,7 @@ export function MethodologyScorecardView({
               </div>
             )}
             {card.overallNote && (
-              <p className="text-[1.05rem] leading-relaxed text-paper/95">
+              <p className="text-[1.05rem] leading-relaxed text-fg">
                 {card.overallNote}
               </p>
             )}
@@ -324,7 +324,7 @@ export function MethodologyScorecardView({
                     <li key={row.trait.id} className="space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={badge.className}>{badge.label}</span>
-                        <span className="text-xs uppercase tracking-[0.14em] text-mist">
+                        <span className="text-xs uppercase tracking-[0.14em] text-fg-soft">
                           weight {row.trait.weight}
                           {row.points != null ? ` · ${row.points}/3` : ""}
                         </span>
@@ -334,9 +334,9 @@ export function MethodologyScorecardView({
                           </span>
                         )}
                       </div>
-                      <p className="text-[1.05rem] text-paper/95">{row.trait.name}</p>
+                      <p className="text-[1.05rem] text-fg">{row.trait.name}</p>
                       {row.verdict?.gap ? (
-                        <p className="text-sm text-fog/80">{row.verdict.gap}</p>
+                        <p className="text-sm text-fg-muted">{row.verdict.gap}</p>
                       ) : null}
                       {row.verdict?.gatedEvidence.map((ev, i) => (
                         <button
@@ -344,7 +344,7 @@ export function MethodologyScorecardView({
                           type="button"
                           className={`receipt-link block text-sm ${
                             ev.status === "uncorroborated"
-                              ? "text-heat"
+                              ? "text-danger"
                               : ""
                           }`}
                           onClick={() => jumpToLine(ev.lineId)}
@@ -366,7 +366,7 @@ export function MethodologyScorecardView({
                 <h3 className="font-[family-name:var(--font-display)] text-2xl tracking-tight">
                   Not scored at this deal size
                 </h3>
-                <p className="text-sm text-mist">
+                <p className="text-sm text-fg-soft">
                   Shown so nothing is hidden, but left out of the score. A low
                   mark here would mislead on a{" "}
                   {card.band?.label ?? "smaller"} deal.
@@ -379,11 +379,11 @@ export function MethodologyScorecardView({
                       <li key={row.trait.id} className="space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={badge.className}>{badge.label}</span>
-                          <span className="text-paper/90">{row.trait.name}</span>
-                          <span className="text-xs text-mist">{row.trait.rigor}</span>
+                          <span className="text-fg">{row.trait.name}</span>
+                          <span className="text-xs text-fg-soft">{row.trait.rigor}</span>
                         </div>
                         {row.verdict?.gap ? (
-                          <p className="text-sm text-fog/80">{row.verdict.gap}</p>
+                          <p className="text-sm text-fg-muted">{row.verdict.gap}</p>
                         ) : null}
                       </li>
                     );
@@ -397,7 +397,7 @@ export function MethodologyScorecardView({
                 Coaching
               </h3>
               {gaps.length === 0 ? (
-                <p className="text-mist">
+                <p className="text-fg-soft">
                   Everything scored here was at least explored, and every line
                   of it is backed by the call.
                 </p>
@@ -408,11 +408,11 @@ export function MethodologyScorecardView({
                     .sort((a, b) => b.trait.weight - a.trait.weight)
                     .map((row) => (
                       <li key={row.trait.id} className="space-y-2">
-                        <p className="text-paper/95">{row.trait.name}</p>
-                        <p className="text-sm text-fog/85">
+                        <p className="text-fg">{row.trait.name}</p>
+                        <p className="text-sm text-fg-muted">
                           Next move: {row.trait.coaching.next_move}
                         </p>
-                        <p className="text-sm text-mist">
+                        <p className="text-sm text-fg-soft">
                           Try saying: “{row.trait.coaching.example_line}”
                         </p>
                       </li>
@@ -425,12 +425,12 @@ export function MethodologyScorecardView({
       </div>
 
       <aside className="animate-rise-delay-2">
-        <div className="sticky top-6 overflow-hidden rounded-[1.5rem] border border-white/10 bg-ink-soft/80">
-          <div className="border-b border-white/10 px-5 py-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-mist">
+        <div className="sticky top-6 overflow-hidden rounded-[1.5rem] border border-edge bg-surface">
+          <div className="border-b border-edge px-5 py-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-fg-soft">
               Transcript
             </p>
-            <p className="mt-1 text-sm text-fog/80">
+            <p className="mt-1 text-sm text-fg-muted">
               Click a Source to jump to the line it came from.
             </p>
             {canPlayAudio && (
@@ -456,12 +456,12 @@ export function MethodologyScorecardView({
                     active ? "line-active" : "hover:bg-white/5"
                   }`}
                 >
-                  <div className="mb-1 flex items-center gap-2 text-xs text-mist">
+                  <div className="mb-1 flex items-center gap-2 text-xs text-fg-soft">
                     <span>{line.id}</span>
                     <span>·</span>
                     <span>{line.speaker}</span>
                   </div>
-                  <p className="text-sm leading-relaxed text-paper/90">{line.text}</p>
+                  <p className="text-sm leading-relaxed text-fg">{line.text}</p>
                 </button>
               );
             })}

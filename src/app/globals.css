@@ -1,17 +1,6 @@
 @import "tailwindcss";
 
 :root {
-  /* Legacy palette — referenced by unconverted pages via .legacy-dark panels */
-  --ink: #0c1210;
-  --ink-soft: #16201c;
-  --fog: #d7e3dc;
-  --mist: #9bb5a8;
-  --paper: #f3f7f4;
-  --signal: #c8f135;
-  --signal-deep: #8fad14;
-  --heat: #ff6b3d;
-  --line: rgba(215, 227, 220, 0.14);
-
   /* Light shell palette */
   --surface: #ffffff;
   --canvas: #f8f9fb;
@@ -32,6 +21,18 @@
   --danger-soft: #fdeae8;
   --info: #2563eb;
   --info-soft: #e3edfd;
+
+  /* Compatibility aliases: text/accent tokens map to light identity colors.
+     Backgrounds that once used paper/ink should prefer surface/canvas classes. */
+  --ink: var(--canvas);
+  --ink-soft: var(--surface);
+  --fog: var(--fg-muted);
+  --mist: var(--fg-soft);
+  --paper: var(--fg);
+  --signal: var(--brand);
+  --signal-deep: var(--brand-deep);
+  --heat: var(--danger);
+  --line: var(--border);
 
   --background: var(--canvas);
   --foreground: var(--fg);
@@ -88,28 +89,31 @@ body {
   font-family: var(--font-body), sans-serif;
 }
 
-::selection {
-  background: rgba(87, 83, 224, 0.18);
+.app-light {
+  min-height: 100%;
+  color: var(--fg);
+  background: var(--canvas);
+}
+
+.app-light h1,
+.app-light h2,
+.app-light h3 {
+  font-family: var(--font-body), sans-serif;
   color: var(--fg);
 }
 
-/* ---------------------------------------------------------------------------
-   .legacy-dark — unconverted pages render inside this scope with the original
-   dark editorial look. Remove wrappers as screens are re-skinned.
---------------------------------------------------------------------------- */
-.legacy-dark {
-  --background: var(--ink);
-  --foreground: var(--paper);
-  color: var(--paper);
-  background:
-    radial-gradient(1200px 600px at 12% -10%, rgba(200, 241, 53, 0.16), transparent 55%),
-    radial-gradient(900px 500px at 90% 10%, rgba(255, 107, 61, 0.12), transparent 50%),
-    linear-gradient(165deg, #0c1210 0%, #101816 42%, #0a100e 100%);
+.app-light .grid-atmosphere,
+.app-light .signal-bar {
+  display: none;
 }
 
-.legacy-dark ::selection {
-  background: rgba(200, 241, 53, 0.35);
-  color: #0c1210;
+.app-light [class*="border-white"] {
+  border-color: var(--border);
+}
+
+::selection {
+  background: rgba(87, 83, 224, 0.18);
+  color: var(--fg);
 }
 
 @keyframes rise-in {
@@ -167,7 +171,7 @@ body {
   animation: pulse-line 2.8s ease-in-out infinite;
 }
 
-/* Buttons / fields — light defaults, legacy styling preserved in scope */
+/* Shared buttons and fields */
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -194,20 +198,6 @@ body {
   transform: none;
 }
 
-.legacy-dark .btn-primary {
-  border-radius: 999px;
-  padding: 0.85rem 1.35rem;
-  background: var(--signal);
-  color: var(--ink);
-  font-weight: 650;
-}
-
-.legacy-dark .btn-primary:hover {
-  transform: translateY(-1px);
-  filter: brightness(1.05);
-  background: var(--signal);
-}
-
 .btn-ghost {
   display: inline-flex;
   align-items: center;
@@ -226,20 +216,6 @@ body {
 .btn-ghost:hover {
   border-color: var(--brand);
   background: var(--brand-soft);
-}
-
-.legacy-dark .btn-ghost {
-  border: 1px solid rgba(215, 227, 220, 0.22);
-  border-radius: 999px;
-  padding: 0.8rem 1.25rem;
-  background: rgba(22, 32, 28, 0.55);
-  color: var(--paper);
-  font-weight: 400;
-}
-
-.legacy-dark .btn-ghost:hover {
-  border-color: rgba(200, 241, 53, 0.45);
-  background: rgba(22, 32, 28, 0.9);
 }
 
 .field {
@@ -261,19 +237,6 @@ body {
   color: var(--fg-soft);
 }
 
-.legacy-dark .field {
-  border: 1px solid rgba(215, 227, 220, 0.18);
-  border-radius: 1rem;
-  background: rgba(12, 18, 16, 0.65);
-  color: var(--paper);
-  padding: 0.95rem 1.1rem;
-}
-
-.legacy-dark .field:focus {
-  border-color: rgba(200, 241, 53, 0.55);
-  box-shadow: 0 0 0 3px rgba(200, 241, 53, 0.12);
-}
-
 .receipt-link {
   color: var(--brand);
   text-decoration: underline;
@@ -283,15 +246,6 @@ body {
 
 .receipt-link:hover {
   text-decoration-color: var(--brand);
-}
-
-.legacy-dark .receipt-link {
-  color: var(--signal);
-  text-decoration-color: rgba(200, 241, 53, 0.35);
-}
-
-.legacy-dark .receipt-link:hover {
-  text-decoration-color: var(--signal);
 }
 
 .badge-verified,
@@ -324,40 +278,22 @@ body {
   color: var(--danger);
 }
 
-.legacy-dark .badge-verified {
-  background: rgba(200, 241, 53, 0.16);
-  color: var(--signal);
-  border: 0;
-}
-
-.legacy-dark .badge-corrected {
-  background: rgba(200, 241, 53, 0.08);
-  color: var(--mist);
-  border: 1px solid rgba(200, 241, 53, 0.25);
-}
-
-.legacy-dark .badge-unproven,
-.legacy-dark .badge-blocked {
-  background: rgba(255, 107, 61, 0.12);
-  color: var(--heat);
-}
-
 .topic-chip {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   min-height: 2.1rem;
   border-radius: 999px;
-  border: 1px solid rgba(200, 241, 53, 0.28);
-  background: rgba(200, 241, 53, 0.08);
-  color: var(--paper);
+  border: 1px solid rgba(87, 83, 224, 0.25);
+  background: var(--brand-soft);
+  color: var(--brand-deep);
   padding: 0.3rem 0.8rem;
   font-size: 0.82rem;
   line-height: 1.2;
 }
 
 .topic-chip:hover {
-  border-color: rgba(200, 241, 53, 0.55);
+  border-color: var(--brand);
 }
 
 .line-active {
@@ -367,15 +303,6 @@ body {
     rgba(87, 83, 224, 0.03)
   );
   border-left: 3px solid var(--brand);
-}
-
-.legacy-dark .line-active {
-  background: linear-gradient(
-    90deg,
-    rgba(200, 241, 53, 0.16),
-    rgba(200, 241, 53, 0.04)
-  );
-  border-left: 3px solid var(--signal);
 }
 
 @keyframes live-pulse {

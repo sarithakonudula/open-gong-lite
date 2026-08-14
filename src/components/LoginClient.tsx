@@ -61,14 +61,14 @@ export function LoginClient() {
 
   if (!authRequired) {
     return (
-      <p className="text-mist">Auth is off, redirecting…</p>
+      <p className="text-fg-soft">Auth is off, redirecting…</p>
     );
   }
 
   return (
     <form onSubmit={onSubmit} className="mt-10 space-y-5">
       <label className="block">
-        <span className="text-xs uppercase tracking-[0.16em] text-mist">
+        <span className="text-xs uppercase tracking-[0.16em] text-fg-soft">
           Username
         </span>
         <input
@@ -80,7 +80,7 @@ export function LoginClient() {
         />
       </label>
       <label className="block">
-        <span className="text-xs uppercase tracking-[0.16em] text-mist">
+        <span className="text-xs uppercase tracking-[0.16em] text-fg-soft">
           Password
         </span>
         <input
@@ -94,13 +94,13 @@ export function LoginClient() {
       </label>
 
       {hint && (
-        <p className="text-sm text-mist">
-          Demo hint: <span className="text-fog">{hint}</span>
+        <p className="text-sm text-fg-soft">
+          Demo hint: <span className="text-fg-muted">{hint}</span>
         </p>
       )}
 
       {error && (
-        <p className="rounded-xl border border-heat/40 bg-heat/10 px-4 py-3 text-sm text-paper">
+        <p className="rounded-xl border border-danger/40 bg-danger-soft px-4 py-3 text-sm text-fg">
           {error}
         </p>
       )}

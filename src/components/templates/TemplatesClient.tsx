@@ -256,7 +256,7 @@ export function TemplatesClient({
           </div>
 
           {/* Right: automation */}
-          <div className="h-fit rounded-xl bg-[#f2f3f6] p-5">
+          <div className="h-fit rounded-xl bg-canvas p-5">
             <h3 className="text-[15px] font-semibold text-fg">
               Automate this template for future meetings
             </h3>

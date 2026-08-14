@@ -64,11 +64,11 @@ function Field(props: {
   secret?: boolean;
 }) {
   const shared =
-    "mt-1 w-full rounded-lg border border-mist/30 bg-paper/60 px-3 py-2 text-sm text-foreground outline-none focus:border-signal/60";
+    "mt-1 w-full rounded-lg border border-edge bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-brand";
   return (
     <label className="block">
       <span className="text-sm font-medium">{props.label}</span>
-      {props.hint && <span className="ml-2 text-xs text-mist">{props.hint}</span>}
+      {props.hint && <span className="ml-2 text-xs text-fg-soft">{props.hint}</span>}
       {props.textarea ? (
         <textarea
           className={`${shared} min-h-20`}
@@ -92,7 +92,7 @@ function Field(props: {
 function StatusDot({ on, label }: { on: boolean; label: string }) {
   return (
     <span
-      className={`rounded-full border px-2.5 py-0.5 text-xs uppercase tracking-wide ${on ? "border-signal/60 text-signal" : "border-mist/40 text-mist"}`}
+      className={`rounded-full border px-2.5 py-0.5 text-xs uppercase tracking-wide ${on ? "border-brand text-brand" : "border-edge/40 text-fg-soft"}`}
     >
       {label}: {on ? "on" : "off"}
     </span>
@@ -206,12 +206,12 @@ export function AdminSettingsClient() {
   }
 
   if (!loaded) {
-    return <p className="text-sm text-mist">Loading settings…</p>;
+    return <p className="text-sm text-fg-soft">Loading settings…</p>;
   }
 
   if (locked) {
     return (
-      <p className="rounded-lg border border-heat/40 bg-heat/5 px-4 py-3 text-sm text-heat/90">
+      <p className="rounded-lg border border-danger/40 bg-danger-soft px-4 py-3 text-sm text-danger">
         {locked}
       </p>
     );
@@ -225,11 +225,11 @@ export function AdminSettingsClient() {
         <StatusDot on={settings.hasSlack} label="Slack" />
       </div>
 
-      <section className="rounded-xl border border-mist/25 bg-paper/40 p-5">
+      <section className="rounded-xl border border-edge bg-surface p-5">
         <h2 className="font-[family-name:var(--font-display)] text-lg tracking-tight">
           Scoring LLM chain
         </h2>
-        <p className="mt-1 text-sm text-mist">
+        <p className="mt-1 text-sm text-fg-soft">
           Checked providers feed the scoring system in order — the first is
           primary, the rest are failover. Unchecked entries are stored but
           never called. All extraction, methodology scoring, emails, and
@@ -239,7 +239,7 @@ export function AdminSettingsClient() {
           {settings.llmProviders.map((p) => (
             <div
               key={p.id}
-              className="space-y-2 rounded-lg border border-mist/20 bg-paper/60 p-3"
+              className="space-y-2 rounded-lg border border-edge bg-surface p-3"
             >
               <div className="flex flex-wrap items-center gap-3">
                 <label className="flex items-center gap-2 text-sm">
@@ -253,13 +253,13 @@ export function AdminSettingsClient() {
                   use for scoring
                 </label>
                 <input
-                  className="min-w-[8rem] flex-1 rounded-lg border border-mist/30 bg-paper/60 px-3 py-1.5 text-sm"
+                  className="min-w-[8rem] flex-1 rounded-lg border border-edge bg-surface px-3 py-1.5 text-sm"
                   placeholder="Label (e.g. Groq primary)"
                   value={p.label}
                   onChange={(e) => setProvider(p.id)({ label: e.target.value })}
                 />
                 <button
-                  className="text-xs text-heat/80 hover:text-heat"
+                  className="text-xs text-danger/80 hover:text-danger"
                   onClick={() => removeProvider(p.id)}
                 >
                   remove
@@ -267,20 +267,20 @@ export function AdminSettingsClient() {
               </div>
               <div className="grid gap-2 md:grid-cols-3">
                 <input
-                  className="rounded-lg border border-mist/30 bg-paper/60 px-3 py-1.5 text-sm"
+                  className="rounded-lg border border-edge bg-surface px-3 py-1.5 text-sm"
                   placeholder="Base URL (https://…/v1)"
                   value={p.baseUrl}
                   onChange={(e) => setProvider(p.id)({ baseUrl: e.target.value })}
                 />
                 <input
-                  className="rounded-lg border border-mist/30 bg-paper/60 px-3 py-1.5 text-sm"
+                  className="rounded-lg border border-edge bg-surface px-3 py-1.5 text-sm"
                   type="password"
                   placeholder="API key"
                   value={p.apiKey}
                   onChange={(e) => setProvider(p.id)({ apiKey: e.target.value })}
                 />
                 <input
-                  className="rounded-lg border border-mist/30 bg-paper/60 px-3 py-1.5 text-sm"
+                  className="rounded-lg border border-edge bg-surface px-3 py-1.5 text-sm"
                   placeholder="Model id"
                   value={p.model}
                   onChange={(e) => setProvider(p.id)({ model: e.target.value })}
@@ -296,7 +296,7 @@ export function AdminSettingsClient() {
         <h3 className="mt-6 text-sm font-medium">
           Default endpoint (chain fallback)
         </h3>
-        <p className="mt-1 text-xs text-mist">
+        <p className="mt-1 text-xs text-fg-soft">
           Used when no checked provider answers. Saved values win over LLM_*
           env vars and apply without a restart.
         </p>
@@ -343,15 +343,15 @@ export function AdminSettingsClient() {
           <button className="btn-ghost" onClick={() => runTest("llm")}>
             Test LLM
           </button>
-          {tests.llm && <span className="ml-3 text-sm text-fog">{tests.llm}</span>}
+          {tests.llm && <span className="ml-3 text-sm text-fg-muted">{tests.llm}</span>}
         </div>
       </section>
 
-      <section className="rounded-xl border border-mist/25 bg-paper/40 p-5">
+      <section className="rounded-xl border border-edge bg-surface p-5">
         <h2 className="font-[family-name:var(--font-display)] text-lg tracking-tight">
           Language filter
         </h2>
-        <p className="mt-1 text-sm text-mist">
+        <p className="mt-1 text-sm text-fg-soft">
           Options come from what PyAI reports as available
           {pyaiOptions ? (
             <span>
@@ -383,7 +383,7 @@ export function AdminSettingsClient() {
               (lang) => (
                 <label
                   key={lang.code}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm ${lang.available ? "border-mist/30" : "border-mist/15 text-mist"}`}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm ${lang.available ? "border-edge" : "border-edge/15 text-fg-soft"}`}
                   title={
                     lang.available
                       ? undefined
@@ -409,11 +409,11 @@ export function AdminSettingsClient() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-mist/25 bg-paper/40 p-5">
+      <section className="rounded-xl border border-edge bg-surface p-5">
         <h2 className="font-[family-name:var(--font-display)] text-lg tracking-tight">
           HubSpot
         </h2>
-        <p className="mt-1 text-sm text-mist">
+        <p className="mt-1 text-sm text-fg-soft">
           Private-app token. Needed scopes: crm.objects (contacts, companies,
           deals, notes, tasks) read/write + crm.schemas.deals.write.
         </p>
@@ -429,12 +429,12 @@ export function AdminSettingsClient() {
             Test HubSpot
           </button>
           {tests.hubspot && (
-            <span className="ml-3 text-sm text-fog">{tests.hubspot}</span>
+            <span className="ml-3 text-sm text-fg-muted">{tests.hubspot}</span>
           )}
         </div>
       </section>
 
-      <section className="rounded-xl border border-mist/25 bg-paper/40 p-5">
+      <section className="rounded-xl border border-edge bg-surface p-5">
         <h2 className="font-[family-name:var(--font-display)] text-lg tracking-tight">
           Notifications
         </h2>
@@ -449,7 +449,7 @@ export function AdminSettingsClient() {
           <label className="block">
             <span className="text-sm font-medium">Notify on severity ≥</span>
             <select
-              className="mt-1 w-full rounded-lg border border-mist/30 bg-paper/60 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-lg border border-edge bg-surface px-3 py-2 text-sm"
               value={settings.riskNotifyFloor}
               onChange={(e) =>
                 setSettings((s) => ({
@@ -467,7 +467,7 @@ export function AdminSettingsClient() {
             Test Slack
           </button>
           {tests.slack && (
-            <span className="ml-3 text-sm text-fog">{tests.slack}</span>
+            <span className="ml-3 text-sm text-fg-muted">{tests.slack}</span>
           )}
         </div>
       </section>
@@ -476,7 +476,7 @@ export function AdminSettingsClient() {
         <button className="btn-primary" onClick={save} disabled={saving}>
           {saving ? "Saving…" : "Save settings"}
         </button>
-        {message && <span className="text-sm text-fog">{message}</span>}
+        {message && <span className="text-sm text-fg-muted">{message}</span>}
       </div>
     </div>
   );

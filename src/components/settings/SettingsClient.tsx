@@ -491,7 +491,7 @@ export function SettingsClient({
                   deployment.
                 </p>
               )}
-              <div className="legacy-dark mt-4 rounded-2xl p-4">
+              <div className="mt-4 rounded-2xl border border-edge bg-surface p-4">
                 <AdminSettingsClient />
               </div>
             </div>

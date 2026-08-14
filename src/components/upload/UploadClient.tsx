@@ -205,7 +205,7 @@ export function UploadClient({ samples }: { samples: SampleCall[] }) {
             </div>
           </div>
 
-          <div className="rounded-xl bg-[#f2f3f6] px-6 py-7 text-center">
+          <div className="rounded-xl bg-canvas px-6 py-7 text-center">
             <p className="text-[15px] font-semibold text-fg">
               Paste a media URL
             </p>

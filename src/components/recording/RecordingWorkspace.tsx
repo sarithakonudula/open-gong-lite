@@ -367,7 +367,7 @@ export function RecordingWorkspace({
                 onSource={jumpToLine}
               />
             ) : tab === "scorecard" ? (
-              <div className="legacy-dark overflow-hidden rounded-2xl">
+              <div className="overflow-hidden rounded-2xl border border-edge bg-surface">
                 <MethodologyScorecardView
                   run={run}
                   initialCard={initialCard}
@@ -378,7 +378,7 @@ export function RecordingWorkspace({
                 />
               </div>
             ) : (
-              <div className="legacy-dark overflow-hidden rounded-2xl">
+              <div className="overflow-hidden rounded-2xl border border-edge bg-surface">
                 <DealSignalsView feed={signalFeed} />
               </div>
             )}
