@@ -30,7 +30,10 @@ export function TranscriptPanel({
           ? "Click any line (or any source in the insights) to jump here and play that second."
           : "Click any source in the insights and this jumps to the sentence it came from."}
       </p>
-      <div className="max-h-[min(60vh,36rem)] space-y-1 overflow-y-auto overscroll-contain p-3">
+      <div
+        data-transcript-scroll
+        className="max-h-[min(60vh,36rem)] space-y-1 overflow-y-auto overscroll-contain p-3"
+      >
         {lines.map((line) => {
           const active = activeLineId === line.lineId;
           return (

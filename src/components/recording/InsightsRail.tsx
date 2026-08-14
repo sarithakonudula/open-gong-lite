@@ -63,17 +63,36 @@ function NoteRow({
 }) {
   const struck =
     note.status === "uncorroborated" || note.status === "blocked_injection";
+  const jump = note.source
+    ? () => onSource(note.source!.lineId)
+    : undefined;
   return (
     <li className="flex gap-3">
       <span className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full bg-brand/70" />
       <div className="min-w-0">
-        <p
-          className={`text-[14px] leading-relaxed ${
-            struck ? "text-fg-soft line-through decoration-danger/60" : "text-fg"
-          }`}
-        >
-          {note.text}
-        </p>
+        {jump ? (
+          <button
+            type="button"
+            onClick={jump}
+            className={`w-full text-left text-[14px] leading-relaxed transition hover:text-brand ${
+              struck
+                ? "text-fg-soft line-through decoration-danger/60"
+                : "text-fg"
+            }`}
+          >
+            {note.text}
+          </button>
+        ) : (
+          <p
+            className={`text-[14px] leading-relaxed ${
+              struck
+                ? "text-fg-soft line-through decoration-danger/60"
+                : "text-fg"
+            }`}
+          >
+            {note.text}
+          </p>
+        )}
         {note.source && (
           <div className="mt-1">
             <SourceButton source={note.source} onSource={onSource} />
@@ -266,9 +285,19 @@ export function InsightsRail({
                     <li key={step.key} className="flex gap-3">
                       <span className="mt-[8px] h-1.5 w-1.5 shrink-0 rounded-full bg-brand/70" />
                       <div className="min-w-0">
-                        <p className="text-[14px] leading-relaxed text-fg">
-                          {step.text}
-                        </p>
+                        {step.source ? (
+                          <button
+                            type="button"
+                            onClick={() => onSource(step.source!.lineId)}
+                            className="w-full text-left text-[14px] leading-relaxed text-fg transition hover:text-brand"
+                          >
+                            {step.text}
+                          </button>
+                        ) : (
+                          <p className="text-[14px] leading-relaxed text-fg">
+                            {step.text}
+                          </p>
+                        )}
                         {step.due && (
                           <p className="mt-0.5 text-[12px] text-fg-muted">
                             Due: {step.due}

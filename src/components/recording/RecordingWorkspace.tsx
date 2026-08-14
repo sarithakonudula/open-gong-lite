@@ -58,6 +58,7 @@ export function RecordingWorkspace({
 }) {
   const [tab, setTab] = useState<RecordingTab>(initialTab);
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
+  const [jumpNonce, setJumpNonce] = useState(0);
   const [copied, setCopied] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const router = useRouter();
@@ -104,14 +105,33 @@ export function RecordingWorkspace({
   }, [run.transcript]);
 
   useEffect(() => {
-    if (!activeLineId) return;
-    const el = document.getElementById(`line-${activeLineId}`);
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [activeLineId]);
+    if (!activeLineId || tab !== "transcript") return;
+    // After a tab switch the transcript panel mounts on this paint; wait one
+    // frame so layout exists, then scroll inside the capped overflow panel.
+    const frame = window.requestAnimationFrame(() => {
+      const el = document.getElementById(`line-${activeLineId}`);
+      if (!el) return;
+      const panel = el.closest("[data-transcript-scroll]");
+      if (panel instanceof HTMLElement) {
+        const elRect = el.getBoundingClientRect();
+        const panelRect = panel.getBoundingClientRect();
+        const delta =
+          elRect.top -
+          panelRect.top -
+          panelRect.height / 2 +
+          elRect.height / 2;
+        panel.scrollBy({ top: delta, behavior: "smooth" });
+      } else {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeLineId, tab, jumpNonce]);
 
   function jumpToLine(lineId: string) {
     if (tab !== "transcript") setTab("transcript");
     setActiveLineId(lineId);
+    setJumpNonce((n) => n + 1);
     if (!canPlayAudio || !audioRef.current) return;
     const line = run.transcript.find((l) => l.id === lineId);
     if (line?.startMs == null) return;
@@ -189,35 +209,6 @@ export function RecordingWorkspace({
           )}
         </div>
 
-        {view.fraction && (
-          <p className="mt-2 text-sm text-fg-muted">
-            <span className="font-medium text-positive">✓ {view.fraction}</span>
-            {view.correctedCount > 0 && (
-              <>
-                {" · "}
-                {view.correctedCount} citation
-                {view.correctedCount === 1 ? "" : "s"} corrected
-              </>
-            )}
-            {view.notFoundCount > 0 && (
-              <>
-                {" · "}
-                <span className="text-danger">
-                  ⚠ {view.notFoundCount} could not be verified
-                </span>
-              </>
-            )}
-            {view.blockedCount > 0 && (
-              <>
-                {" · "}
-                <span className="text-danger">
-                  ⛔ {view.blockedCount} blocked
-                </span>
-              </>
-            )}
-            . Nothing is deleted — every note stays on this page, marked.
-          </p>
-        )}
         {view.noNotes && (
           <p className="mt-2 text-sm text-fg-muted">{NO_NOTES_LINE}</p>
         )}
