@@ -31,7 +31,10 @@ const RESCUE_MIN_WORDS = 6;
 /** Evidence floor: a quote shorter than this can never anchor a claim. */
 export const MIN_NORMALIZED_QUOTE = 15;
 
-const REQUIRED_SECTIONS = ["summary", "intent", "nextSteps"] as const;
+// Summary is the only universally required section. Requiring corroborated
+// intent and next steps made short discovery calls fail even when neither was
+// discussed; those sections now stay empty instead of inventing absence claims.
+const REQUIRED_SECTIONS = ["summary"] as const;
 
 /** Sentence punctuation only. Hyphen/slash stay so "3:30" cannot become "330". */
 const STRIP_PUNCT = /[.,;:!?'"()[\]{}]/;

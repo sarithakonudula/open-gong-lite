@@ -1,4 +1,4 @@
-import { DealNotes, TranscriptLine } from "@/lib/types";
+import { Claim, DealNotes, TranscriptLine } from "@/lib/types";
 
 function findLine(
   transcript: TranscriptLine[],
@@ -7,26 +7,32 @@ function findLine(
   return transcript.find((line) => pattern.test(line.text));
 }
 
-/**
- * Evidence sentinel for a claim whose pattern matched no transcript line.
- * The lineId never exists, so the gate demotes the claim instead of letting
- * it ride on an arbitrary fallback line's quote (right quote, wrong claim —
- * the same self-certification the recap mapper was cured of).
- */
-const NO_EVIDENCE = { lineId: "__unsupported__", quote: "(no supporting line found in this call)" };
-
 function claimFrom(
   line: TranscriptLine | undefined,
   text: string,
-): { text: string; evidence: { lineId: string; quote: string } } {
-  if (!line) {
-    return { text, evidence: { ...NO_EVIDENCE } };
-  }
+): Claim | null {
+  if (!line) return null;
   const quote =
     line.text.length > 90 ? `${line.text.slice(0, 87)}...` : line.text;
   return {
     text,
     evidence: { lineId: line.id, quote },
+  };
+}
+
+function compact<T>(items: Array<T | null>): T[] {
+  return items.filter((item): item is T => item !== null);
+}
+
+function extractiveSummary(line: TranscriptLine): Claim {
+  const text =
+    line.text.length > 180 ? `${line.text.slice(0, 177).trim()}…` : line.text;
+  return {
+    text,
+    evidence: {
+      lineId: line.id,
+      quote: line.text.length > 220 ? line.text.slice(0, 220) : line.text,
+    },
   };
 }
 
@@ -65,38 +71,31 @@ export function demoExtractDealNotes(
     transcript,
     /today|Thursday|Tuesday|end of day|Friday|next week/i,
   );
+  const summary = compact([
+    claimFrom(need, "A need or evaluation driver came up on the call."),
+    claimFrom(expensive, "Pricing, seats, or renewal came up on the call."),
+    claimFrom(pilot, "A pilot, timeline, or process step was discussed."),
+  ]);
+  if (!summary.length) {
+    const prospect = transcript.find(
+      (line) => /prospect|customer|buyer/i.test(line.speaker) && line.text.length >= 20,
+    );
+    summary.push(extractiveSummary(prospect || first));
+  }
 
   return {
-    title: `${titleHint} (keyword extractor: limited, deterministic)`,
-    summary: [
-      claimFrom(
-        need,
-        "A need or evaluation driver came up on the call.",
-      ),
-      claimFrom(
-        expensive,
-        "Pricing, seats, or renewal came up on the call.",
-      ),
-      claimFrom(
-        pilot,
-        "A pilot, timeline, or process step was discussed.",
-      ),
-    ],
-    objections: [
+    title: titleHint,
+    summary,
+    objections: compact([
       claimFrom(
         accuracy || expensive,
         accuracy
           ? "A trust, proof, or security requirement was raised."
           : "Pricing or commercial terms were raised.",
       ),
-    ],
-    intent: [
-      claimFrom(
-        intent,
-        intent?.text || "A vendor decision was referenced on the call.",
-      ),
-    ],
-    nextSteps: [
+    ]),
+    intent: compact([claimFrom(intent, intent?.text || "")]),
+    nextSteps: compact([
       claimFrom(
         next,
         "A follow-up artifact or meeting was mentioned.",
@@ -105,22 +104,22 @@ export function demoExtractDealNotes(
         today,
         "A date or checkpoint was mentioned.",
       ),
-    ],
+    ]),
     pain: accuracy
-      ? [
+      ? compact([
           claimFrom(
             accuracy,
             "A trust, proof, or security concern came up.",
           ),
-        ]
+        ])
       : [],
     pricing: expensive
-      ? [
+      ? compact([
           claimFrom(
             expensive,
             "Pricing, seats, or renewal cost was mentioned.",
           ),
-        ]
+        ])
       : [],
     competitors: (() => {
       const named = findLine(
@@ -128,12 +127,12 @@ export function demoExtractDealNotes(
         /Fireflies|Gong|Chorus|Otter|Fathom|Clari/i,
       );
       return named
-        ? [
+        ? compact([
             claimFrom(
               named,
               "An incumbent or competing tool was named on the call.",
             ),
-          ]
+          ])
         : [];
     })(),
     followUpEmail: {

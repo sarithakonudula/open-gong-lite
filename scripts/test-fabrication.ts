@@ -96,7 +96,7 @@ test("email choke: a curated body never ships on the strength of one passing rec
     "the shipped email must be composed from gate-passed claims only");
 });
 
-test("demo extractor: unmatched patterns demote instead of riding a fallback line", () => {
+test("demo extractor: unmatched patterns are omitted; fallback stays extractive", () => {
   const quiet = [
     { id: "q1", index: 0, speaker: "prospect", text: "thanks for the walkthrough it was clear" },
     { id: "q2", index: 1, speaker: "rep", text: "glad it was useful" },
@@ -106,14 +106,20 @@ test("demo extractor: unmatched patterns demote instead of riding a fallback lin
     ...notes.summary, ...notes.objections, ...notes.intent, ...notes.nextSteps,
     ...notes.pain, ...notes.pricing, ...notes.competitors,
   ];
-  for (const c of all) {
-    const gate = gateEvidenceQuote(c.evidence.quote, c.evidence.lineId, quiet);
-    assert.ok(gate.verdict !== "match_exact" && gate.verdict !== "match_normalized",
-      `a claim whose pattern matched nothing must not verify: ${JSON.stringify(c.text)}`);
-  }
+  assert.equal(all.length, 1, "generic unmatched sections must stay empty");
+  assert.equal(all[0]!.text, quiet[0]!.text);
+  const gate = gateEvidenceQuote(
+    all[0]!.evidence.quote,
+    all[0]!.evidence.lineId,
+    quiet,
+  );
+  assert.ok(
+    gate.verdict === "match_exact" || gate.verdict === "match_normalized",
+    "the one fallback summary must quote the transcript, not invent a label",
+  );
 });
 
-test("schema altitude: unmatched claims DEMOTE through validateDealNotes, never null the page", () => {
+test("schema altitude: a quiet call ships one grounded summary and empty sections", () => {
   const quiet = [
     { id: "q1", index: 0, speaker: "prospect", text: "thanks for the walkthrough it was clear" },
     { id: "q2", index: 1, speaker: "rep", text: "glad it was useful" },
@@ -127,9 +133,9 @@ test("schema altitude: unmatched claims DEMOTE through validateDealNotes, never 
       ...result.notes.summary, ...result.notes.objections, ...result.notes.intent,
       ...result.notes.nextSteps, ...result.notes.pain, ...result.notes.pricing,
     ];
-    assert.ok(all.length > 0, "demoted claims must still render");
-    assert.ok(all.every((c) => c.status !== "verified" || c.evidence.lineId.startsWith("q")),
-      "sentinel-backed claims must never read verified");
+    assert.equal(all.length, 1);
+    assert.equal(all[0]!.status, "verified");
+    assert.equal(all[0]!.evidence.lineId, "q1");
   }
 });
 

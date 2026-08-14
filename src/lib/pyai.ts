@@ -622,7 +622,9 @@ export async function runHearAndMaybeRecap(opts: {
         transcript,
         customerName: opts.customerName,
       });
-      recap = await pollRecap(callId, 12_000);
+      // Short calls can still take >12s to leave Recap's pending state. A
+      // premature timeout silently dropped us into the keyword-only fallback.
+      recap = await pollRecap(callId, 30_000);
     } catch {
       recap = null;
     }

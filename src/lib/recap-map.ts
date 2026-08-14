@@ -9,10 +9,107 @@ import { Claim, DealNotes, Evidence, TranscriptLine } from "@/lib/types";
  */
 const UNSUPPORTED_LINE = "__unsupported__";
 
+const STOP_WORDS = new Set([
+  "a",
+  "about",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "been",
+  "but",
+  "by",
+  "call",
+  "customer",
+  "for",
+  "from",
+  "had",
+  "has",
+  "have",
+  "he",
+  "her",
+  "his",
+  "i",
+  "in",
+  "is",
+  "it",
+  "its",
+  "looking",
+  "of",
+  "on",
+  "or",
+  "our",
+  "said",
+  "she",
+  "that",
+  "the",
+  "their",
+  "they",
+  "this",
+  "to",
+  "was",
+  "we",
+  "were",
+  "will",
+  "with",
+  "you",
+]);
+
+function stemToken(token: string): string {
+  if (token.length > 5 && token.endsWith("ing")) return token.slice(0, -3);
+  if (token.length > 4 && token.endsWith("ed")) return token.slice(0, -2);
+  if (token.length > 4 && token.endsWith("es")) return token.slice(0, -2);
+  if (token.length > 3 && token.endsWith("s")) return token.slice(0, -1);
+  return token;
+}
+
+function contentTokens(text: string): Set<string> {
+  return new Set(
+    text
+      .normalize("NFKC")
+      .toLowerCase()
+      .match(/[\p{L}\p{N}]+/gu)
+      ?.map(stemToken)
+      .filter((token) => token.length >= 3 && !STOP_WORDS.has(token)) ?? [],
+  );
+}
+
+function overlapScore(claim: string, line: string): {
+  overlap: number;
+  coverage: number;
+} {
+  const claimTokens = contentTokens(claim);
+  const lineTokens = contentTokens(line);
+  const overlap = [...claimTokens].filter((token) => lineTokens.has(token)).length;
+  return {
+    overlap,
+    coverage: claimTokens.size ? overlap / claimTokens.size : 0,
+  };
+}
+
+/** Keep the exact transcript substring while focusing long Hear turns. */
+function focusedQuote(line: string, claim: string): string {
+  if (line.length <= 240) return line.trim();
+  const wanted = contentTokens(claim);
+  const lower = line.toLowerCase();
+  const positions = [...wanted]
+    .map((token) => lower.indexOf(token))
+    .filter((index) => index >= 0)
+    .sort((a, b) => a - b);
+  const center = positions.length
+    ? positions[Math.floor(positions.length / 2)]!
+    : 0;
+  const start = Math.max(0, Math.min(line.length - 240, center - 100));
+  return line.slice(start, start + 240).trim();
+}
+
 /**
- * Attach a receipt using the *claim text* as the quote. Never copy a transcript
- * line into evidence.quote — that made the gate self-pass. If the claim is not
- * in the call, the quote still fails the gate and the claim is demoted.
+ * Attach a receipt without treating an arbitrary transcript line as proof.
+ * Exact claims keep their own quote; strong Recap paraphrases may cite the
+ * lexically matching source line. Unsupported claims keep a sentinel line id
+ * and are demoted by the downstream gate.
  */
 export function locateEvidence(
   text: string,
@@ -34,6 +131,27 @@ export function locateEvidence(
     if (gate.verdict === "segment_corrected" && gate.matchedLineId) {
       return { lineId: gate.matchedLineId, quote };
     }
+  }
+
+  // Recap summarizes rather than quoting verbatim. Rescue only strong lexical
+  // matches, then cite an exact transcript substring. Requiring at least three
+  // content-token matches and 40% claim coverage prevents an unrelated line
+  // from laundering a fabricated claim through a valid quote.
+  const ranked = transcript
+    .map((line) => ({ line, ...overlapScore(text, line.text) }))
+    .filter((candidate) => candidate.overlap >= 3 && candidate.coverage >= 0.4)
+    .sort(
+      (a, b) =>
+        b.coverage - a.coverage ||
+        b.overlap - a.overlap ||
+        a.line.index - b.line.index,
+    );
+  const best = ranked[0];
+  if (best) {
+    return {
+      lineId: best.line.id,
+      quote: focusedQuote(best.line.text, text),
+    };
   }
 
   return { lineId: UNSUPPORTED_LINE, quote };
@@ -83,12 +201,6 @@ function pickStrings(
     if (list.length) return list;
   }
   return [];
-}
-
-function absent(label: string, transcript: TranscriptLine[]): Claim[] {
-  return [
-    claim(`${label} was not stated on this call.`, transcript),
-  ];
 }
 
 /** Map PyAI Recap artifacts into OpenGong DealNotes with transcript receipts. */
@@ -157,19 +269,15 @@ export function mapRecapToDealNotes(
     "alternatives",
   ]);
 
-  // Absence honesty: when Recap yields nothing for a section, say so in
-  // words. A next step the buyer never agreed to must not be invented from a
-  // transcript line (right quote, fabricated commitment); the absence claim
-  // carries no receipt either, so the gate demotes it too.
   const summaryClaims = uniqueSummary.length
     ? uniqueSummary.map((t) => claim(t, transcript))
-    : absent("A call summary", transcript);
+    : [];
   const intentClaims = intent.length
     ? intent.slice(0, 3).map((t) => claim(t, transcript))
-    : absent("Buyer intent", transcript);
+    : [];
   const nextClaims = nextSteps.length
     ? nextSteps.slice(0, 4).map((t) => claim(t, transcript))
-    : absent("A next step", transcript);
+    : [];
 
   const emailSource = nextSteps[0] || uniqueSummary[0] || title;
 

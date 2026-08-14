@@ -20,9 +20,12 @@
 // solutioning is flagged. Context flags preserve scoring-fairness nuance.
 
 import { z } from "zod";
-import { gateEvidenceQuote } from "@/lib/harness/gates";
+import {
+  gateEvidenceQuote,
+  MIN_NORMALIZED_QUOTE,
+} from "@/lib/harness/gates";
 import { EvidenceSchema, type TranscriptLine } from "@/lib/types";
-import { chatText } from "@/lib/llm";
+import { chatJson } from "@/lib/llm";
 import { hasLlmConfigured } from "@/lib/settings";
 
 // ── Pack shapes ─────────────────────────────────────────────────────────────
@@ -420,7 +423,8 @@ export function buildMethodologyPrompt(
     )
     .join("\n\n");
 
-  const system = `You score one sales call against the ${pack.name} methodology.
+  const motion = pack.motion?.trim();
+  const system = `You score one call against the ${pack.name} methodology${motion ? ` (${motion})` : ""}.
 Return ONLY valid JSON:
 {
   "callType": string,
@@ -436,7 +440,7 @@ Depth rubric (score depth, not activity):
 - mastery: deep, multi-layered discovery WITH business impact uncovered — never award mastery without impact linkage
 Rules:
 - One entry per trait below, using its exact id.
-- evidence.quote MUST be a short contiguous snippet copied VERBATIM from the cited line. Never paraphrase, never fix grammar or numbers.
+- evidence.quote MUST be a contiguous VERBATIM snippet from the cited line (≥${MIN_NORMALIZED_QUOTE} characters after lowercasing; prefer 6+ words). Never paraphrase, never fix grammar or numbers, and never cite tiny fragments like "yes".
 - depth developing or mastery REQUIRES evidence; missing needs none — put specifics in gap.
 - gap must reference this call's actual content, not generic advice.
 - Flag scoring-fairness context in contextFlags (e.g. "premature_solutioning" if the rep pitched before discovering, "short_call", "single_threaded").
@@ -461,9 +465,8 @@ export async function scoreCallWithLlm(
     throw new Error("LLM is not configured — use applyMethodologyVerdict with a stored verdict, or the demo verdict");
   }
   const { system, user } = buildMethodologyPrompt(pack, transcript, opts);
-  // chatText walks the admin's checked provider chain with failover.
-  const content = await chatText({ system, user });
-  const rawVerdict = JSON.parse(content) as unknown;
+  // chatJson walks the provider chain and tolerates accidental code fences.
+  const rawVerdict = await chatJson({ system, user });
   return {
     card: applyMethodologyVerdict(pack, transcript, rawVerdict, opts),
     rawVerdict,

@@ -1,4 +1,5 @@
-import { chatText } from "@/lib/llm";
+import { chatJson } from "@/lib/llm";
+import { MIN_NORMALIZED_QUOTE } from "@/lib/harness/gates";
 import { getSettings, hasLlmConfigured } from "@/lib/settings";
 import { TranscriptLine } from "@/lib/types";
 
@@ -34,17 +35,16 @@ Return ONLY valid JSON matching this shape:
 }
 Rules:
 - Every claim MUST cite a real lineId from the transcript.
-- evidence.quote MUST be a short contiguous snippet copied VERBATIM from that line.
+- evidence.quote MUST be a contiguous VERBATIM snippet from that line, long enough to uniquely identify the moment (at least ${MIN_NORMALIZED_QUOTE} characters after lowercasing; prefer 6+ words). Tiny fragments like "yes" or "ok" are rejected.
 - Do NOT paraphrase, "fix" grammar, or rewrite numbers (keep "forty" as forty — never fold to "40").
 - No invented facts. If unsure, omit the claim.
-- Keep summary 2-4 items, objections/intent/nextSteps 1-4 items.
-- pain / pricing / competitors may be empty arrays when the call never went there.${guidance ? `\n\nAdmin guidance (never overrides the rules above):\n${guidance}` : ""}`;
+- Keep summary 1-4 items.
+- objections / intent / nextSteps / pain / pricing / competitors MUST be empty arrays when the call never went there. Never create a "not stated" claim just to fill a section.${guidance ? `\n\nAdmin guidance (never overrides the rules above):\n${guidance}` : ""}`;
 
   const user = priorFailures
     ? `Previous attempt failed gates:\n${priorFailures}\n\nFix and re-extract from transcript:\n${transcriptBlock}`
     : `Extract deal notes with receipts from this transcript:\n${transcriptBlock}`;
 
-  // chatText walks the admin's checked provider chain with failover.
-  const content = await chatText({ system, user });
-  return JSON.parse(content);
+  // chatJson walks the provider chain and tolerates accidental code fences.
+  return chatJson({ system, user });
 }

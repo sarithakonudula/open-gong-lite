@@ -107,8 +107,10 @@ export const DealNotesSchema = z.object({
   title: z.string().min(1),
   summary: z.array(ClaimSchema).min(1),
   objections: z.array(ClaimSchema).default([]),
-  intent: z.array(ClaimSchema).min(1),
-  nextSteps: z.array(ClaimSchema).min(1),
+  // A short discovery call may contain no buying intent or agreed next step.
+  // Empty is more honest than forcing an unsupported "not stated" claim.
+  intent: z.array(ClaimSchema).default([]),
+  nextSteps: z.array(ClaimSchema).default([]),
   pain: z.array(ClaimSchema).default([]),
   pricing: z.array(ClaimSchema).default([]),
   competitors: z.array(ClaimSchema).default([]),
