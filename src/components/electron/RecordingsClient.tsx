@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { AskSearch } from "@/components/electron/AskSearch";
 
 type Row = {
   id: string;
@@ -46,6 +47,7 @@ export function RecordingsClient() {
   const [rows, setRows] = useState<Row[]>([]);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<"newest" | "score">("newest");
+  const [sentiment, setSentiment] = useState("all");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,22 +61,18 @@ export function RecordingsClient() {
     return () => clearTimeout(handle);
   }, [q]);
 
-  const sorted = [...rows].sort((a, b) =>
-    sort === "score" ? b.score - a.score : b.date.localeCompare(a.date),
-  );
+  const sorted = rows
+    .filter((r) => sentiment === "all" || r.dealState === sentiment)
+    .sort((a, b) =>
+      sort === "score" ? b.score - a.score : b.date.localeCompare(a.date),
+    );
 
   return (
     <div className="px-8 py-7">
       <h1 className="text-2xl font-bold tracking-tight">Recordings</h1>
 
-      <div className="mt-4 flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-sm">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4 text-gray-400"><circle cx="9" cy="9" r="5.5"/><path d="m13.5 13.5 3 3"/></svg>
-        <input
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400"
-          placeholder="Search for a meeting or ask about your meetings"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+      <div className="mt-4">
+        <AskSearch value={q} onChange={setQ} before="Search for a meeting or" after="about your meetings" />
       </div>
       <div className="mt-2.5 flex flex-wrap gap-2">
         {SUGGESTIONS.map((s) => (
@@ -89,6 +87,16 @@ export function RecordingsClient() {
       </div>
 
       <div className="mt-5 flex justify-end gap-2">
+        <select
+          className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600"
+          value={sentiment}
+          onChange={(e) => setSentiment(e.target.value)}
+        >
+          <option value="all">Sentiment</option>
+          <option value="Positive">Positive</option>
+          <option value="Neutral">Neutral</option>
+          <option value="At Risk">At Risk</option>
+        </select>
         <select
           className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-600"
           value={sort}

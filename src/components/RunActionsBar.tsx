@@ -10,10 +10,21 @@ type DealCandidate = {
   amount: number | null;
 };
 
+type StageSuggestion = {
+  fromStageId: string;
+  fromLabel: string;
+  toStageId: string;
+  toLabel: string;
+  reason: string;
+};
+
 export function RunActionsBar({ runId }: { runId: string }) {
   const [hubspotReady, setHubspotReady] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<DealCandidate[] | null>(null);
+  const [stageSuggestion, setStageSuggestion] = useState<
+    (StageSuggestion & { dealId: string }) | null
+  >(null);
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ subject: string; body: string } | null>(
     null,
@@ -52,9 +63,39 @@ export function RunActionsBar({ runId }: { runId: string }) {
           ? `✅ ${r.dealName}: momentum ${r.momentumScore}/100 (${r.momentumDirection}) + note written · linked for next time`
           : `✅ ${r.dealName}: cited notes written (non-sales call — momentum skipped) · linked for next time`,
       );
+      setStageSuggestion(
+        data.stageSuggestion ? { ...data.stageSuggestion, dealId: r.dealId } : null,
+      );
     } catch (error) {
       setSyncStatus(
         `❌ ${error instanceof Error ? error.message : "Sync failed"}`,
+      );
+    }
+  }
+
+  async function approveStageMove() {
+    if (!stageSuggestion) return;
+    setSyncStatus("Moving stage…");
+    try {
+      const response = await fetch("/api/hubspot/stage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          runId,
+          dealId: stageSuggestion.dealId,
+          stageId: stageSuggestion.toStageId,
+          reason: stageSuggestion.reason,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Stage move failed");
+      setSyncStatus(
+        `✅ Stage moved: ${stageSuggestion.fromLabel} → ${stageSuggestion.toLabel} (note written)`,
+      );
+      setStageSuggestion(null);
+    } catch (error) {
+      setSyncStatus(
+        `❌ ${error instanceof Error ? error.message : "Stage move failed"}`,
       );
     }
   }
@@ -112,6 +153,28 @@ export function RunActionsBar({ runId }: { runId: string }) {
         </a>
       </div>
       {syncStatus && <p className="mt-2 text-sm text-fog">{syncStatus}</p>}
+      {stageSuggestion && (
+        <div className="mt-2 rounded-lg border border-signal/40 bg-signal/5 px-3 py-2.5">
+          <p className="text-sm text-fog">
+            Suggested stage move:{" "}
+            <span className="font-medium text-foreground">
+              {stageSuggestion.fromLabel} → {stageSuggestion.toLabel}
+            </span>
+          </p>
+          <p className="mt-1 text-xs text-mist">{stageSuggestion.reason}</p>
+          <div className="mt-2 flex gap-2">
+            <button className="btn-primary !px-3 !py-1.5 text-sm" onClick={approveStageMove}>
+              Approve move
+            </button>
+            <button
+              className="btn-ghost !px-3 !py-1.5 text-sm"
+              onClick={() => setStageSuggestion(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
       {candidates && candidates.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
           {candidates.map((c) => (

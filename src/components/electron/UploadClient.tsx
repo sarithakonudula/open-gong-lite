@@ -94,7 +94,7 @@ export function UploadClient() {
               {file ? file.name : "Drag and drop audio files to upload"}
             </p>
             <p className="mt-1 text-xs text-gray-500">
-              Your audio is analyzed privately — every claim gated against the transcript.
+              Your audio will be private until you publish to community.
             </p>
             <input
               ref={fileInput}
@@ -113,14 +113,14 @@ export function UploadClient() {
           </div>
 
           <div className="rounded-2xl bg-gray-100 p-8 text-center">
-            <p className="font-semibold">Paste a recording link</p>
+            <p className="font-semibold">Paste a media URL</p>
             <p className="mt-1 text-xs text-gray-500">
-              Fathom, Fireflies, Google Drive files, Loom, or a direct media URL.
-              Names in the link become the call title.
+              Your audio will be private until you publish to community. Fathom,
+              Fireflies, Drive, and Loom links work too.
             </p>
             <input
               className="mt-4 w-full rounded-lg border border-gray-200 bg-white px-3.5 py-2.5 text-sm outline-none placeholder:text-gray-400 focus:border-indigo-300"
-              placeholder="https://fathom.video/share/… or https://…/call.mp3"
+              placeholder="https://…/call.mp3"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
             />

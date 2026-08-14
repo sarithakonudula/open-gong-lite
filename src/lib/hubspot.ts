@@ -345,6 +345,128 @@ export async function createTaskForDeal(
   return body?.id ?? null;
 }
 
+// ── Closed-deal history (Flow 4: similar-deal playbooks) ────────────────────
+
+export type ClosedDeal = {
+  id: string;
+  name: string;
+  amount: number | null;
+  won: boolean;
+  stage: string | null;
+};
+
+export async function listClosedDeals(limit = 50): Promise<ClosedDeal[]> {
+  const body = (await hsFetch("/crm/v3/objects/deals/search", {
+    method: "POST",
+    body: JSON.stringify({
+      filterGroups: [
+        {
+          filters: [
+            { propertyName: "hs_is_closed", operator: "EQ", value: "true" },
+          ],
+        },
+      ],
+      properties: ["dealname", "amount", "dealstage", "hs_is_closed_won"],
+      sorts: [{ propertyName: "hs_lastmodifieddate", direction: "DESCENDING" }],
+      limit: Math.min(Math.max(limit, 1), 100),
+    }),
+  })) as SearchResponse;
+  return (body.results ?? []).map((r) => {
+    const amount = Number(prop(r, "amount"));
+    return {
+      id: r.id,
+      name: prop(r, "dealname") ?? `Deal ${r.id}`,
+      amount: Number.isFinite(amount) && amount > 0 ? amount : null,
+      won: prop(r, "hs_is_closed_won") === "true",
+      stage: prop(r, "dealstage"),
+    };
+  });
+}
+
+// ── Pipeline stages + approval-gated stage moves ────────────────────────────
+
+export type PipelineStage = {
+  id: string;
+  label: string;
+  displayOrder: number;
+  isClosed: boolean;
+};
+
+export async function getDealPipelineStages(
+  pipelineId: string,
+): Promise<PipelineStage[]> {
+  const body = (await hsFetch(
+    `/crm/v3/pipelines/deals/${encodeURIComponent(pipelineId)}`,
+  )) as {
+    stages?: Array<{
+      id: string;
+      label: string;
+      displayOrder: number;
+      metadata?: { isClosed?: string | boolean };
+    }>;
+  };
+  return (body.stages ?? [])
+    .map((s) => ({
+      id: s.id,
+      label: s.label,
+      displayOrder: s.displayOrder,
+      isClosed:
+        s.metadata?.isClosed === true || s.metadata?.isClosed === "true",
+    }))
+    .sort((a, b) => a.displayOrder - b.displayOrder);
+}
+
+export type StageSuggestion = {
+  fromStageId: string;
+  fromLabel: string;
+  toStageId: string;
+  toLabel: string;
+  reason: string;
+};
+
+/**
+ * Suggest — never perform — a stage move. Pure and conservative: only an
+ * advancing call with a verified next step suggests moving ONE stage
+ * forward, never into a closed stage. Everything else returns null; a human
+ * approves before anything is written.
+ */
+export function suggestStageMove(
+  currentStageId: string | null,
+  stages: PipelineStage[],
+  momentum: MomentumResult,
+): StageSuggestion | null {
+  if (momentum.direction !== "advancing" || !momentum.nextAction) return null;
+  if (!currentStageId) return null;
+  const idx = stages.findIndex((s) => s.id === currentStageId);
+  if (idx < 0) return null;
+  const current = stages[idx]!;
+  if (current.isClosed) return null;
+  const next = stages
+    .slice(idx + 1)
+    .find((s) => !s.isClosed);
+  if (!next) return null;
+  return {
+    fromStageId: current.id,
+    fromLabel: current.label,
+    toStageId: next.id,
+    toLabel: next.label,
+    reason: `Call momentum ${momentum.score}/100 (advancing) with a verified next step on record: ${momentum.nextAction}`,
+  };
+}
+
+/** Perform an APPROVED stage move and leave a note explaining why. */
+export async function moveDealStage(
+  dealId: string,
+  toStageId: string,
+  reason: string,
+): Promise<void> {
+  await updateDealProperties(dealId, { dealstage: toStageId });
+  await createNoteForDeal(
+    dealId,
+    `Stage moved by OpenGong Lite (rep-approved).\n\n${reason}`,
+  );
+}
+
 // ── Deal candidates (proposal only — writes require a confirmed id) ─────────
 
 export type DealCandidate = {
@@ -432,6 +554,9 @@ export type SyncResult = {
   /** Null when momentum was skipped (support / customer-success calls). */
   momentumScore: number | null;
   momentumDirection: string | null;
+  /** Current CRM position — lets callers compute a stage suggestion. */
+  stage: string | null;
+  pipeline: string | null;
   url: string | null;
 };
 
@@ -471,6 +596,8 @@ export async function syncRunToHubspot(
     createdProperties,
     momentumScore: opts.momentum?.score ?? null,
     momentumDirection: opts.momentum?.direction ?? null,
+    stage: ctx.deal.stage,
+    pipeline: ctx.deal.pipeline,
     url: ctx.url,
   };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AskSearch } from "@/components/electron/AskSearch";
 
 type Trait = { traitId: string; name: string; avg: number | null; status: string };
 type Drill = {
@@ -60,14 +61,8 @@ export function RepsClient() {
     <div className="px-8 py-7">
       <h1 className="text-2xl font-bold tracking-tight">Reps</h1>
 
-      <div className="mt-4 flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-sm">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4 text-gray-400"><circle cx="9" cy="9" r="5.5"/><path d="m13.5 13.5 3 3"/></svg>
-        <input
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400"
-          placeholder="Search for a rep"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+      <div className="mt-4">
+        <AskSearch value={q} onChange={setQ} before="Search for a reps or" after="about your accounts" />
       </div>
       <div className="mt-2.5 flex flex-wrap gap-2">
         {SUGGESTIONS.map((s) => (

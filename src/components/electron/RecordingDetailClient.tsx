@@ -3,6 +3,28 @@
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 
+// Deterministic pseudo-waveform: bar heights hashed from the run id so the
+// player looks like the design without inventing per-sample amplitude data.
+function waveformBars(seed: string, count = 72): number[] {
+  const bars: number[] = [];
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < count; i++) {
+    h = (h * 1103515245 + 12345) >>> 0;
+    bars.push(0.25 + (h % 1000) / 1400);
+  }
+  return bars;
+}
+
+const RATES = [1, 1.25, 1.5, 2];
+
+function fmt(sec: number): string {
+  if (!Number.isFinite(sec)) return "0:00";
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 export type DetailLine = {
   id: string;
   speaker: string;
@@ -58,11 +80,68 @@ function initials(name: string): string {
 
 const AVATAR_COLORS = ["bg-rose-400", "bg-emerald-500", "bg-indigo-400", "bg-amber-400"];
 
+type PlaybookInsight = { text: string; refs: string[] };
+type Playbook = {
+  mode: "hubspot" | "local";
+  winPatterns: PlaybookInsight[];
+  lossPatterns: PlaybookInsight[];
+  recommendations: PlaybookInsight[];
+  basis: string;
+};
+
 export function RecordingDetailClient({ detail }: { detail: RecordingDetail }) {
   const [tab, setTab] = useState<"transcript" | "email">("transcript");
   const [emailDraft, setEmailDraft] = useState(detail.email);
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
+  const [playbook, setPlaybook] = useState<Playbook | null>(null);
+  const [playbookStatus, setPlaybookStatus] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [rateIndex, setRateIndex] = useState(0);
+  const bars = useMemo(() => waveformBars(detail.id), [detail.id]);
+
+  function togglePlay() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) audio.play().catch(() => null);
+    else audio.pause();
+  }
+
+  function cycleRate() {
+    const next = (rateIndex + 1) % RATES.length;
+    setRateIndex(next);
+    if (audioRef.current) audioRef.current.playbackRate = RATES[next]!;
+  }
+
+  function seekFraction(fraction: number) {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(audio.duration)) return;
+    audio.currentTime = fraction * audio.duration;
+    audio.play().catch(() => null);
+  }
+
+  async function generatePlaybook() {
+    setPlaybookStatus("Mining similar deals…");
+    try {
+      const response = await fetch("/api/playbook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ runId: detail.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Playbook failed");
+      setPlaybook(data.playbook);
+      setPlaybookStatus(
+        data.droppedInsights > 0
+          ? `${data.droppedInsights} unverifiable insight${data.droppedInsights === 1 ? "" : "s"} dropped by the gate.`
+          : null,
+      );
+    } catch (error) {
+      setPlaybookStatus(error instanceof Error ? error.message : "Playbook failed");
+    }
+  }
 
   const speakerColor = useMemo(() => {
     const map = new Map<string, string>();
@@ -139,14 +218,69 @@ export function RecordingDetailClient({ detail }: { detail: RecordingDetail }) {
       </div>
 
       {detail.hasAudio ? (
-        <div className="mt-5 rounded-xl border border-gray-200 bg-white px-5 py-3 shadow-sm">
+        <div className="mt-5 flex items-center gap-4 rounded-2xl border border-gray-200 bg-white px-5 py-3.5 shadow-sm">
           <audio
             ref={audioRef}
-            controls
             preload="metadata"
             src={`/api/runs/${detail.id}/audio`}
-            className="w-full"
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime)}
+            onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+            className="hidden"
           />
+          <button
+            onClick={togglePlay}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-700"
+          >
+            {playing ? (
+              <svg viewBox="0 0 16 16" fill="currentColor" className="h-4 w-4"><rect x="3.5" y="3" width="3" height="10" rx="1"/><rect x="9.5" y="3" width="3" height="10" rx="1"/></svg>
+            ) : (
+              <svg viewBox="0 0 16 16" fill="currentColor" className="ml-0.5 h-4 w-4"><path d="M4.5 3.2v9.6a.6.6 0 0 0 .92.5l7.2-4.8a.6.6 0 0 0 0-1L5.42 2.7a.6.6 0 0 0-.92.5Z"/></svg>
+            )}
+          </button>
+          <div
+            className="flex h-9 flex-1 cursor-pointer items-center gap-[2px]"
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              seekFraction((e.clientX - rect.left) / rect.width);
+            }}
+          >
+            {bars.map((h, i) => {
+              const played = duration > 0 && i / bars.length <= current / duration;
+              return (
+                <span
+                  key={i}
+                  className={`w-[3px] rounded-full ${played ? "bg-indigo-600" : "bg-indigo-200"}`}
+                  style={{ height: `${Math.round(h * 34)}px` }}
+                />
+              );
+            })}
+          </div>
+          <span className="shrink-0 text-sm tabular-nums text-gray-600">
+            {fmt(current)} / {fmt(duration)}
+          </span>
+          <button
+            onClick={() => seekFraction(0)}
+            title="Restart"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50"
+          >
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4"><path d="M8 3a5 5 0 1 1-4.7 3.3"/><path d="M3 2v4h4"/></svg>
+          </button>
+          <button
+            onClick={cycleRate}
+            className="shrink-0 rounded-full border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            {RATES[rateIndex]!.toFixed(RATES[rateIndex]! % 1 === 0 ? 1 : 2)}x
+          </button>
+          <a
+            href={`/api/runs/${detail.id}/audio`}
+            download
+            title="Download recording"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50"
+          >
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4"><path d="M8 2.5v8m0 0 3-3m-3 3-3-3"/><path d="M3 13.5h10"/></svg>
+          </a>
         </div>
       ) : (
         <div className="mt-5 rounded-xl border border-dashed border-gray-200 bg-white px-5 py-3 text-sm text-gray-400">
@@ -250,10 +384,10 @@ export function RecordingDetailClient({ detail }: { detail: RecordingDetail }) {
 
           <div className="mt-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-              {detail.scoreBasis === "momentum" ? "Deal momentum" : "Receipt coverage"}
+              Overall sentiment
             </p>
             <div className="mt-2 flex items-center gap-4">
-              <span className={`text-4xl font-bold ${detail.score >= 60 ? "text-emerald-500" : detail.score >= 40 ? "text-emerald-500" : "text-red-500"}`}>
+              <span className={`text-4xl font-bold ${detail.score >= 40 ? "text-emerald-500" : "text-red-500"}`}>
                 {detail.score}%
               </span>
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
@@ -263,6 +397,11 @@ export function RecordingDetailClient({ detail }: { detail: RecordingDetail }) {
                 />
               </div>
             </div>
+            <p className="mt-2 text-[11px] text-gray-400">
+              {detail.scoreBasis === "momentum"
+                ? "computed as deal momentum from gate-passed claims"
+                : "computed as receipt coverage of the call's claims"}
+            </p>
           </div>
 
           <div className="mt-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -299,6 +438,54 @@ export function RecordingDetailClient({ detail }: { detail: RecordingDetail }) {
                 </span>
               ))}
             </div>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+              Path to close
+            </p>
+            {!playbook && (
+              <button
+                onClick={generatePlaybook}
+                className="mt-3 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+              >
+                Generate playbook from similar deals
+              </button>
+            )}
+            {playbook && (
+              <div className="mt-3 space-y-3">
+                {playbook.winPatterns.map((p) => (
+                  <p key={p.text.slice(0, 24)} className="text-sm leading-relaxed text-gray-700">
+                    <span className="font-medium text-emerald-600">Won when:</span> {p.text}
+                  </p>
+                ))}
+                {playbook.lossPatterns.map((p) => (
+                  <p key={p.text.slice(0, 24)} className="text-sm leading-relaxed text-gray-700">
+                    <span className="font-medium text-red-500">Lost when:</span> {p.text}
+                  </p>
+                ))}
+                {playbook.recommendations.map((p) => (
+                  <div key={p.text.slice(0, 24)}>
+                    <p className="text-sm leading-relaxed text-gray-700">
+                      <span className="font-medium text-indigo-600">Do:</span> {p.text}
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-400">
+                      based on: {p.refs.slice(0, 3).join(" · ")}
+                      {p.refs.length > 3 ? ` +${p.refs.length - 3}` : ""}
+                    </p>
+                  </div>
+                ))}
+                {playbook.winPatterns.length + playbook.lossPatterns.length + playbook.recommendations.length === 0 && (
+                  <p className="text-sm text-gray-500">
+                    Not enough history yet — analyze more calls or connect HubSpot.
+                  </p>
+                )}
+                <p className="text-xs text-gray-400">{playbook.basis}</p>
+              </div>
+            )}
+            {playbookStatus && (
+              <p className="mt-2 text-xs text-gray-500">{playbookStatus}</p>
+            )}
           </div>
 
           <Link
