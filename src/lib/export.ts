@@ -1,8 +1,12 @@
+import { isSentinelEvidence } from "@/lib/analysis-view";
 import {
   backedFraction,
+  callTimeLabel,
+  callTitle,
   COVERAGE_BAND_LABEL,
   NOTE_STATUS_LABEL,
   RUN_STATUS_LABEL,
+  speakerDisplayName,
 } from "@/lib/labels";
 import { ClaimStatus, DealNotes, RunRecord, TranscriptLine } from "@/lib/types";
 
@@ -14,9 +18,22 @@ function claimMd(
   },
   transcript: TranscriptLine[],
 ): string {
-  const line = transcript.find((l) => l.id === claim.evidence.lineId);
-  const loc = line ? `line ${line.index + 1} · ${line.speaker}` : claim.evidence.lineId;
   const badge = claim.status ? ` [${NOTE_STATUS_LABEL[claim.status]}]` : "";
+  const line = transcript.find((l) => l.id === claim.evidence.lineId);
+  // The same display contract the screen follows: a note the call could not
+  // back carries no source row, because the absence is the information and a
+  // quote nobody said is not a citation.
+  if (
+    !line ||
+    claim.status === "uncorroborated" ||
+    isSentinelEvidence(claim.evidence)
+  ) {
+    return `- ${claim.text}${badge}`;
+  }
+  const who = speakerDisplayName(line.speaker);
+  const loc =
+    [callTimeLabel(line.startMs), who].filter(Boolean).join(" · ") ||
+    `line ${line.index + 1}`;
   return `- ${claim.text}${badge}\n  - Source (${loc}): “${claim.evidence.quote}”`;
 }
 
@@ -25,7 +42,7 @@ export function notesToMarkdown(run: RunRecord): string {
   if (!notes) return `# ${run.sourceLabel}\n\n_No notes came out of this call._\n`;
 
   const sections: string[] = [
-    `# ${notes.title}`,
+    `# ${callTitle(notes.title, run.sourceLabel)}`,
     "",
     `**${RUN_STATUS_LABEL[run.status]}** · From: ${run.sourceLabel}`,
     notes.coverage
@@ -71,9 +88,15 @@ export function notesToMarkdown(run: RunRecord): string {
     "---",
     "",
     "## Transcript",
-    ...run.transcript.map(
-      (line) => `**[${line.id}] ${line.speaker}:** ${line.text}`,
-    ),
+    ...run.transcript.map((line) => {
+      const head = [
+        callTimeLabel(line.startMs),
+        speakerDisplayName(line.speaker),
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      return head ? `**${head}:** ${line.text}` : line.text;
+    }),
     "",
     "_Runs on PyAI · OpenGong Lite_",
   ];
