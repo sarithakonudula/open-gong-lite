@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function UploadClient() {
   const router = useRouter();
@@ -11,6 +11,39 @@ export function UploadClient() {
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sampleLoaded, setSampleLoaded] = useState<boolean | null>(null);
+  const [sampleStatus, setSampleStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/sample-data")
+      .then((r) => r.json())
+      .then((d) => setSampleLoaded(Boolean(d.loaded)))
+      .catch(() => setSampleLoaded(false));
+  }, []);
+
+  async function toggleSampleData() {
+    const loading = !sampleLoaded;
+    setBusy("sample");
+    setSampleStatus(loading ? "Seeding 20 companies through the gates…" : "Clearing sample data…");
+    try {
+      const res = await fetch("/api/sample-data", {
+        method: loading ? "POST" : "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Sample data failed");
+      setSampleLoaded(Boolean(data.loaded));
+      if (loading) {
+        setSampleStatus(null);
+        router.push("/recordings");
+      } else {
+        setSampleStatus(`Removed ${data.removed} sample calls.`);
+      }
+    } catch (err) {
+      setSampleStatus(err instanceof Error ? err.message : "Sample data failed");
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function analyzeUpload() {
     if (!file) {
@@ -62,6 +95,27 @@ export function UploadClient() {
         <p className="mx-auto mt-4 max-w-xl rounded-lg bg-red-50 px-4 py-2.5 text-center text-sm text-red-600">
           {error}
         </p>
+      )}
+
+      <div className="mx-auto mt-6 flex max-w-2xl items-center gap-4 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3.5">
+        <span className="rounded-md bg-amber-400/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-700">
+          Sample data
+        </span>
+        <span className="flex-1 text-sm text-amber-900">
+          {sampleLoaded
+            ? "Sample dataset is loaded — 20 companies across deal stages, tagged on every screen."
+            : "Explore with a sample dataset: 20 companies across deal stages, 10 featured calls — every claim runs through the real evidence gates."}
+        </span>
+        <button
+          onClick={toggleSampleData}
+          disabled={busy === "sample" || sampleLoaded === null}
+          className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+        >
+          {busy === "sample" ? "Working…" : sampleLoaded ? "Clear sample data" : "Load sample data"}
+        </button>
+      </div>
+      {sampleStatus && (
+        <p className="mt-2 text-center text-xs text-gray-500">{sampleStatus}</p>
       )}
 
       <div className="mt-10 grid gap-6 md:grid-cols-2">

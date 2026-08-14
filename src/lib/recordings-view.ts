@@ -27,6 +27,8 @@ export type RecordingRow = {
   callKind: CallKind;
   status: RunRecord["status"];
   durationLabel: string | null;
+  /** True for demo/sample runs — the UI tags these visibly. */
+  isSample: boolean;
 };
 
 export function dealStateFor(
@@ -85,6 +87,7 @@ export function toRecordingRow(
     callKind: kind,
     status: run.status,
     durationLabel,
+    isSample: run.source === "sample",
   };
 }
 

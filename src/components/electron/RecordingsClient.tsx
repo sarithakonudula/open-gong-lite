@@ -14,6 +14,7 @@ type Row = {
   score: number;
   dealState: "Positive" | "Neutral" | "At Risk";
   callKind: string;
+  isSample: boolean;
 };
 
 const STATE_STYLE: Record<Row["dealState"], string> = {
@@ -107,6 +108,15 @@ export function RecordingsClient() {
         </select>
       </div>
 
+      {sorted.some((r) => r.isSample) && (
+        <div className="mt-3 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+          <span className="rounded-md bg-amber-400/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-700">
+            Sample data
+          </span>
+          Rows tagged “sample” are demo calls — clear them from the Upload page.
+        </div>
+      )}
+
       <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="grid grid-cols-[1fr_140px_90px_80px_110px] gap-4 border-b border-gray-100 px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
           <span>Meeting name</span>
@@ -134,7 +144,14 @@ export function RecordingsClient() {
             className="grid grid-cols-[1fr_140px_90px_80px_110px] items-center gap-4 border-b border-gray-100 px-5 py-4 last:border-0 hover:bg-gray-50"
           >
             <span className="min-w-0">
-              <span className="block truncate font-semibold">{row.title}</span>
+              <span className="flex items-center gap-2">
+                <span className="truncate font-semibold">{row.title}</span>
+                {row.isSample && (
+                  <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                    sample
+                  </span>
+                )}
+              </span>
               {row.quote && (
                 <span className="mt-0.5 block truncate text-sm text-gray-500">
                   “{row.quote}”
