@@ -21,7 +21,6 @@
 import {
   callTimeLabel,
   callTitle,
-  isMachineSpeakerLabel,
   nextStepOwnerLabel,
   speakerDisplayName,
 } from "@/lib/labels";
@@ -222,15 +221,12 @@ function dedupe(notes: NoteView[]): NoteView[] {
  *
  * A single-stream recording gives the diarizer one voice track and it guesses.
  * When that guess overshoots, it leaves numbered labels behind ("Speaker 3"),
- * and a number is not a person. One label for the whole call is not an
- * identity either. Both cases drop speaker display for the call rather than
- * print an identity nobody can stand behind.
+ * and a number is not a person. Ignore those labels when deciding whether the
+ * call has useful identities, rather than letting one noisy turn hide valid
+ * Rep / Prospect (or named) differentiation for the entire transcript.
  */
 export function shouldShowSpeakers(transcript: TranscriptLine[]): boolean {
   if (!transcript.length) return false;
-  if (transcript.some((line) => isMachineSpeakerLabel(line.speaker))) {
-    return false;
-  }
   const names = new Set(
     transcript
       .map((line) => speakerDisplayName(line.speaker))

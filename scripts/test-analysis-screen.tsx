@@ -633,10 +633,12 @@ describe("nothing internal reaches the page", () => {
 /* ------------------------------------------------------------------ */
 
 describe("a single stream never gets an invented speaker", () => {
-  it("drops speaker display for a call the diarizer overshot", () => {
-    assert.equal(shouldShowSpeakers(MONO), false);
+  it("keeps valid speaker differentiation when one turn has a machine label", () => {
+    assert.equal(shouldShowSpeakers(MONO), true);
     const html = render(messyRun());
     assert.doesNotMatch(html, /Speaker\s*\d/);
+    assert.match(html, /Rep/);
+    assert.match(html, /Prospect/);
   });
 
   it("keeps real identities on a call that has them", () => {
