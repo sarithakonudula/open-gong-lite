@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
+import { RunActionsBar } from "@/components/RunActionsBar";
 import { RunWorkspace } from "@/components/RunWorkspace";
 import { isAuthEnabled } from "@/lib/auth";
-import { hasLlmFallback } from "@/lib/config";
+import { hasLlmConfigured } from "@/lib/settings";
 import { demoSignalFeedForRun } from "@/lib/deal-signals";
 import {
   demoScorecardForRun,
@@ -54,12 +55,15 @@ export default async function RunPage({ params, searchParams }: Props) {
           </div>
         </div>
       </div>
+      <div className="mx-auto max-w-7xl px-5 md:px-8">
+        <RunActionsBar runId={run.id} />
+      </div>
       <RunWorkspace
         run={run}
         initialTab={initialTab}
         initialCard={initialCard}
         signalFeed={signalFeed}
-        llmAvailable={hasLlmFallback()}
+        llmAvailable={hasLlmConfigured()}
         packs={packs}
       />
     </main>

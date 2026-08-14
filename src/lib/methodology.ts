@@ -22,7 +22,7 @@
 import { z } from "zod";
 import { gateEvidenceQuote } from "@/lib/harness/gates";
 import { EvidenceSchema, type TranscriptLine } from "@/lib/types";
-import { config, hasLlmFallback } from "@/lib/config";
+import { resolveLlm } from "@/lib/settings";
 
 // ── Pack shapes ─────────────────────────────────────────────────────────────
 
@@ -455,19 +455,20 @@ export async function scoreCallWithLlm(
   pack: MethodologyPack,
   transcript: TranscriptLine[],
   opts: { dealValueUsd?: number | null } = {},
-): Promise<MethodologyScorecard> {
-  if (!hasLlmFallback()) {
+): Promise<{ card: MethodologyScorecard; rawVerdict: unknown }> {
+  const llm = resolveLlm();
+  if (!llm) {
     throw new Error("LLM is not configured — use applyMethodologyVerdict with a stored verdict, or the demo verdict");
   }
   const { system, user } = buildMethodologyPrompt(pack, transcript, opts);
-  const response = await fetch(`${config.llmBaseUrl}/chat/completions`, {
+  const response = await fetch(`${llm.baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${config.llmApiKey}`,
+      Authorization: `Bearer ${llm.apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: config.llmModel,
+      model: llm.model,
       temperature: 0.2,
       response_format: { type: "json_object" },
       messages: [
@@ -485,7 +486,11 @@ export async function scoreCallWithLlm(
   };
   const content = data.choices?.[0]?.message?.content;
   if (!content) throw new Error("Empty methodology scoring response");
-  return applyMethodologyVerdict(pack, transcript, JSON.parse(content), opts);
+  const rawVerdict = JSON.parse(content) as unknown;
+  return {
+    card: applyMethodologyVerdict(pack, transcript, rawVerdict, opts),
+    rawVerdict,
+  };
 }
 
 // ── Keyless demo (spends nothing; used by tests and the demo path) ──────────

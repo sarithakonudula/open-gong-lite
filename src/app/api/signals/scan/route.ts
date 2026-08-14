@@ -1,0 +1,204 @@
+import { NextResponse } from "next/server";
+import {
+  DealSignal,
+  DealSignalFeed,
+  evaluateDealSignals,
+} from "@/lib/deal-signals";
+import {
+  alertToTaskProperties,
+  createTaskForDeal,
+  HsDeal,
+  hubspotConfigured,
+  listOpenDeals,
+} from "@/lib/hubspot";
+import { alertsAtOrAbove, formatAlertsMessage, sendSlack } from "@/lib/notify";
+import { loadSample } from "@/lib/samples";
+import { getSettings, resolveSlackWebhook } from "@/lib/settings";
+import { listFullRuns } from "@/lib/store";
+import { RunRecord, TranscriptLine } from "@/lib/types";
+
+export const runtime = "nodejs";
+export const maxDuration = 120;
+
+const MAX_TASKS_PER_SCAN = 5;
+const TYPICAL_CYCLE_DAYS = 30;
+
+function daysSince(iso: string | null, nowMs: number): number | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return null;
+  return Math.floor((nowMs - t) / 86_400_000);
+}
+
+function tokenize(s: string): Set<string> {
+  return new Set(
+    s
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((t) => t.length >= 4),
+  );
+}
+
+/** Best stored transcript for a deal, by company-name token overlap. */
+function transcriptForDeal(
+  deal: HsDeal,
+  runs: RunRecord[],
+  companies: Map<string, string>,
+): TranscriptLine[] {
+  const dealTokens = tokenize(deal.name);
+  let best: { overlap: number; run: RunRecord } | null = null;
+  for (const run of runs) {
+    const company = companies.get(run.id) ?? run.sourceLabel;
+    const tokens = tokenize(company);
+    let overlap = 0;
+    for (const t of tokens) if (dealTokens.has(t)) overlap += 1;
+    if (overlap > 0 && (!best || overlap > best.overlap)) {
+      best = { overlap, run };
+    }
+  }
+  return best?.run.transcript ?? [];
+}
+
+function signalsForHubspotDeal(deal: HsDeal, now: string): DealSignal[] {
+  const nowMs = Date.parse(now);
+  const signals: DealSignal[] = [];
+  const idle = daysSince(deal.lastNoteAt ?? deal.lastModified, nowMs);
+  if (idle != null && idle >= 1) {
+    signals.push({
+      type: "inactivity",
+      company: deal.name,
+      at: now,
+      summary: `No CRM activity for ${idle} day${idle === 1 ? "" : "s"}`,
+      attrs: { daysSince: idle, lastActivity: "CRM activity" },
+    });
+  }
+  const age = daysSince(deal.createdAt, nowMs);
+  if (age != null && age >= 1) {
+    signals.push({
+      type: "deal_age",
+      company: deal.name,
+      at: now,
+      summary: `Deal open ${age} days`,
+      attrs: { daysOpen: age, typicalCycleDays: TYPICAL_CYCLE_DAYS },
+    });
+  }
+  return signals;
+}
+
+/**
+ * POST /api/signals/scan — the "warn the rep" loop. Hit it from a cron
+ * (Railway cron, GitHub Action, curl in crontab). With HubSpot configured it
+ * scans open deals for inactivity/age risk grounded in stored call
+ * transcripts; keyless it scans stored runs. Alerts at or above the admin
+ * threshold go to Slack; pushable alerts become HubSpot tasks.
+ */
+export async function POST() {
+  const now = new Date().toISOString();
+  const floor = getSettings().riskNotifyFloor;
+  const runs = await listFullRuns(100);
+  const companies = new Map<string, string>();
+  for (const run of runs) {
+    const sample = run.sampleSlug ? await loadSample(run.sampleSlug) : null;
+    companies.set(run.id, sample?.meta.company ?? run.sourceLabel);
+  }
+
+  const feeds: DealSignalFeed[] = [];
+  let tasksCreated = 0;
+
+  if (hubspotConfigured()) {
+    let deals: HsDeal[] = [];
+    try {
+      deals = await listOpenDeals(20);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? `HubSpot scan failed: ${error.message.slice(0, 200)}`
+              : "HubSpot scan failed",
+        },
+        { status: 502 },
+      );
+    }
+    for (const deal of deals) {
+      const signals = signalsForHubspotDeal(deal, now);
+      if (signals.length === 0) continue;
+      const feed = evaluateDealSignals({
+        company: deal.name,
+        transcript: transcriptForDeal(deal, runs, companies),
+        signals,
+        dealValueUsd: deal.amount,
+        now,
+        mode: "live",
+      });
+      feeds.push(feed);
+      for (const alert of feed.alerts) {
+        if (!alert.push || tasksCreated >= MAX_TASKS_PER_SCAN) continue;
+        try {
+          await createTaskForDeal(
+            deal.id,
+            alertToTaskProperties(alert, deal.name, now),
+          );
+          tasksCreated += 1;
+        } catch {
+          // task push is best-effort; the Slack alert still fires
+        }
+      }
+    }
+  } else {
+    // Keyless: latest run per company, inactivity measured from run age.
+    const latestByCompany = new Map<string, RunRecord>();
+    for (const run of runs) {
+      const company = companies.get(run.id) ?? run.sourceLabel;
+      const existing = latestByCompany.get(company);
+      if (!existing || run.createdAt > existing.createdAt) {
+        latestByCompany.set(company, run);
+      }
+    }
+    for (const [company, run] of latestByCompany) {
+      const idle = daysSince(run.createdAt, Date.parse(now));
+      if (idle == null || idle < 1) continue;
+      const feed = evaluateDealSignals({
+        company,
+        transcript: run.transcript,
+        signals: [
+          {
+            type: "inactivity",
+            company,
+            at: now,
+            summary: `No new call analyzed for ${idle} day${idle === 1 ? "" : "s"}`,
+            attrs: { daysSince: idle, lastActivity: "last analyzed call" },
+          },
+        ],
+        now,
+        mode: "live",
+      });
+      feeds.push(feed);
+    }
+  }
+
+  const notifiable = feeds
+    .map((feed) => ({ feed, alerts: alertsAtOrAbove(feed, floor) }))
+    .filter((f) => f.alerts.length > 0);
+  let notified = false;
+  if (notifiable.length > 0 && resolveSlackWebhook()) {
+    notified = await sendSlack(formatAlertsMessage(notifiable));
+  }
+
+  return NextResponse.json({
+    scannedAt: now,
+    mode: hubspotConfigured() ? "hubspot" : "runs",
+    companies: feeds.length,
+    alerts: feeds.reduce((sum, f) => sum + f.alerts.length, 0),
+    notified,
+    tasksCreated,
+    feeds: feeds.map((f) => ({
+      company: f.company,
+      alerts: f.alerts.map((a) => ({
+        severity: a.severity,
+        title: a.title,
+        play: a.play,
+      })),
+    })),
+  });
+}
