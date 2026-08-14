@@ -289,7 +289,13 @@ export function RecordingWorkspace({
         </div>
       )}
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+      <div
+        className={`mt-6 grid gap-8 ${
+          tab === "scorecard"
+            ? "lg:grid-cols-1"
+            : "lg:grid-cols-[1.1fr_0.9fr]"
+        }`}
+      >
         <div className="min-w-0">
           <div className="flex gap-6 border-b border-edge">
             <button
@@ -375,6 +381,7 @@ export function RecordingWorkspace({
                   detectedKind={detectedKind}
                   llmAvailable={llmAvailable}
                   packs={packs}
+                  onSource={jumpToLine}
                 />
               </div>
             ) : (
@@ -385,16 +392,18 @@ export function RecordingWorkspace({
           </div>
         </div>
 
-        <aside className="min-w-0">
-          <div className="lg:sticky lg:top-6">
-            <p className="pb-3 text-[15px] font-semibold text-fg">
-              ⊕ Call Insights
-            </p>
-            <div className="max-h-[80vh] overflow-y-auto pr-1">
-              <InsightsRail notes={notes} view={view} onSource={jumpToLine} />
+        {tab !== "scorecard" && (
+          <aside className="min-w-0">
+            <div className="lg:sticky lg:top-6">
+              <p className="pb-3 text-[15px] font-semibold text-fg">
+                ⊕ Call Insights
+              </p>
+              <div className="max-h-[80vh] overflow-y-auto pr-1">
+                <InsightsRail notes={notes} view={view} onSource={jumpToLine} />
+              </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+        )}
       </div>
     </div>
   );

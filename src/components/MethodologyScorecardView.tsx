@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import type { MethodologyScorecard, Depth } from "@/lib/methodology";
 import {
   contextFlagLabel,
@@ -53,6 +53,7 @@ export function MethodologyScorecardView({
   packs,
   defaultPackId,
   detectedKind,
+  onSource,
 }: {
   run: RunRecord;
   initialCard: MethodologyScorecard | null;
@@ -60,6 +61,8 @@ export function MethodologyScorecardView({
   packs: Array<{ id: string; name: string }>;
   defaultPackId?: string;
   detectedKind?: string;
+  /** Jump to the transcript moment for a source quote. */
+  onSource?: (lineId: string) => void;
 }) {
   const [card, setCard] = useState<MethodologyScorecard | null>(initialCard);
   const [packId, setPackId] = useState(
@@ -71,9 +74,6 @@ export function MethodologyScorecardView({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [activeLineId, setActiveLineId] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const canPlayAudio = Boolean(run.audioContentType);
 
   // Sync from the server-provided card without an effect (adjust-during-render
   // pattern from react.dev/learn/you-might-not-need-an-effect).
@@ -81,26 +81,6 @@ export function MethodologyScorecardView({
   if (initialCard !== prevInitialCard) {
     setPrevInitialCard(initialCard);
     setCard(initialCard);
-  }
-
-  useEffect(() => {
-    if (!activeLineId) return;
-    const el = document.getElementById(`score-line-${activeLineId}`);
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [activeLineId]);
-
-  function jumpToLine(lineId: string) {
-    setActiveLineId(lineId);
-    if (!canPlayAudio || !audioRef.current) return;
-    const line = run.transcript.find((l) => l.id === lineId);
-    if (line?.startMs == null) return;
-    const audio = audioRef.current;
-    const seek = () => {
-      audio.currentTime = line.startMs! / 1000;
-      void audio.play().catch(() => undefined);
-    };
-    if (audio.readyState >= 1) seek();
-    else audio.addEventListener("loadedmetadata", seek, { once: true });
   }
 
   async function copyReport() {
@@ -168,9 +148,8 @@ export function MethodologyScorecardView({
   );
 
   return (
-    <div className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-8 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
-      <div className="space-y-8">
-        <header className="space-y-4 animate-rise">
+    <div className="mx-auto w-full max-w-4xl space-y-8 px-5 py-8 lg:px-8">
+      <header className="space-y-4 animate-rise">
           <p className="text-xs uppercase tracking-[0.22em] text-brand">
             Methodology coach
           </p>
@@ -219,7 +198,7 @@ export function MethodologyScorecardView({
           )}
         </header>
 
-        <section className="space-y-3 rounded-2xl border border-edge bg-surface p-4">
+        <section className="space-y-3 rounded-2xl border border-edge bg-canvas p-4">
           <p className="text-xs uppercase tracking-[0.18em] text-fg-soft">
             Live score
             {detectedKind ? (
@@ -347,7 +326,7 @@ export function MethodologyScorecardView({
                               ? "text-danger"
                               : ""
                           }`}
-                          onClick={() => jumpToLine(ev.lineId)}
+                          onClick={() => onSource?.(ev.lineId)}
                         >
                           {ev.status === "uncorroborated"
                             ? "Quote the AI offered"
@@ -422,52 +401,6 @@ export function MethodologyScorecardView({
             </section>
           </div>
         )}
-      </div>
-
-      <aside className="animate-rise-delay-2">
-        <div className="sticky top-6 overflow-hidden rounded-[1.5rem] border border-edge bg-surface">
-          <div className="border-b border-edge px-5 py-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-fg-soft">
-              Transcript
-            </p>
-            <p className="mt-1 text-sm text-fg-muted">
-              Click a Source to jump to the line it came from.
-            </p>
-            {canPlayAudio && (
-              <audio
-                ref={audioRef}
-                className="mt-3 w-full"
-                controls
-                preload="metadata"
-                src={`/api/runs/${run.id}/audio`}
-              />
-            )}
-          </div>
-          <div className="max-h-[70vh] space-y-1 overflow-y-auto p-3">
-            {run.transcript.map((line) => {
-              const active = activeLineId === line.id;
-              return (
-                <button
-                  key={line.id}
-                  id={`score-line-${line.id}`}
-                  type="button"
-                  onClick={() => jumpToLine(line.id)}
-                  className={`w-full rounded-xl px-3 py-3 text-left transition ${
-                    active ? "line-active" : "hover:bg-white/5"
-                  }`}
-                >
-                  <div className="mb-1 flex items-center gap-2 text-xs text-fg-soft">
-                    <span>{line.id}</span>
-                    <span>·</span>
-                    <span>{line.speaker}</span>
-                  </div>
-                  <p className="text-sm leading-relaxed text-fg">{line.text}</p>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </aside>
     </div>
   );
 }
