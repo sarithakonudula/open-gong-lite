@@ -53,6 +53,8 @@ async function withRoutedFollowUp(notes: RunNotes): Promise<RunNotes> {
 export type AnalyzeInput = {
   source: "upload" | "url" | "sample" | "live";
   sourceLabel: string;
+  /** Customer/company for deal clustering — from the upload form or CRM. */
+  company?: string;
   /** Sample slug when source is sample — attaches a stored methodology verdict. */
   sampleSlug?: string;
   transcript: TranscriptLine[];
@@ -156,6 +158,7 @@ export async function runDealNotesLoop(
     status: "running",
     source: input.source,
     sourceLabel: input.sourceLabel,
+    ...(input.company ? { company: input.company } : {}),
     ...(input.sampleSlug ? { sampleSlug: input.sampleSlug } : {}),
     shareToken: newShareToken(),
     transcript: input.transcript,

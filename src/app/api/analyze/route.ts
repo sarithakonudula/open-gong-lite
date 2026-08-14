@@ -112,6 +112,9 @@ export async function POST(request: NextRequest) {
           sourceLabel: (
             linkTitle ?? `gdrive: ${downloaded.filename}`
           ).slice(0, 120),
+          ...(body.customerName?.trim()
+            ? { company: body.customerName.trim().slice(0, 120) }
+            : {}),
           transcript,
           titleHint:
             body.customerName || linkTitle || downloaded.filename || "Call from Drive",
@@ -154,6 +157,9 @@ export async function POST(request: NextRequest) {
         // The clean title (names, not tokens) is the label; raw URL only as
         // a last resort.
         sourceLabel: (linkTitle ?? `${resolved.parsed.provider}: ${url}`).slice(0, 120),
+        ...(body.customerName?.trim()
+          ? { company: body.customerName.trim().slice(0, 120) }
+          : {}),
         transcript,
         titleHint: body.customerName || linkTitle || "Call from URL",
         recap,
@@ -209,6 +215,9 @@ export async function POST(request: NextRequest) {
     const run = await runDealNotesLoop({
       source: "upload",
       sourceLabel: file.name || "Uploaded call",
+      ...(customerName?.trim()
+        ? { company: customerName.trim().slice(0, 120) }
+        : {}),
       transcript,
       titleHint: customerName || file.name || "Uploaded call",
       recap,
