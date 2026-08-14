@@ -4,12 +4,15 @@
 // top but never introduces facts (it only rephrases the bullet inputs).
 
 import { CallKind, detectCallKind, KIND_LABEL } from "@/lib/call-kind";
+import { normalizeCompanyKey } from "@/lib/company";
 import { DealAlert, DealSignalFeed } from "@/lib/deal-signals";
 import { computeMomentum, MomentumResult } from "@/lib/momentum";
 import { isEmailableStatus, RunRecord } from "@/lib/types";
 
 export type DigestEntry = {
   company: string;
+  /** Normalized grouping key — stable across "Acme" / "Acme, Inc." spellings. */
+  companyKey: string;
   latestRun: RunRecord;
   callCount: number;
   /** Detected kind of the latest call — support/CS entries carry no momentum. */
@@ -49,19 +52,26 @@ export function buildDigestEntries(
     feedForCompany?: (company: string) => DealSignalFeed | null;
   },
 ): DigestEntry[] {
-  const byCompany = new Map<string, RunRecord[]>();
+  // Grouped by normalized key so "Brightsmile Dental" and "Brightsmile
+  // Dental Group" land in one cluster; the newest run's spelling is shown.
+  const byCompany = new Map<string, { names: string[]; runs: RunRecord[] }>();
   for (const run of runs) {
     if (!run.notes) continue;
-    const company = opts.companyForRun(run);
-    byCompany.set(company, [...(byCompany.get(company) ?? []), run]);
+    const name = opts.companyForRun(run);
+    const key = normalizeCompanyKey(name);
+    const group = byCompany.get(key) ?? { names: [], runs: [] };
+    group.names.push(name);
+    group.runs.push(run);
+    byCompany.set(key, group);
   }
 
   const entries: DigestEntry[] = [];
-  for (const [company, group] of byCompany) {
-    const sorted = [...group].sort((a, b) =>
-      b.createdAt.localeCompare(a.createdAt),
-    );
-    const latest = sorted[0]!;
+  for (const [companyKey, group] of byCompany) {
+    const sorted = group.runs
+      .map((run, i) => ({ run, name: group.names[i]! }))
+      .sort((a, b) => b.run.createdAt.localeCompare(a.run.createdAt));
+    const latest = sorted[0]!.run;
+    const company = sorted[0]!.name;
     const notes = latest.notes!;
     // Deal momentum is a sales concept — a support ticket call scoring
     // "stalling" would be noise, so non-sales entries carry no momentum.
@@ -72,6 +82,7 @@ export function buildDigestEntries(
     const feed = opts.feedForCompany?.(company) ?? null;
     entries.push({
       company,
+      companyKey,
       latestRun: latest,
       callCount: sorted.length,
       callKind,

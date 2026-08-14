@@ -3,7 +3,11 @@ import {
   CompanyCluster,
 } from "@/components/companies/CompaniesClient";
 import { KIND_LABEL } from "@/lib/call-kind";
-import { buildSampleCompanyIndex, companyForRun } from "@/lib/company";
+import {
+  buildSampleCompanyIndex,
+  companyForRun,
+  normalizeCompanyKey,
+} from "@/lib/company";
 import { demoSignalFeedForRun, DealSignalFeed } from "@/lib/deal-signals";
 import { buildDigestEntries, digestTotals } from "@/lib/digest";
 import { toRecordingRow } from "@/lib/recording-row";
@@ -22,16 +26,18 @@ export default async function CompaniesPage() {
   const forRun = (run: RunRecord) => companyForRun(run, index);
 
   // Newest run's signal feed per company (mirrors the digest route wiring).
+  // Keyed by normalized key so spelling variants share one feed.
   const feedByCompany = new Map<string, DealSignalFeed | null>();
   for (const run of runs) {
-    const company = forRun(run);
-    if (feedByCompany.has(company)) continue;
-    feedByCompany.set(company, demoSignalFeedForRun(run, index.titleToSlug));
+    const key = normalizeCompanyKey(forRun(run));
+    if (feedByCompany.has(key)) continue;
+    feedByCompany.set(key, demoSignalFeedForRun(run, index.titleToSlug));
   }
 
   const entries = buildDigestEntries(runs, {
     companyForRun: forRun,
-    feedForCompany: (company) => feedByCompany.get(company) ?? null,
+    feedForCompany: (company) =>
+      feedByCompany.get(normalizeCompanyKey(company)) ?? null,
   });
   const totals = digestTotals(entries);
 
@@ -39,10 +45,10 @@ export default async function CompaniesPage() {
   const rowsByCompany = new Map<string, CompanyCluster["calls"]>();
   for (const run of runs) {
     if (!run.notes) continue;
-    const company = forRun(run);
+    const key = normalizeCompanyKey(forRun(run));
     const row = toRecordingRow(run, index);
-    rowsByCompany.set(company, [
-      ...(rowsByCompany.get(company) ?? []),
+    rowsByCompany.set(key, [
+      ...(rowsByCompany.get(key) ?? []),
       {
         id: row.id,
         title: row.title,
@@ -55,6 +61,7 @@ export default async function CompaniesPage() {
 
   const clusters: CompanyCluster[] = entries.map((entry) => ({
     company: entry.company,
+    companyKey: entry.companyKey,
     callCount: entry.callCount,
     callKindLabel: KIND_LABEL[entry.callKind],
     isSales: entry.callKind === "sales",
@@ -71,7 +78,7 @@ export default async function CompaniesPage() {
       title: a.title,
       play: a.play,
     })),
-    calls: (rowsByCompany.get(entry.company) ?? []).sort((a, b) =>
+    calls: (rowsByCompany.get(entry.companyKey) ?? []).sort((a, b) =>
       b.createdAt.localeCompare(a.createdAt),
     ),
   }));

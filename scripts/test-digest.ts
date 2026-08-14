@@ -74,6 +74,20 @@ describe("management digest", () => {
     assert.equal(acme.latestRun.id, "a2");
   });
 
+  it("merges companies that differ only by corporate suffix", () => {
+    const digest = buildDigest(
+      [
+        run("b1", "Brightsmile Dental", "2026-08-01T00:00:00Z", notes()),
+        run("b2", "Brightsmile Dental Group", "2026-08-10T00:00:00Z", notes()),
+      ],
+      { companyForRun: (r) => r.sourceLabel, now: NOW },
+    );
+    assert.equal(digest.totals.companies, 1);
+    assert.equal(digest.entries[0]!.callCount, 2);
+    assert.equal(digest.entries[0]!.company, "Brightsmile Dental Group");
+    assert.equal(digest.entries[0]!.companyKey, "brightsmile-dental");
+  });
+
   it("only verified claims reach the digest", () => {
     const digest = buildDigest([run("a1", "Acme", NOW, notes())], {
       companyForRun: (r) => r.sourceLabel,

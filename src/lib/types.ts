@@ -167,6 +167,11 @@ export const RunRecordSchema = z.object({
   sourceLabel: z.string(),
   /** Customer/company this call belongs to — groups runs into deal clusters. */
   company: z.string().optional(),
+  /**
+   * When the call actually happened (ISO), for imported/historical calls.
+   * createdAt is upload time and stays the fallback — see callDateForRun.
+   */
+  callDate: z.string().optional(),
   /** Sample slug when source is sample — used to attach a stored methodology verdict. */
   sampleSlug: z
     .string()
