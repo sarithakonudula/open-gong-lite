@@ -15,7 +15,8 @@ import { MomentumResult } from "@/lib/momentum";
 import { resolveHubspotToken } from "@/lib/settings";
 import { RunRecord } from "@/lib/types";
 
-const HUBSPOT_BASE = "https://api.hubapi.com";
+// HUBSPOT_API_BASE lets dev/demo runs point at scripts/mock-hubspot.mjs.
+const HUBSPOT_BASE = process.env.HUBSPOT_API_BASE || "https://api.hubapi.com";
 /** HubSpot-defined default association type ids. */
 const NOTE_TO_DEAL = 214;
 const TASK_TO_DEAL = 216;
