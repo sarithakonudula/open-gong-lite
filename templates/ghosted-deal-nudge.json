@@ -1,0 +1,30 @@
+{
+  "id": "ghosted-deal-nudge",
+  "version": "1.0.0",
+  "title": "Ghosted deal nudge",
+  "short": "ghosted nudge",
+  "priority": 20,
+  "spec": "research/13-sybill-deep/05-template-library.md section 4, template 5",
+  "situation": "The last call left a real step on the table and the deal has gone quiet since.",
+  "notes": "Sybill's own page promises this email will be grounded in where the deal actually left off and shows no mechanism. Ours cites the claim from the last real call, with its call id and its quote. Fires on deal silence, so it stays quiet on a deal whose calls carry no dates.",
+  "panel": {
+    "explainer": "The silence since the last call picked this template. A free model drafted it. The gate checked every line."
+  },
+  "subject": "Checking in on next steps",
+  "word_limit": 90,
+  "routing": {
+    "trigger": {
+      "all_of": [
+        { "scope": "deal", "metric": "days_since_last_call", "min": 14 },
+        { "section": "next_steps", "extractor": "next_steps", "where": { "type": ["concrete_date", "send_info", "soft_followup"] } }
+      ]
+    }
+  },
+  "blocks": [
+    { "type": "text", "role": "greeting", "text": "Hi {{recipient}},", "fallback": "Hi there," },
+    { "type": "slot", "role": "recap", "label": "Where we left off", "section": "next_steps", "extractor": "next_steps", "limit": 2, "hint": "The last thing each side said they would do. This is the moment the email anchors on." },
+    { "type": "instruction", "text": "Rewrite the lines above as one short email in the second person. Name the exact thing that was true when we last spoke, carrying the claim id it came from. Then ask one soft question. No urgency, no pressure, nothing about time running out. Short sentences." },
+    { "type": "text", "role": "cta", "text": "Still the right time, or has something changed on your end?" },
+    { "type": "text", "role": "signoff", "text": "Best,\n{{sender}}", "fallback": "Best," }
+  ]
+}

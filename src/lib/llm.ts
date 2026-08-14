@@ -5,9 +5,29 @@
 // a provider that errors or returns nothing is skipped and the next one is
 // tried, so a rate-limited primary doesn't take scoring down with it.
 
-import { LlmTarget, resolveLlmChain } from "@/lib/settings";
+import { resolveLlm, resolveLlmChain, type LlmTarget } from "@/lib/settings";
 
-export type ChatArgs = { system: string; user: string; temperature?: number };
+/**
+ * An endpoint the caller resolved itself, used instead of resolveLlm().
+ *
+ * The one caller is the routed follow-up email's tier ladder, which can end up
+ * on a keyless local Ollama that resolveLlm() cannot describe: nothing is in
+ * admin settings and nothing is in the env, the endpoint was found by probing
+ * loopback. Overriding the target keeps that tier on this single chat call
+ * instead of growing a second one beside it. `source` is free-form so a caller
+ * can label its own provenance ("ollama-local") without teaching settings.ts
+ * about tiers it does not own.
+ */
+export type ChatTarget = Omit<LlmTarget, "source"> & { source?: string };
+
+export type ChatArgs = {
+  system: string;
+  user: string;
+  temperature?: number;
+  /** Explicit endpoint. Omit to use the configured one (admin, then env). */
+  target?: ChatTarget;
+  signal?: AbortSignal;
+};
 export type ChatFn = (args: ChatArgs) => Promise<string>;
 export type FetchLike = (
   url: string,
@@ -22,11 +42,12 @@ export class LlmNotConfiguredError extends Error {
 }
 
 async function callOne(
-  target: LlmTarget,
-  { system, user, temperature = 0.2 }: ChatArgs,
+  target: Pick<LlmTarget, "baseUrl" | "apiKey" | "model">,
+  { system, user, temperature = 0.2, signal }: ChatArgs,
   fetchImpl: FetchLike,
 ): Promise<string> {
   const response = await fetchImpl(`${target.baseUrl}/chat/completions`, {
+
     method: "POST",
     headers: {
       Authorization: `Bearer ${target.apiKey}`,
@@ -41,6 +62,7 @@ async function callOne(
         { role: "user", content: user },
       ],
     }),
+    signal,
   });
   if (!response.ok) {
     const body = await response.text().catch(() => "");
@@ -80,9 +102,17 @@ export async function chatTextChain(
     : new Error("All LLM providers in the chain failed");
 }
 
-/** Chain-backed chat returning just the assistant text. */
-export const chatText: ChatFn = async (args) =>
-  (await chatTextChain(args)).text;
+/**
+ * Chain-backed chat returning just the assistant text. A caller-resolved
+ * target (the detected local Ollama tier, which the settings chain cannot
+ * describe) bypasses the chain and calls that one endpoint directly.
+ */
+export const chatText: ChatFn = async (args) => {
+  if (args.target) {
+    return callOne(args.target, args, fetch as unknown as FetchLike);
+  }
+  return (await chatTextChain(args)).text;
+};
 
 /** Strip accidental code fences before JSON.parse. */
 export function parseJsonLoose(text: string): unknown {

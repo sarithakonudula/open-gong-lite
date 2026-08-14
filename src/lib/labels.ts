@@ -142,6 +142,32 @@ export function contextFlagLabel(flag: string): string {
 }
 
 /**
+ * Routed follow-up vocabulary. The routed panel names the template that fired,
+ * the model that wrote the draft, and what the screen took out of it. Same two
+ * rules as the rest of this file: counts stay whole numbers, and no enum
+ * reaches the screen.
+ */
+export function routedPanelTitle(short: string): string {
+  return `Routed follow-up: ${short} template`;
+}
+
+const MODEL_SOURCE_LABEL: Record<string, string> = {
+  configured: "the model this deployment is configured with",
+  "ollama-local": "a model running on this machine",
+};
+
+export function modelSourceLabel(source: string): string {
+  return MODEL_SOURCE_LABEL[source] ?? source.replaceAll("_", " ");
+}
+
+/** "2 lines cut" or "0 lines cut". A count, never a share of anything. */
+export function linesCutLine(cut: number, offTemplateCut = 0): string {
+  const base = `${cut} line${cut === 1 ? "" : "s"} cut`;
+  if (offTemplateCut <= 0) return base;
+  return `${base}, ${offTemplateCut} of them off this template`;
+}
+
+/**
  * Deal-signal vocabulary. A signal either carries a line from the call or
  * says out loud that it does not; there is no third, quieter state.
  */

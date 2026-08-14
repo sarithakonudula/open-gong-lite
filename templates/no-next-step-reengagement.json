@@ -1,0 +1,38 @@
+{
+  "id": "no-next-step-reengagement",
+  "version": "1.0.0",
+  "title": "No next step re-engagement",
+  "short": "no next step",
+  "priority": 10,
+  "spec": "research/13-sybill-deep/05-template-library.md section 4, template 6",
+  "situation": "A call happened and nothing was agreed. The honest case.",
+  "notes": "This template never renders a next-steps block. A call with no agreed step gets no manufactured one, and no urgency language, because none of it is backed.",
+  "panel": {
+    "explainer": "No next step was agreed, so this template picked itself. A free model drafted it. The gate checked every line."
+  },
+  "subject": "Thanks for the time today",
+  "word_limit": 100,
+  "routing": {
+    "trigger": {
+      "all_of": [
+        { "section": "summary", "extractor": "summary" }
+      ],
+      "any_of": [
+        { "section": "next_steps", "extractor": "next_steps", "where": { "type": ["no_next_step"] } },
+        { "section": "next_steps", "extractor": "next_steps", "exists": false }
+      ],
+      "none_of": [
+        { "section": "next_steps", "extractor": "next_steps", "where": { "type": ["concrete_date", "send_info", "soft_followup"] } }
+      ]
+    }
+  },
+  "blocks": [
+    { "type": "text", "role": "greeting", "text": "Hi {{recipient}},", "fallback": "Hi there," },
+    { "type": "text", "role": "opener", "text": "Thanks for the time today. Here is what I took away." },
+    { "type": "slot", "role": "recap", "label": "What we covered", "section": "summary", "extractor": "summary", "limit": 2, "hint": "What the call was actually about." },
+    { "type": "slot", "role": "recap", "label": "What we covered", "section": "pain", "limit": 2, "hint": "Anything new the buyer named as a problem. Renders nothing when there was none." },
+    { "type": "instruction", "text": "Rewrite the lines above as one short email in the second person. Every sentence that says something about the call must carry the claim id it came from. We did not land on a next step, so ask one open question about what would be useful. Never invent a step, a date, or a reason to hurry. Short sentences." },
+    { "type": "text", "role": "cta", "text": "We did not land on a specific next step. What would be useful to you right now?" },
+    { "type": "text", "role": "signoff", "text": "Best,\n{{sender}}", "fallback": "Best," }
+  ]
+}
