@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
+import { OPEN_SEARCH_EVENT } from "@/components/shell/GlobalSearch";
 
 type NavItem = {
   href: string;
@@ -237,6 +238,31 @@ export function AppSidebar() {
         <span className="text-[15px] font-semibold tracking-tight text-fg">
           OpenGong Lite
         </span>
+      </div>
+
+      <div className="px-3 pt-2">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent(OPEN_SEARCH_EVENT))}
+          className="flex w-full items-center gap-2.5 rounded-lg border border-edge bg-surface px-3 py-2 text-sm text-fg-muted transition hover:border-edge-strong hover:text-fg"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            className={ICON_CLASS}
+            aria-hidden
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <span className="flex-1 text-left">Search</span>
+          <kbd className="rounded-md border border-edge bg-canvas px-1.5 py-0.5 text-[11px] font-medium text-fg-soft">
+            ⌘K
+          </kbd>
+        </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
