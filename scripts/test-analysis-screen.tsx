@@ -22,6 +22,7 @@ import {
   type NoteView,
 } from "../src/lib/analysis-view";
 import { DealNotesView } from "../src/components/DealNotesView";
+import { chokeFollowUp, emailableClaims } from "../src/lib/harness/email";
 import {
   hasPlaceholderEvidence,
   isPlaceholderQuote,
@@ -413,6 +414,91 @@ describe("a demoted note about the call outranks a backed template line", () => 
         "a chip carries a verbatim slice of its own line as its receipt",
       );
     }
+  });
+});
+
+describe("a category line never becomes a bullet in an email", () => {
+  const transcript: TranscriptLine[] = [
+    {
+      id: "L1",
+      index: 0,
+      speaker: "Prospect",
+      text: "we need to track phone calls and record them and send texts for the sales team",
+      startMs: 0,
+    },
+    {
+      id: "L2",
+      index: 1,
+      speaker: "Rep",
+      text: "i will send the comparison over on thursday so you can take it to your team",
+      startMs: 60_000,
+    },
+  ];
+
+  it("withholds a draft made only of template lines", () => {
+    const templateOnly: Claim[] = [
+      claim(
+        "A need or evaluation driver came up on the call.",
+        "L1",
+        "we need to track phone calls and record them",
+        "verified",
+      ),
+      claim(
+        "A follow-up artifact or meeting was mentioned.",
+        "L2",
+        "i will send the comparison over on thursday",
+        "verified",
+      ),
+    ];
+    assert.deepEqual(emailableClaims(templateOnly), []);
+    const out = chokeFollowUp({
+      title: "our call",
+      existing: {
+        subject: "Next steps",
+        body: "Thanks again.",
+        evidence: { lineId: "L1", quote: "we need to track phone calls" },
+      },
+      emailStatus: "verified",
+      claims: templateOnly,
+      transcript,
+    });
+    assert.match(out.subject, /withheld/i);
+    assert.doesNotMatch(out.body, /came up on the call/);
+    assert.equal(out.status, "uncorroborated");
+  });
+
+  it("still drafts from a note that says something about the call", () => {
+    const real: Claim[] = [
+      claim(
+        "Brianne needs call tracking, recording, and texting for her sales team.",
+        "L1",
+        "we need to track phone calls and record them",
+        "verified",
+      ),
+      claim(
+        "A date or checkpoint was mentioned.",
+        "L2",
+        "i will send the comparison over on thursday",
+        "verified",
+      ),
+    ];
+    const out = chokeFollowUp({
+      title: "our call",
+      existing: {
+        subject: "Next steps",
+        body: "Thanks again.",
+        evidence: { lineId: "L1", quote: "we need to track phone calls" },
+      },
+      emailStatus: "verified",
+      claims: real,
+      transcript,
+    });
+    assert.ok(out.body.includes("Brianne needs call tracking"));
+    assert.doesNotMatch(
+      out.body,
+      /A date or checkpoint was mentioned/,
+      "the template line rides along in the notes, never in the draft",
+    );
   });
 });
 

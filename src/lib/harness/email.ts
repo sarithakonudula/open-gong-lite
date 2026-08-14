@@ -1,3 +1,4 @@
+import { isCategoryNote } from "@/lib/note-text";
 import {
   Claim,
   ClaimStatus,
@@ -26,8 +27,20 @@ function assertClaimsOnly(claims: unknown): asserts claims is Claim[] {
   }
 }
 
+/**
+ * What may become a line in an outbound email.
+ *
+ * Two conditions, and both are hard. The claim has to have passed the gate,
+ * and it has to say something about this call. The second one is here because
+ * of a real draft: when the keyword extractor read a call it could not
+ * summarize, every template line it emitted verified trivially, and the email
+ * went out as six bullets of "X came up on the call" under the sentence
+ * "Every point above is backed by a line in the call." True, and unsendable.
+ */
 export function emailableClaims(claims: Claim[]): Claim[] {
-  return claims.filter((c) => isEmailableStatus(c.status));
+  return claims.filter(
+    (c) => isEmailableStatus(c.status) && !isCategoryNote(c.text),
+  );
 }
 
 /** Deterministic draft from gate-passed claims only. Never sees the transcript. */
